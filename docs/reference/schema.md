@@ -7,11 +7,21 @@ execsql inspect database --dsn sqlite:///project.sqlite --schema main --table sa
 execsql inspect database --dsn postgresql://localhost/project --schema public
 ```
 
-Output is always JSON. A successful lookup exits with status **0**, including when
-no objects match. Connection, catalog-query and cleanup failures exit with status
-**1** and include an `error` object. Invalid command arguments exit with status
-**2**. Only stdout contains the JSON result; do not combine stderr with it when
-parsing output.
+The CLI prints readable text by default: an overview of matching tables/views,
+column counts and key summaries, or ordered columns and relationships when
+`--table` is selected. Missing metadata is labeled unavailable or unknown.
+
+For the versioned JSON contract described below, add `--output-format json`:
+
+```sh
+execsql inspect database --dsn sqlite:///project.sqlite --table samples --output-format json
+```
+
+A successful lookup exits with status **0**, including when no objects match.
+Connection, catalog-query and cleanup failures exit with status **1**. Text mode
+reports errors and diagnostic hints on stderr; JSON mode returns an `error` object
+on stdout. Invalid command arguments exit with status **2**. Do not combine stderr
+with stdout when parsing JSON.
 
 ## Python
 
@@ -32,7 +42,7 @@ for table in metadata["tables"]:
 Supply exactly one of `dsn=` or `connection=`. The latter accepts an existing
 execsql `Database` adapter, including Access and ODBC DSN adapters. It is not a raw
 driver connection. `inspect_schema()` returns a JSON-compatible dictionary with
-exactly the same structure as the CLI. Invalid Python arguments raise `ValueError`;
+exactly the same structure as the CLI's `--output-format json` output. Invalid Python arguments raise `ValueError`;
 operational failures return `success: false`. Keyboard interrupts and process exits
 propagate after owned-connection cleanup.
 
@@ -45,8 +55,13 @@ query. The caller retains responsibility for its borrowed connection's transacti
 Concurrent operations on the same connection are not supported.
 
 Inspection does not run startup scripts or load execsql configuration files.
-URL connections never prompt for credentials or consult execsql's keyring. Supply
-credentials in the URL or use driver-supported authentication. Keep credential-bearing
+The Python API does not prompt by default and never consults execsql's keyring.
+`prompt_password=True` explicitly enables hidden password prompting for a URL
+that includes a user; an interactive stdin is required. The CLI automatically
+allows that prompt for text output on a terminal. `--no-passwd` disables it;
+`--prompt-password` explicitly allows it with JSON output. JSON and redirected
+stdin never prompt automatically. Otherwise, supply credentials in the URL or use
+driver-supported authentication. Keep credential-bearing
 URLs out of shell history and process arguments when possible; a Python connection
 lets applications use their own credential delivery. Returned errors use fixed,
 secret-free messages rather than echoing URLs or driver exception text. Diagnose a

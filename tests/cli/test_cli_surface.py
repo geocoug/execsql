@@ -161,7 +161,14 @@ class TestSurface:
         inspection = group.commands["inspect"]
         assert list(inspection.list_commands(None)) == ["database"]
         command = inspection.commands["database"]
-        assert _options(command, hidden=False) == {"--dsn", "--schema", "--table"}
+        assert _options(command, hidden=False) == {
+            "--dsn",
+            "--schema",
+            "--table",
+            "--output-format",
+            "--prompt-password",
+            "-w --no-passwd",
+        }
         assert _options(command, hidden=True) == set()
         assert not command.hidden
         assert [p for p in command.params if p.param_type_name == "argument"] == []

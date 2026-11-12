@@ -243,9 +243,13 @@ New options in `execsql.conf`:
 ### Tools
 
 - `execsql inspect database` and Python `execsql.inspect_schema()` inspect selected tables
-    or schemas as versioned JSON without running scripts or fetching application
+    or schemas without running scripts or fetching application
     rows. The [schema discovery reference](../reference/schema.md) documents
-    exact-name filters, metadata capabilities, errors and connection ownership.
+    exact-name filters, metadata capabilities, errors and connection ownership. The CLI
+    prints readable tables by default, or the shared JSON contract with
+    `--output-format json`. Password prompting is opt-in for the Python API and
+    automatic only for text-mode CLI inspection on an interactive terminal;
+    `--no-passwd` disables it and `--prompt-password` permits it with JSON.
 
 Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
 — no longer exist. The monolith paired a statement object with its source

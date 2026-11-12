@@ -13,12 +13,18 @@ ______________________________________________________________________
 
 ### Added
 
-- `execsql inspect database` and Python `inspect_schema()` return filtered, versioned JSON metadata for tables, columns and keys.
+- `execsql inspect database --prompt-password` and Python `inspect_schema(prompt_password=True)` allow password prompting on a terminal (automatic for CLI text output); `--no-passwd` disables CLI prompting.
+- Python `inspect_schema()` and `execsql inspect database --output-format json` return filtered, versioned metadata for tables, columns and keys.
 
 ### Changed
 
+- `execsql inspect database` prints readable table summaries and column/key details by default; use `--output-format json` for automation.
 - `inspect` is a reserved CLI command name; run a bare script named `inspect` with `execsql run inspect`.
 - **Nested substitution variables** expand faster in scripts with many defined variables.
+
+### Fixed
+
+- `execsql inspect database` errors distinguish missing files, malformed URLs and rejected credentials, with diagnostic hints for text output.
 
 ______________________________________________________________________
 

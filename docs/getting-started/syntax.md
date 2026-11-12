@@ -206,8 +206,12 @@ When `-t` is not specified, the default is SQLite (`l`).
 ## Options Reference { #options }
 
 `execsql inspect database` has its own options: required `--dsn URL`, optional
-`--schema NAME` and `--table NAME` (exact, case-sensitive names). It always prints
-JSON. See [schema discovery](../reference/schema.md) for the contract, scope and
+`--schema NAME` and `--table NAME` (exact, case-sensitive names), and
+`--output-format text|json` (text by default). Without `--table`, text summarizes
+matching objects; with it, text shows columns and relationships. Text on a terminal
+allows a hidden password prompt for a URL user. `-w` / `--no-passwd` disables it;
+`--prompt-password` explicitly allows it with JSON output on a terminal.
+Redirected stdin and JSON output never prompt automatically. See [schema discovery](../reference/schema.md) for the contract, scope and
 adapter support.
 
 The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
