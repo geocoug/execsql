@@ -69,12 +69,16 @@ def x_extendscript(**kwargs: Any) -> None:
 
 def x_extendscript_metacommand(**kwargs: Any) -> None:
     """Append a single metacommand line to an existing SCRIPT body."""
-    from execsql.script.parser import metacommand_node
+    from execsql.metacommands.control import unsupported_block_error
+    from execsql.script.parser import block_metacommand_name, metacommand_node
 
     block = _get_ast_script(kwargs["script"])
+    command = kwargs["cmd"].strip()
+    if name := block_metacommand_name(command):
+        raise unsupported_block_error(name)
     script_file, script_line_no = current_script_line()
     span = _new_span(script_file, script_line_no or 0)
-    block.body.append(metacommand_node(kwargs["cmd"].strip(), span))
+    block.body.append(metacommand_node(command, span))
 
 
 def x_extendscript_sql(**kwargs: Any) -> None:

@@ -85,54 +85,52 @@ def x_assert(**kwargs: Any) -> None:
         raise ErrInfo(type="assert", other_msg=message)
 
 
-def _ast_only_stub(name: str):
-    """Return an ErrInfo for a metacommand the AST executor handles structurally.
+def unsupported_block_error(name: str) -> ErrInfo:
+    """Explain a block boundary supplied dynamically instead of in source.
 
-    These handlers stay registered in the dispatch table so ``execsql list
-    keywords`` and the VS Code grammar generator still see the keyword.  The AST parser converts the source form (``IF`` / ``ENDIF`` /
-    ``LOOP`` / ``BEGIN BATCH`` / ``BREAK`` / ``ELSE`` / ``ELSEIF`` / ``ANDIF``
-    / ``ORIF``) into structural AST nodes that the executor walks directly —
-    none of these dispatch handlers fire for parsed scripts.  Reaching one
-    means the AST parser failed to recognise the keyword, which is a bug.
+    The dispatch entries also keep structural keywords discoverable. They
+    can be reached by variable text or an inline IF containing a boundary;
+    this is an unsupported script form, not an internal parser failure.
     """
-    from execsql.exceptions import ErrInfo
-
     return ErrInfo(
         type="cmd",
-        other_msg=f"{name} should be handled by the AST executor, not the dispatch table.",
+        other_msg=(
+            f"{name} cannot run here; write the complete block directly in the script. "
+            "To append a block, define it with BEGIN SCRIPT and use EXTEND SCRIPT ... WITH SCRIPT."
+        ),
     )
 
 
 def x_if(**kwargs: Any) -> None:
-    raise _ast_only_stub("IF")
+    raise unsupported_block_error("IF")
 
 
 def x_if_orif(**kwargs: Any) -> None:
-    raise _ast_only_stub("ORIF")
+    raise unsupported_block_error("ORIF")
 
 
 def x_if_andif(**kwargs: Any) -> None:
-    raise _ast_only_stub("ANDIF")
+    raise unsupported_block_error("ANDIF")
 
 
 def x_if_elseif(**kwargs: Any) -> None:
-    raise _ast_only_stub("ELSEIF")
+    raise unsupported_block_error("ELSEIF")
 
 
 def x_if_else(**kwargs: Any) -> None:
-    raise _ast_only_stub("ELSE")
+    raise unsupported_block_error("ELSE")
 
 
 def x_if_block(**kwargs: Any) -> None:
-    raise _ast_only_stub("IF")
+    raise unsupported_block_error("IF")
 
 
 def x_if_end(**kwargs: Any) -> None:
-    raise _ast_only_stub("ENDIF")
+    raise unsupported_block_error("ENDIF")
 
 
 def x_loop(**kwargs: Any) -> None:
-    raise _ast_only_stub("LOOP")
+    raise unsupported_block_error("LOOP")
 
 
 def x_halt(**kwargs: Any) -> None:
@@ -191,11 +189,11 @@ def x_metacommand_error_halt(**kwargs: Any) -> None:
 
 
 def x_begin_batch(**kwargs: Any) -> None:
-    raise _ast_only_stub("BEGIN BATCH")
+    raise unsupported_block_error("BEGIN BATCH")
 
 
 def x_end_batch(**kwargs: Any) -> None:
-    raise _ast_only_stub("END BATCH")
+    raise unsupported_block_error("END BATCH")
 
 
 def x_rollback(**kwargs: Any) -> None:
@@ -204,7 +202,7 @@ def x_rollback(**kwargs: Any) -> None:
 
 
 def x_break(**kwargs: Any) -> None:
-    raise _ast_only_stub("BREAK")
+    raise unsupported_block_error("BREAK")
 
 
 def x_wait_until(**kwargs: Any) -> None:
