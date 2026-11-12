@@ -66,3 +66,21 @@ Results are written to `scripts/benchmarks/results/`:
 
 Committed results represent one canonical run; re-run locally to get
 environment-specific numbers.
+
+## Nested substitution
+
+Measure expansion with 10, 100 and 1,000 unrelated variables, including nested
+names, unresolved tokens and ordinary-token controls:
+
+```sh
+uv run --python 3.13 python scripts/benchmarks/substitution.py --baseline-ref v2.40.0 \
+    > scripts/benchmarks/results/substitution.json
+```
+
+`--baseline-ref` loads `script/variables.py` from a **trusted local Git revision**
+for comparison with the working tree. Omit it to measure only the working tree.
+The benchmark asserts equal output and alternates the timing order of the two
+implementations. JSON reports median microseconds per expansion and the ratio of
+baseline time to current time. `--number` (default 500) controls expansions per
+sample; `--repeat` (default 5) controls the sample count. These are in-process
+substitution measurements, not end-to-end script speedups.
