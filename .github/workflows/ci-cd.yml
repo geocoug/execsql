@@ -261,6 +261,9 @@ jobs:
                 image: mariadb:11
                 env:
                     MARIADB_ROOT_PASSWORD: root
+                    MARIADB_DATABASE: execsql_test
+                    MARIADB_USER: execsql
+                    MARIADB_PASSWORD: execsql
                 ports:
                     - 3307:3306
                 options: >-

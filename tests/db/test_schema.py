@@ -14,7 +14,7 @@ from execsql.db.sqlite import SQLiteDatabase
 from tests.live_db import open_backend
 
 
-@pytest.mark.parametrize("dbms", ["sqlite", "duckdb", "postgres", "mysql", "sqlserver"])
+@pytest.mark.parametrize("dbms", ["sqlite", "duckdb", "postgres", "mysql", "mariadb", "sqlserver"])
 def test_live_catalog_composite_keys_and_views(dbms, tmp_path):
     db = open_backend(dbms, tmp_path)
     parent, child, view = "discovery_parent", "discovery_child", "discovery_view"
@@ -373,7 +373,7 @@ def test_odbc_exact_filters_escape_driver_patterns(filtered, name, escape):
     assert result["tables"][0]["columns"][0]["name"] == "id"
 
 
-@pytest.mark.parametrize("dbms", ["mysql"])
+@pytest.mark.parametrize("dbms", ["mysql", "mariadb"])
 def test_mysql_primary_keys_distinguish_case_sensitive_table_names(dbms, tmp_path):
     db = open_backend(dbms, tmp_path)
     lower, upper = "discovery_case", "discovery_Case"
