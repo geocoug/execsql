@@ -266,7 +266,7 @@ The `templates/` directory in this repository includes ready-to-use execsql scri
 
 ## Documentation
 
-Full documentation, including a complete metacommand reference and examples grouped by task, is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/).
+Full documentation, including a complete metacommand reference and examples grouped by task, is at [execsql2.readthedocs.io](https://execsql2.readthedocs.io/). Development priorities and proposed features are in the [roadmap](https://github.com/geocoug/execsql/blob/main/ROADMAP.md).
 
 ## Copyright and License
 

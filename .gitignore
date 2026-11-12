@@ -55,7 +55,6 @@ _execsql/
 !.claude/skills
 AUDIT.md
 DOC_AUDIT.md
-ROADMAP.md
 PROMPTS.md
 audit/
 .codex/*
