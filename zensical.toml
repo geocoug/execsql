@@ -24,14 +24,16 @@ nav = [
         { "execsql config" = "reference/cli/config.md" },
         { "execsql list" = "reference/cli/list.md" },
         { "execsql init" = "reference/cli/init.md" },
-        { "execsql lsp" = "reference/cli/lsp.md" }
+        { "execsql lsp" = "reference/cli/lsp.md" },
+        { "execsql inspect" = "reference/cli/inspect.md" }
     ] },
     { "Scripting" = [
         { "Reference" = [
             { "Metacommands" = "reference/metacommands.md" },
             { "Substitution Variables" = "reference/substitution_vars.md" },
             { "Configuration" = "reference/configuration.md" },
-            { "Security" = "reference/security.md" }
+            { "Security" = "reference/security.md" },
+            { "Schema discovery" = "reference/schema.md" }
         ] },
         { "Guides" = [
             { "SQL Syntax" = "guides/sql_syntax.md" },

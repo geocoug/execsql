@@ -64,20 +64,28 @@ def _postgres_db(tmp_path):
 
 
 def _mysql_db(tmp_path):
+    return _mysql_family_db("MYSQL", "3306")
+
+
+def _mariadb_db(tmp_path):
+    return _mysql_family_db("MARIADB", "3307")
+
+
+def _mysql_family_db(prefix, default_port):
     pytest.importorskip("pymysql", reason="pymysql not installed")
-    host = os.environ.get("EXECSQL_MYSQL_HOST", "localhost")
-    port = int(os.environ.get("EXECSQL_MYSQL_PORT", "3306"))
+    host = os.environ.get(f"EXECSQL_{prefix}_HOST", "localhost")
+    port = int(os.environ.get(f"EXECSQL_{prefix}_PORT", default_port))
     if not _server_listening(host, port):
         raise OSError(f"nothing listening at {host}:{port}")
     from execsql.db.mysql import MySQLDatabase
 
     db = MySQLDatabase(
         host,
-        os.environ.get("EXECSQL_MYSQL_DATABASE", "execsql_test"),
-        user_name=os.environ.get("EXECSQL_MYSQL_USER", "execsql"),
+        os.environ.get(f"EXECSQL_{prefix}_DATABASE", "execsql_test"),
+        user_name=os.environ.get(f"EXECSQL_{prefix}_USER", "execsql"),
         need_passwd=False,
         port=port,
-        password=os.environ.get("EXECSQL_MYSQL_PASSWORD", "execsql"),
+        password=os.environ.get(f"EXECSQL_{prefix}_PASSWORD", "execsql"),
     )
     db.open_db()
     return db
@@ -102,7 +110,7 @@ def _sqlserver_db(tmp_path):
 
 #: Backends ``open_backend`` can open that are not in ``BACKEND_NAMES``: the
 #: importer round trips parametrize over that list and do not cover these.
-_OTHER_BACKENDS = {"sqlserver": _sqlserver_db}
+_OTHER_BACKENDS = {"sqlserver": _sqlserver_db, "mariadb": _mariadb_db}
 
 
 _BACKENDS = {

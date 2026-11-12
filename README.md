@@ -36,6 +36,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary                                                                                                           | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                                                               | No                |
 | `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/stable/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
+| `execsql inspect database`                 | Inspect tables, columns, types and relationships as JSON                                                                                                              | Yes               |
 | [VS Code extension](extras/vscode-execsql) | Highlighting plus everything `execsql lsp` provides                                                                                                                   | No                |
 
 `format` and `lint` take files or directories.
@@ -113,6 +114,7 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
+execsql inspect database --dsn URL [--schema NAME] [--table NAME]
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
@@ -254,6 +256,18 @@ code --install-extension ./execsql-syntax.vsix
 Run the download and install commands in the same directory. The last command reads a local file; it fails with `ENOENT` if the file is missing. Alternatively, download the VSIX from the [current release](https://github.com/geocoug/execsql/releases/latest), then use VS Code's **Extensions → … → Install from VSIX…**.
 
 If you use other extras, retain them in the install command, for example `"execsql2[postgres,lsp]"`. See [VS Code setup and troubleshooting](https://execsql2.readthedocs.io/en/stable/guides/editors/vscode/) or [other editor setup](https://execsql2.readthedocs.io/en/stable/guides/editors/).
+
+## Schema discovery
+
+Inspect a table without running a script or reading its rows:
+
+```sh
+execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
+```
+
+Python callers can use `execsql.inspect_schema()` with a connection URL or an
+existing execsql adapter. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
+for the versioned JSON contract and adapter coverage.
 
 ## Templates
 

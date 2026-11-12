@@ -242,6 +242,11 @@ New options in `execsql.conf`:
 
 ### Tools
 
+- `execsql inspect database` and Python `execsql.inspect_schema()` inspect selected tables
+    or schemas as versioned JSON without running scripts or fetching application
+    rows. The [schema discovery reference](../reference/schema.md) documents
+    exact-name filters, metadata capabilities, errors and connection ownership.
+
 Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
 — no longer exist. The monolith paired a statement object with its source
 location and executed it through a `.run()` method; execsql2 parses to a
@@ -356,7 +361,7 @@ The CLI framework changed from `optparse` to [Typer](https://typer.tiangolo.com/
 
 Running `execsql` with no arguments prints the help and exits with status **2**, the conventional exit code for a usage error. Upstream printed the help and exited 0, so a CI step or shell script that invoked execsql without its arguments appeared to succeed.
 
-A command name — `run`, `format`, `lint`, `config`, `list`, `init` — always selects the command, even when a file of that name is in the working directory. A script named exactly like a command, with no extension, now runs with `execsql run NAME`; upstream ran `execsql NAME` as a script. The alternative, letting a file win, would let `execsql lint scripts/` execute a script called `lint` that happened to be in the working directory. Names with an extension (`lint.sql`) were never ambiguous.
+A command name — `run`, `format`, `lint`, `config`, `list`, `init`, `lsp`, `inspect` — always selects the command, even when a file of that name is in the working directory. A script named exactly like a command, with no extension, now runs with `execsql run NAME`; upstream ran `execsql NAME` as a script. The alternative, letting a file win, would let `execsql lint scripts/` execute a script called `lint` that happened to be in the working directory. Names with an extension (`lint.sql`) were never ambiguous.
 
 Seven upstream long-form flags were renamed underscore → hyphen and the underscore forms are **not** accepted: `--database-encoding`, `--script-encoding`, `--output-encoding`, `--import-encoding`, `--import-buffer`, `--user-logfile`, `--visible-prompts` (upstream wrote these with underscores). Scripts and CI pipelines that invoke the long-form flags must update the spelling; the short letters (`-e`, `-f`, `-g`, `-i`, `-l`, `-v`, `-z`) are unchanged.
 

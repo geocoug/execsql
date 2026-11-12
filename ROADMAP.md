@@ -6,36 +6,38 @@ remain the actionable backlog; this document records priorities, dependencies an
 completion criteria. Approving the roadmap accepts its priorities; implementation
 still requires approval of a specific change's scope. It assigns no release dates.
 
-**Next product milestone: filtered JSON schema discovery for agents.**
+**Next product milestone: versioned JSON execution results (A2).**
 Performance work can proceed alongside the product milestones. Each change needs
 an agreed scope; once approved, carry it through commits, PR, CI, required review
 and merge under [AGENTS.md](AGENTS.md).
 
-## Next milestone: schema discovery
+## Delivered: schema discovery (A1)
 
 Agents need database facts before authoring SQL. Build on the existing database
 adapters, JSON lint output, Python `execsql.run()` API, run manifest and dry-run
 parser rather than adding a separate execution engine.
 
-The schema-discovery change should provide:
+Schema discovery is available through `execsql inspect database` and Python
+`execsql.inspect_schema()` ([#190](https://github.com/geocoug/execsql/issues/190)).
+The [schema discovery reference](docs/reference/schema.md) defines its contract
+and adapter coverage. It provides:
 
 - Filtered metadata for a selected schema or table: tables, columns, types, keys,
     relationships and database dialect, without requiring the whole catalog in the
     caller's context.
-- A documented JSON contract shared by Python and CLI callers. JSON shape and
-    versioning, identifier/filter semantics, API names and CLI spelling belong to
-    the milestone's scoped design.
+- A documented JSON contract shared by Python and CLI callers. The contract uses `schema_version: 1`; filters are exact, case-sensitive
+    schema/table names.
 - A capability/support matrix accounting for every existing adapter. Use each
     adapter's available metadata capabilities and explicitly mark unavailable
-    fields; distinguish those from empty results and real query failures. The
-    scoped design defines the required portable fields and per-adapter coverage.
+    fields; distinguish those from empty results and real query failures. The reference documents native catalogs, ODBC capability detection and
+    live versus catalog-row verification.
 - Metadata-only inspection. Row sampling is an optional future extension with
     explicit opt-in; it is not part of A1's completion gate. Connection credentials
     stay out of results and diagnostics.
 - Tests and examples for filtering, identifiers, supported metadata, unavailable
     capabilities and query failures across the adapter support matrix.
 
-**Completion gate:** a caller can inspect a selected schema or table, understand
+**Completion gate met:** a caller can inspect a selected schema or table, understand
 which metadata is available, and consume a documented JSON contract with a
 versioning policy, without executing a SQL script or requesting row data.
 
@@ -47,10 +49,10 @@ interfaces that already exist; each milestone must be useful independently.
 
 | Milestone                                | Outcome and completion criteria                                                                                                                                                                                                                                                                                                                | Dependencies                                                               |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **A1. Schema discovery**                 | Filtered, read-only JSON metadata with explicit adapter capabilities and errors, as scoped above.                                                                                                                                                                                                                                              | Existing database adapters.                                                |
+| **A1. Schema discovery (delivered)**     | Filtered, read-only JSON metadata with explicit adapter capabilities and errors; see the interface above.                                                                                                                                                                                                                                      | Existing database adapters.                                                |
 | **A2. Versioned JSON execution results** | Document error codes, statement outcomes, reliable affected-row counts and transaction outcomes. Share the result schema across CLI, Python and future integrations. Report confirmed commits, rollbacks and unknown outcomes separately, including work committed before failure; a failed run must not imply atomic execution or safe retry. | Existing manifest and Python API; coordinate the JSON conventions with A1. |
 | **A3. Unattended mode**                  | Inventory every password request, `PROMPT`, `PAUSE` and other interactive operation. Each consumes an explicitly supplied answer or returns a structured input-required error. Define prompt identifiers and credential delivery; do not guess answers or expose secrets in output.                                                            | A2 for structured input-required outcomes.                                 |
-| **A4. Machine-readable preflight**       | Reuse the parser/dry run to report includes, required inputs, connections, file writes, shell commands and unresolved expressions, with source locations. Mark runtime-dependent effects as unknown. Static inspection does not prove SQL, procedures or external commands safe.                                                               | Existing parser/dry run; this can be developed independently of A2–A3.     |
+| **A4. Machine-readable preflight**       | Add `execsql inspect script` using the parser/dry run to report includes, required inputs, connections, file writes, shell commands and unresolved expressions, with source locations. Mark runtime-dependent effects as unknown. Static inspection does not prove SQL, procedures or external commands safe.                                  | Existing parser/dry run; this can be developed independently of A2–A3.     |
 | **A5. Optional MCP interface**           | Expose schema inspection, script validation and execution of explicitly selected scripts through the established APIs and result schemas. Keep the integration optional and define execution permissions separately from inspection access.                                                                                                    | Completed A1–A4 interfaces; no duplicated execution engine.                |
 
 Explicit run context is not a prerequisite for A1–A5. Each interface must respect

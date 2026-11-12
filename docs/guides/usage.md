@@ -2,7 +2,7 @@
 
 ## Required Arguments
 
-Use `execsql run SCRIPT.sql` or `execsql run -c "SQL or metacommand text"`. Connection information can come from [configuration files](../reference/configuration.md#configuration), a DSN or positional connection arguments. `execsql --help` lists all seven subcommands; invoking execsql without arguments prints usage and exits with status 2.
+Use `execsql run SCRIPT.sql` or `execsql run -c "SQL or metacommand text"`. Connection information can come from [configuration files](../reference/configuration.md#configuration), a DSN or positional connection arguments. `execsql --help` lists all eight subcommands; invoking execsql without arguments prints usage and exits with status 2.
 
 <a id="continuationchars"></a>
 

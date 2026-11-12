@@ -1,7 +1,7 @@
 """Command dispatch for the ``execsql`` console script.
 
-execsql is six commands behind one program — ``run``, ``format``, ``lint``,
-``config``, ``list`` and ``init`` — each a real :class:`typer.Typer` command,
+execsql provides commands — ``run``, ``format``, ``lint``, ``config``,
+``list``, ``init``, ``lsp`` and ``inspect`` — each a real :class:`typer.Typer` command,
 so ``execsql --help`` lists them the way any multi-command CLI does.
 
 What this module adds on top is one rule, applied before the parser sees
@@ -29,7 +29,7 @@ from __future__ import annotations
 __all__ = ["COMMANDS", "GLOBAL_FLAGS", "dispatch", "normalize"]
 
 #: Tokens that name a command.
-COMMANDS = ("run", "format", "lint", "config", "list", "init", "lsp")
+COMMANDS = ("run", "format", "lint", "config", "list", "init", "lsp", "inspect")
 
 #: Options declared on the app rather than on a command, which must reach
 #: the parser without ``run`` in front of them. ``-m``, ``--encodings`` and

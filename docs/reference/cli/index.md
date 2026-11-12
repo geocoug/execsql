@@ -11,6 +11,7 @@ The package is named `execsql2`; the executable is **execsql**. Run `execsql --h
 | [list](list.md)                        | Discover metacommands, encodings, plugins and keywords.                  | No               |
 | [init](init.md)                        | Create project configuration, a script and pre-commit hooks.             | No               |
 | [lsp](lsp.md)                          | Provide language features to your editor.                                | No               |
+| [inspect](inspect.md)                  | Inspect database structure before execution.                             | Yes              |
 
 ## First workflow
 

@@ -6,7 +6,7 @@
 
 ## Commands { #commands }
 
-*execsql* has seven subcommands. See the [command overview](../reference/cli/index.md). Only `run` connects to a database:
+*execsql* has eight subcommands. See the [command overview](../reference/cli/index.md). `run` executes scripts; `inspect database` connects for metadata-only inspection:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
@@ -14,19 +14,21 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords [--output-format text|json]
+execsql inspect database --dsn URL [--schema NAME] [--table NAME]
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
 
-| Command  | Purpose                                                                                                 |
-| -------- | ------------------------------------------------------------------------------------------------------- |
-| `run`    | Execute a script against a database.                                                                    |
-| `format` | Normalize metacommand keywords, block indentation, and SQL layout.                                      |
-| `lint`   | Static analysis without a database. Exits 1 when any error is found.                                    |
-| `config` | List every config option with its value, default and source; `--init` prints the template.              |
-| `list`   | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.                  |
-| `init`   | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.                     |
-| `lsp`    | The language server editors start for `.sql` files; see [Editor Support](../guides/editors.md#editors). |
+| Command   | Purpose                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| `run`     | Execute a script against a database.                                                                    |
+| `format`  | Normalize metacommand keywords, block indentation, and SQL layout.                                      |
+| `lint`    | Static analysis without a database. Exits 1 when any error is found.                                    |
+| `config`  | List every config option with its value, default and source; `--init` prints the template.              |
+| `list`    | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.                  |
+| `init`    | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.                     |
+| `lsp`     | The language server editors start for `.sql` files; see [Editor Support](../guides/editors.md#editors). |
+| `inspect` | Read-only database metadata; see [inspect database](../reference/cli/inspect.md).                       |
 
 `format` and `lint` accept files or directories; directories are searched
 recursively for `*.sql`, and `-` reads one script from stdin. A CI job runs them
@@ -59,7 +61,7 @@ once per invocation, not from each script's directory.
     | `execsql --ping …`        | `execsql run --ping …`                       |
 
     Until then, a script named exactly like a command — `run`, `format`,
-    `lint`, `config`, `list`, `init` or `lsp`, with no extension — must be run
+    `lint`, `config`, `list`, `init`, `lsp` or `inspect`, with no extension — must be run
     as `execsql run lint`: a command name always selects
     the command. Names with an extension, such as `lint.sql`, are never
     ambiguous.
@@ -202,6 +204,11 @@ When `-t` is not specified, the default is SQLite (`l`).
 | `d`  | ODBC DSN        |
 
 ## Options Reference { #options }
+
+`execsql inspect database` has its own options: required `--dsn URL`, optional
+`--schema NAME` and `--table NAME` (exact, case-sensitive names). It always prints
+JSON. See [schema discovery](../reference/schema.md) for the contract, scope and
+adapter support.
 
 The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
 `execsql run --help` lists them all. `-h`/`--help` works on every command.
