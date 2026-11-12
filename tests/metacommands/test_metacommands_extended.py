@@ -723,18 +723,12 @@ class TestControlHandlers:
             ("x_loop", {}),
         ],
     )
-    def test_legacy_handler_raises_ast_only_stub(self, handler_name, kwargs):
-        """Dispatch handlers for AST-structural keywords raise loud ErrInfo.
-
-        IF / ELSE / ELSEIF / ANDIF / ORIF / ENDIF / BEGIN BATCH / END BATCH
-        / BREAK / LOOP are recognised by the AST parser and dispatched
-        structurally by the executor; reaching the dispatch handler means
-        the parser failed to recognise the keyword.
-        """
+    def test_dynamic_block_handler_explains_supported_form(self, handler_name, kwargs):
+        """Dynamic boundaries report a script error with a supported alternative."""
         import execsql.metacommands.control as control
 
         handler = getattr(control, handler_name)
-        with pytest.raises(ErrInfo, match="AST executor"):
+        with pytest.raises(ErrInfo, match="write the complete block directly"):
             handler(**kwargs)
 
 

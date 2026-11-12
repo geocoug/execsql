@@ -1,0 +1,9 @@
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! SUB cmd IF (FALSE)
+-- !x! !!cmd!!
+-- !x! IF (METACOMMAND_ERROR()) { WRITE "refused IF" TO out.txt }
+-- !x! WRITE "body" TO out.txt
+-- !x! SUB cmd ENDIF
+-- !x! !!cmd!!
+-- !x! IF (METACOMMAND_ERROR()) { WRITE "refused ENDIF" TO out.txt }
+-- !x! WRITE "after" TO out.txt

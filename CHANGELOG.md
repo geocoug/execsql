@@ -11,6 +11,15 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- `EXTEND SCRIPT ... WITH METACOMMAND` rejects block boundaries before adding them; define complete blocks with `BEGIN SCRIPT` and append them with `WITH SCRIPT`.
+- Block metacommands supplied by substitution variables consistently follow `METACOMMAND_ERROR_HALT`, including `END LOOP`, `BEGIN` / `CREATE` / `END SCRIPT` and `BEGIN` / `END SQL`.
+
+### Fixed
+
+- Dynamic block metacommand errors explain where to write the block instead of reporting an internal parser failure.
+
 ______________________________________________________________________
 
 ## [2.39.1] - 2026-11-11

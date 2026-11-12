@@ -496,6 +496,13 @@ def _exec_metacommand(
             if (manifest := _manifest.current()) is not None:
                 manifest.record_metacommand(cmd, source, line_no, metacommandlist)
             return result
+        # Variable-supplied boundaries without a dispatch entry (END LOOP,
+        # SCRIPT and SQL) follow the same error policy as IF and BEGIN BATCH.
+        from execsql.metacommands.control import unsupported_block_error
+        from execsql.script.parser import block_metacommand_name
+
+        if name := block_metacommand_name(cmd):
+            raise unsupported_block_error(name)
     except _ScriptExecutionError as failure:
         # The called script already owns its error policy; do not apply the prompt's again.
         raise failure.error from failure.error.__cause__
