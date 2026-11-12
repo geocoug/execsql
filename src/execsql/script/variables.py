@@ -311,17 +311,24 @@ class SubVarSet:
         # variable.  Matches original monolith behavior.
         return self._substitute_nested(command_str)
 
+    # Lookahead sees overlapping delimiters in !!N_!!GROUP!!_CHECKS!!.
+    # Accept arbitrary names here: the compatibility `substitutions` setter
+    # historically permits names outside the normal variable-name grammar.
+    _NESTED_TOKEN_RX = re.compile(r"(?=!(?P<q>['\"]?)!(?P<name>[^!]*)!(?P=q)!)")
+
     def _substitute_nested(self, command_str: str) -> tuple:
         """Scan for any defined variable as a substring — handles nested tokens.
 
-        Uses case-insensitive string search instead of per-variable regex
-        compilation to avoid O(N) ``re.compile`` calls on every invocation.
+        One overlapping scan identifies candidate names before the ordered
+        variable walk. Keep definition order and plain/single/double quote
+        priority: replacing the leftmost nested token would change results.
         """
         # Every token below starts with one of these, so text without them
         # can't match; skip the scan over every defined variable.
         if "!!" not in command_str and "!'!" not in command_str and '!"!' not in command_str:
             return command_str, False
         cmd_lower = command_str.lower()
+        candidates = {match.group("name") for match in self._NESTED_TOKEN_RX.finditer(cmd_lower)}
 
         def _check_nul(name: str, value: str) -> None:
             """B07a/F002: raise when *value* (about to be interpolated)
@@ -337,6 +344,11 @@ class SubVarSet:
             if sub is None:
                 sub = ""
             sub = str(sub)
+            # Keep converting values in definition order, as before. Names
+            # containing ! (possible through the compatibility setter) need
+            # the literal scan because they span more than two delimiters.
+            if isinstance(varname, str) and varname not in candidates and "!" not in varname:
+                continue
             # Standard token: !!varname!!
             token = f"!!{varname}!!"
             idx = cmd_lower.find(token)
