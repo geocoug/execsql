@@ -48,8 +48,10 @@ The existing policy is preserved:
 - Findings at round 3 require the maintainer's direction and approval. Only
   the maintainer may write `.approved` files or reset round state, in their
   terminal (or with `!` in Claude Code). The agent must never do either.
-- Commit, push, and merge still require the user's instruction. Passing this
-  hook does not authorize them.
+- Maintainer approval of a change authorizes the commit, push, PR, CI, review
+  and merge workflow described in `AGENTS.md`; do not ask again for each step.
+  Passing this hook alone does not authorize a change or bypass decisions that
+  still require maintainer input.
 
 State remains under `<git common dir>/claude-review/pr-<number>/`: `state.json`,
 reports, and head-specific `.approved` files. Legacy `state` files are read too.

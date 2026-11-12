@@ -11,7 +11,8 @@ import pytest
 
 @pytest.mark.parametrize("overflow", [False, True])
 @pytest.mark.parametrize("busy_events", [False, True])
-def test_native_action_controls_fit_initial_window_and_overflow_scrolls(overflow, busy_events):
+@pytest.mark.parametrize("late_layout", [False, True])
+def test_native_action_controls_fit_initial_window_and_overflow_scrolls(overflow, busy_events, late_layout):
     pytest.importorskip("tkinter")
     script = """
 import json, sys, tkinter as tk
@@ -58,6 +59,10 @@ def inspect():
     action=next(w for w in controls if isinstance(w,ttk.Button) and str(w.cget('text')).split('\\n')[0]=='Record selected row')
     canvas=next(w for w in controls if isinstance(w,tk.Canvas))
     last=next(w for w in controls if isinstance(w,ttk.Button) and w.cget('text')==('Action 11' if options['overflow'] else 'Record selected row'))
+    def scroll_last_into_view():
+        # Reflow can change the scroll region after a previous scroll request.
+        canvas.yview_moveto(1)
+        return inside(last,win)
     def accept_selection():
         assert not action.instate(['disabled'])
         action.invoke()
@@ -71,7 +76,17 @@ def inspect():
     def inspect_resized():
         assert inside(cancel,win), 'Cancel is clipped after resizing'
         canvas.yview_moveto(1)
-        wait_until(lambda: inside(last,win), inspect_scrolled, 'resized content to scroll to its last action')
+        old_bottom=canvas.bbox('all')[3]
+        if options['late_layout']:
+            # Wrapping can finish after the native window and footer resize.
+            # Grow the message after the first scroll, before its next layout.
+            message_label=next(w for w in controls if isinstance(w,ttk.Label) and w.cget('text')==args['message'])
+            message_label.configure(text=args['message']+' Deferred wrapping.'*200)
+        def last_is_visible():
+            if options['late_layout'] and canvas.bbox('all')[3] <= old_bottom:
+                return False
+            return scroll_last_into_view()
+        wait_until(last_is_visible, inspect_scrolled, 'resized content to scroll to its last action')
     def resize():
         win.geometry('440x260')
         wait_until(lambda: (win.winfo_width(),win.winfo_height()) == (440,260) and inside(cancel,win), inspect_resized, 'resized window and Cancel control geometry')
@@ -88,7 +103,7 @@ def inspect():
         assert win.winfo_width() <= win.winfo_screenwidth()-40
         if options['overflow']:
             canvas.yview_moveto(1)
-            wait_until(lambda: inside(last,win), inspect_overflow, 'initial content to scroll to its last action')
+            wait_until(scroll_last_into_view, inspect_overflow, 'initial content to scroll to its last action')
         else:
             assert inside(action,win),'Action is clipped at the initial size'
             for label in [w for w in controls if isinstance(w,ttk.Label) and w.cget('text')]:
@@ -128,7 +143,12 @@ finally:
         pass
 """
     completed = subprocess.run(
-        [sys.executable, "-c", script, json.dumps({"overflow": overflow, "busy_events": busy_events})],
+        [
+            sys.executable,
+            "-c",
+            script,
+            json.dumps({"overflow": overflow, "busy_events": busy_events, "late_layout": late_layout}),
+        ],
         capture_output=True,
         text=True,
         timeout=30,
