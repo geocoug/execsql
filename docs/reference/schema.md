@@ -73,7 +73,9 @@ Without a schema filter, scope follows the adapter:
 | Firebird           | User tables and views; schema is `null`. A schema filter returns no matches.                                                                            |
 | Access / ODBC DSN  | Objects visible through the driver's ODBC catalog APIs. Each table includes its reported catalog, to distinguish identical names in different catalogs. |
 
-Only matching tables/views get their column and constraint metadata fetched.
+Only matching tables/views are included in the detailed results. ODBC drivers
+without search-pattern escaping may enumerate additional catalog candidates to
+match literal wildcard characters exactly.
 Referenced-column names may require reading a referenced table's key metadata;
 that does not add the referenced table to the result. No application row values,
 row counts, credentials or complete DDL are included. Database permissions still

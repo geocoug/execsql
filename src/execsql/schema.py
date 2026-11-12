@@ -124,6 +124,8 @@ JOIN information_schema.key_column_usage p
 ON p.constraint_catalog = r.unique_constraint_catalog AND p.constraint_schema = r.unique_constraint_schema
 AND p.constraint_name = r.unique_constraint_name AND p.ordinal_position = k.position_in_unique_constraint
 WHERE k.table_schema = ? AND k.table_name = ?"""
+_MYSQL_PK = """SELECT column_name FROM information_schema.key_column_usage
+WHERE constraint_name = 'PRIMARY' AND table_schema = ? AND table_name = ? ORDER BY ordinal_position"""
 _MYSQL_FK = """SELECT constraint_name, ordinal_position, column_name,
 referenced_table_schema, referenced_table_name, referenced_column_name
 FROM information_schema.key_column_usage WHERE table_schema = ? AND table_name = ?
@@ -181,7 +183,7 @@ def _information_schema(db: Database, schema: str | None, table: str | None) -> 
         item = _table(namespace, name, "view" if "VIEW" in kind.upper() else "table")
         values = [namespace, name]
         column_sql = _INFO_COLUMNS
-        pk_sql = _PG_PK if dialect == "PostgreSQL" else _INFO_PK
+        pk_sql = {"PostgreSQL": _PG_PK, "MySQL": _MYSQL_PK}.get(dialect, _INFO_PK)
         if dialect in ("PostgreSQL", "DuckDB"):
             column_sql = column_sql.replace("WHERE ", "WHERE table_catalog = current_database() AND ", 1)
         if dialect == "DuckDB":
@@ -292,14 +294,41 @@ def _optional_catalog(cursor: Any, method: str, **filters: Any) -> list[Any] | N
         raise
 
 
+def _literal_pattern(name: str | None, escape: str) -> str | None:
+    """Escape an exact name for an ODBC pattern argument, not an identifier."""
+    if name is None:
+        return None
+    if not escape:
+        # A driver with no escape support cannot express a literal wildcard.
+        # Enumerate candidates instead and retain the exact identity below.
+        return None if any(c in name for c in "%_") else name
+    return "".join(escape + c if c in escape + "%_" else c for c in name)
+
+
 def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
     from execsql.db.access import AccessDatabase
 
     if isinstance(db, AccessDatabase):
         db.dao_flush_check()
+    try:
+        # SQL_SEARCH_PATTERN_ESCAPE (ODBC SQLGetInfo constant, independent of
+        # optional pyodbc imports so catalog-row tests need no installed driver).
+        escape = db.conn.getinfo(14)
+    except Exception as exc:
+        if not (exc.args and exc.args[0] in ("IM001", "HYC00")):
+            raise
+        escape = ""
+    if not isinstance(escape, str) or len(escape) > 1:
+        raise ValueError("Invalid ODBC catalog search-pattern escape.")
     tables = []
     with db._cursor() as cursor:
-        found = list(cursor.tables(table=table, schema=schema, tableType="TABLE,VIEW"))
+        found = list(
+            cursor.tables(
+                table=_literal_pattern(table, escape),
+                schema=_literal_pattern(schema, escape),
+                tableType="TABLE,VIEW",
+            ),
+        )
         for row in found:
             namespace, name, kind = row[1], row[2], row[3]
             if not _matches(namespace, name, schema, table):
@@ -308,7 +337,13 @@ def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str,
             item["catalog"] = row[0]
             # Pattern-based catalog methods may return extra objects. Filter the
             # returned identities exactly before accepting any of their metadata.
-            cols = list(cursor.columns(table=name, schema=namespace, catalog=row[0]))
+            cols = list(
+                cursor.columns(
+                    table=_literal_pattern(name, escape),
+                    schema=_literal_pattern(namespace, escape),
+                    catalog=row[0],
+                ),
+            )
             item["columns"] = [
                 _column(c[3], int(c[16]), c[5], None if c[10] == 2 else bool(c[10]))
                 for c in cols

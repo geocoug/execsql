@@ -196,6 +196,7 @@ def test_all_adapter_catalog_contracts_and_bound_filters(dialect):
     namespace = None if dialect in ("Firebird", "Access", "DSN") else "project"
     name = "sample's"
     if dialect in ("Access", "DSN"):
+        db.conn.getinfo.return_value = "\\"
         cursor.tables.return_value = [("catalog", namespace, name, "TABLE")]
         row = [None] * 18
         row[0:4] = ["catalog", namespace, name, "id"]
@@ -266,6 +267,7 @@ def test_odbc_only_explicit_unsupported_errors_mean_unavailable(state):
 def test_odbc_keys_keep_column_order_and_filter_other_objects():
     db = MagicMock()
     db.type.dbms_id = "DSN"
+    db.conn.getinfo.return_value = "\\"
     cursor = db._cursor.return_value.__enter__.return_value
     cursor.tables.return_value = [("cat", "public", "t%", "TABLE")]
     cursor.columns.return_value = []
@@ -314,3 +316,83 @@ def test_sqlite_unresolvable_parent_key_is_explicit(sqlite_db):
     result = inspect_schema(connection=sqlite_db, table="child")
     assert result["success"]
     assert result["tables"][0]["foreign_keys"][0]["referenced_columns"] == [None]
+
+
+@pytest.mark.parametrize("filtered", [False, True])
+@pytest.mark.parametrize("name", ["t\\_", "t\\%", "t%_", "t\\"])
+@pytest.mark.parametrize("escape", ["\\", "!", ""])
+def test_odbc_exact_filters_escape_driver_patterns(filtered, name, escape):
+    import re
+
+    namespace, catalog = "s" + escape + "_", "catalog%_\\"
+    identity = (catalog, namespace, name)
+
+    def matches(value, pattern):
+        if pattern is None:
+            return True
+        expression, index = "", 0
+        while index < len(pattern):
+            char = pattern[index]
+            if escape and char == escape and index + 1 < len(pattern):
+                index += 1
+                expression += re.escape(pattern[index])
+            else:
+                expression += {"%": ".*", "_": "."}.get(char, re.escape(char))
+            index += 1
+        return re.fullmatch(expression, value) is not None
+
+    class Cursor:
+        def tables(self, *, table, schema, tableType):
+            return [(*identity, "TABLE")] if matches(name, table) and matches(namespace, schema) else []
+
+        def columns(self, *, table, schema, catalog):
+            assert catalog == identity[0]  # SQLColumns catalog is literal.
+            if not matches(name, table) or not matches(namespace, schema):
+                return []
+            row = [None] * 18
+            row[:4] = [*identity, "id"]
+            row[5], row[10], row[16] = "INTEGER", 0, 1
+            return [row]
+
+        def primaryKeys(self, **filters):
+            assert filters == {"table": name, "schema": namespace, "catalog": catalog}
+            return []
+
+        def foreignKeys(self, **filters):
+            assert filters == {"foreignTable": name, "foreignSchema": namespace, "foreignCatalog": catalog}
+            return []
+
+    db = MagicMock()
+    db.type.dbms_id = "DSN"
+    db.conn.getinfo.return_value = escape
+    db._cursor.return_value.__enter__.return_value = Cursor()
+    result = inspect_schema(connection=db, schema=namespace if filtered else None, table=name if filtered else None)
+    assert result["success"], result
+    assert len(result["tables"]) == 1
+    assert result["tables"][0]["name"] == name
+    assert result["tables"][0]["columns"][0]["name"] == "id"
+
+
+@pytest.mark.parametrize("dbms", ["mysql"])
+def test_mysql_primary_keys_distinguish_case_sensitive_table_names(dbms, tmp_path):
+    db = open_backend(dbms, tmp_path)
+    lower, upper = "discovery_case", "discovery_Case"
+    created = []
+    try:
+        with db._cursor() as cursor:
+            cursor.execute("SELECT @@lower_case_table_names")
+            if cursor.fetchone()[0] != 0:
+                pytest.skip("Server folds table names; case-distinct objects cannot exist")
+        db.execute(f"CREATE TABLE {lower} (lower_id INT PRIMARY KEY)")
+        created.append(lower)
+        db.execute(f"CREATE TABLE {upper} (upper_id INT PRIMARY KEY)")
+        created.append(upper)
+        for name, column in ((lower, "lower_id"), (upper, "upper_id")):
+            result = inspect_schema(connection=db, table=name)
+            assert result["success"]
+            assert [t["name"] for t in result["tables"]] == [name]
+            assert result["tables"][0]["primary_key"] == [column]
+    finally:
+        for name in reversed(created):
+            db.execute(f"DROP TABLE IF EXISTS {name}")
+        db.close()
