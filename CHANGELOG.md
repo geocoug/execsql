@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- `execsql list schema` and Python `inspect_schema()` return filtered, versioned JSON metadata for tables, columns and keys.
+
 ### Changed
 
 - **Nested substitution variables** expand faster in scripts with many defined variables.

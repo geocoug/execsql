@@ -246,10 +246,12 @@ class _LibraryConfig:
 # ---------------------------------------------------------------------------
 
 
-def _connect_from_dsn(dsn: str, new_db: bool = False) -> Any:
+def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool = True) -> Any:
     """Create a database connection from a DSN URL string.
 
     Returns a :class:`~execsql.db.base.Database` subclass instance.
+    With *prompt_password* false, use supplied or driver credentials without
+    interactive password/keyring lookup.
     """
     from execsql.db.factory import (
         db_Access,
@@ -284,6 +286,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False) -> Any:
             server or "localhost",
             db_name,
             user=user,
+            pw_needed=prompt_password,
             password=password,
             port=port or 5432,
             new_db=new_db,
@@ -293,6 +296,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False) -> Any:
             server or "localhost",
             db_name,
             user=user,
+            pw_needed=prompt_password,
             password=password,
             port=port or 3306,
         )
@@ -301,6 +305,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False) -> Any:
             server or "localhost",
             db_name,
             user=user,
+            pw_needed=prompt_password,
             password=password,
             port=port,
             trust_server_certificate=params["trust_server_certificate"],
@@ -310,6 +315,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False) -> Any:
             server or "localhost",
             db_name,
             user=user,
+            pw_needed=prompt_password,
             password=password,
             port=port or 1521,
         )
@@ -318,6 +324,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False) -> Any:
             server or "localhost",
             db_name or db_file,
             user=user,
+            pw_needed=prompt_password,
             password=password,
             port=port or 3050,
         )

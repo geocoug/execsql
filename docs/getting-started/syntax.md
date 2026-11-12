@@ -6,7 +6,7 @@
 
 ## Commands { #commands }
 
-*execsql* has seven subcommands. See the [command overview](../reference/cli/index.md). Only `run` connects to a database:
+*execsql* has seven subcommands. See the [command overview](../reference/cli/index.md). `run` executes scripts; `list schema` connects for metadata-only inspection:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
@@ -14,6 +14,7 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords [--output-format text|json]
+execsql list schema --dsn URL [--schema NAME] [--table NAME]
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
@@ -202,6 +203,11 @@ When `-t` is not specified, the default is SQLite (`l`).
 | `d`  | ODBC DSN        |
 
 ## Options Reference { #options }
+
+`execsql list schema` has its own options: required `--dsn URL`, optional
+`--schema NAME` and `--table NAME` (exact, case-sensitive names). It always prints
+JSON. See [schema discovery](../reference/schema.md) for the contract, scope and
+adapter support.
 
 The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
 `execsql run --help` lists them all. `-h`/`--help` works on every command.

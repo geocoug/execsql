@@ -3,6 +3,7 @@
 ```text
 execsql list metacommands|encodings|plugins|keywords [--output-format text|json]
 execsql list metacommands [KEYWORD] [--output-format text|json]
+execsql list schema --dsn URL [--schema NAME] [--table NAME]
 ```
 
 | Command        | Prints                                                                                                                                                                                      |
@@ -15,3 +16,8 @@ execsql list metacommands [KEYWORD] [--output-format text|json]
 Each list is its own command, `execsql list keywords --help` included. With
 `--output-format json`, `keywords` prints the JSON that editor tooling such as
 the VS Code grammar generator reads.
+
+`schema` connects to the selected database and always prints versioned JSON.
+Use exact schema and table names to limit the returned metadata; no application
+rows are fetched. See [schema discovery](../schema.md) for examples, errors,
+connection ownership and adapter capabilities.

@@ -242,6 +242,11 @@ New options in `execsql.conf`:
 
 ### Tools
 
+- `execsql list schema` and Python `execsql.inspect_schema()` inspect selected tables
+    or schemas as versioned JSON without running scripts or fetching application
+    rows. The [schema discovery reference](../reference/schema.md) documents
+    exact-name filters, metadata capabilities, errors and connection ownership.
+
 Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
 — no longer exist. The monolith paired a statement object with its source
 location and executed it through a `.run()` method; execsql2 parses to a

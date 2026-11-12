@@ -122,6 +122,7 @@ SURFACE: dict[str, dict[str, object]] = {
 
 #: ``execsql list`` is a group: one command per reference list.
 LIST_COMMANDS = {name: {"--output-format"} for name in ("metacommands", "encodings", "plugins", "keywords")}
+LIST_COMMANDS["schema"] = {"--dsn", "--schema", "--table"}
 
 
 def _spellings(param) -> str:
