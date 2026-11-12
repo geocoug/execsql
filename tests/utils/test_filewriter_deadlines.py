@@ -140,6 +140,15 @@ def test_flush_deadline_bounds_live_worker_and_prevents_later_output(tmp_path, m
     real_open = builtins.open
     real_resolve = Path.resolve
     real_failures = fileio.FileWriter.open_failures
+    real_reply = fileio._writer_reply
+    reply_count = 0
+
+    def reply(fw, deadline, wait):
+        nonlocal reply_count
+        if phase == "close" or (phase == "failures" and reply_count == 1):
+            assert entered.wait(2), "worker did not reach the selected I/O gate"
+        reply_count += 1
+        return real_reply(fw, deadline, wait)
 
     def gated_open(*args, **kwargs):
         filename = kwargs.get("file", args[0] if args else "")
@@ -164,23 +173,22 @@ def test_flush_deadline_bounds_live_worker_and_prevents_later_output(tmp_path, m
 
     monkeypatch.setattr(Path, "resolve", gated_resolve)
     monkeypatch.setattr(fileio, "open", gated_open, raising=False)
+    monkeypatch.setattr(fileio, "_writer_reply", reply)
     if phase == "failures":
         monkeypatch.setattr(fileio.FileWriter, "open_failures", failures)
     writer = fileio.FileWriter(open_timeout=1)
     state.filewriter = writer
     writer.start()
-    safety = threading.Timer(0.8, release.set)
-    safety.start()
     try:
         fileio.filewriter_write(str(target), "first\n")
         if phase in ("resolve", "open", "write", "flush"):
-            assert entered.wait(0.5)
+            assert entered.wait(2)
             fileio.filewriter_write(str(target), "second\n")
             fileio.filewriter_write(str(later), "later\n")
-        started = time.monotonic()
+        # Exact deadline budgets are checked with a controlled clock below.
+        # This live test proves return while the I/O gate is still held.
         with pytest.raises(ErrInfo, match="File output lost") as raised:
             fileio.filewriter_close_all_after_write(max_wait=0.04)
-        assert time.monotonic() - started <= 0.29
         assert entered.is_set()
         assert writer.is_alive(), "the blocked thread must not be claimed to have stopped"
         assert writer.abandoned.is_set()
@@ -188,9 +196,13 @@ def test_flush_deadline_bounds_live_worker_and_prevents_later_output(tmp_path, m
             assert str(target) in str(raised.value)
         if phase in ("resolve", "open", "write", "flush"):
             assert str(later) in str(raised.value)
-        started = time.monotonic()
-        fileio.filewriter_end(writer)
-        assert time.monotonic() - started <= 0.1
+        # Detaching an abandoned worker must not join it for a second wait.
+        joins = []
+        with monkeypatch.context() as patch:
+            patch.setattr(writer, "join", lambda *args, **kwargs: joins.append((args, kwargs)))
+            fileio.filewriter_end(writer)
+        assert not joins
+        assert state.filewriter is None
         with pytest.raises(ErrInfo, match="File output lost"):
             # Keep the context pointing at the abandoned writer to prove new
             # submissions fail immediately, even when end has detached it.
@@ -208,10 +220,50 @@ def test_flush_deadline_bounds_live_worker_and_prevents_later_output(tmp_path, m
             assert calls == ["open", "close"], calls
     finally:
         release.set()
-        safety.cancel()
         writer.join(2)
         fileio.filewriter_end(writer)
         state.filewriter = None
+
+
+@pytest.mark.parametrize("blocked_at", ["closed_status", "status_open", "failure_report"])
+def test_flush_uses_one_absolute_deadline_without_waiting_past_it(monkeypatch, blocked_at):
+    writer = fileio.FileWriter(open_timeout=1)
+    now = 100.0
+    waits, deadlines = [], []
+    real_reply = fileio._writer_reply
+    writer.current_op = (blocked_at, "blocked.txt", now)
+
+    def advance(seconds):
+        nonlocal now
+        now += seconds
+
+    def reply(fw, deadline, wait):
+        deadlines.append(deadline)
+        return real_reply(fw, deadline, wait)
+
+    def get(timeout):
+        assert len(waits) < 20, "flush reset its deadline instead of expiring"
+        assert timeout > 0
+        assert timeout <= 100.04 - now + 1e-9, "a reply wait exceeded the remaining deadline"
+        waits.append(timeout)
+        if len(waits) == 1:
+            if blocked_at == "status_open":
+                return fileio.FileWriter.FileControl.STATUS_OPEN
+            if blocked_at == "failure_report":
+                return fileio.FileWriter.FileControl.STATUS_CLOSED
+        advance(timeout)
+        raise queue.Empty
+
+    monkeypatch.setattr(fileio, "time", SimpleNamespace(monotonic=lambda: now, sleep=advance))
+    monkeypatch.setattr(fileio, "_active_writer", lambda: writer)
+    monkeypatch.setattr(writer, "is_alive", lambda: True)
+    monkeypatch.setattr(writer.return_msg_queue, "get", get)
+    monkeypatch.setattr(fileio, "_writer_reply", reply)
+    with pytest.raises(ErrInfo, match="File output lost"):
+        fileio.filewriter_close_all_after_write(max_wait=0.04)
+    assert now == pytest.approx(100.04)
+    assert all(deadline == pytest.approx(100.04) for deadline in deadlines)
+    assert writer.abandoned.is_set()
 
 
 @pytest.mark.parametrize("entrypoint", ["status", "close"])
@@ -285,6 +337,8 @@ def test_status_and_failure_report_share_one_deadline(tmp_path, monkeypatch):
     deadlines = []
 
     def reply(writer, deadline, wait):
+        if deadlines:
+            assert failure_entered.wait(2), "worker did not reach failure reporting"
         deadlines.append(deadline)
         return real_reply(writer, deadline, wait)
 
@@ -298,20 +352,15 @@ def test_status_and_failure_report_share_one_deadline(tmp_path, monkeypatch):
     writer = fileio.FileWriter(open_timeout=1)
     state.filewriter = writer
     writer.start()
-    safety = threading.Timer(1.5, release.set)
-    safety.start()
     try:
         fileio.filewriter_write(str(tmp_path / "out.txt"), "line\n")
-        started = time.monotonic()
         with pytest.raises(ErrInfo, match="File output lost"):
             fileio.filewriter_close_all_after_write(max_wait=0.5)
-        assert time.monotonic() - started <= 0.75
         assert failure_entered.is_set()
         assert len(deadlines) == 2
         assert deadlines[0] == deadlines[1], "status and failure collection must reuse the same deadline"
     finally:
         release.set()
-        safety.cancel()
         fileio.filewriter_end(writer)
         writer.join(2)
         state.filewriter = None
@@ -326,7 +375,7 @@ def test_api_reports_blocked_writer_as_output_error_and_keeps_other_runs_local(t
     target, later = tmp_path / "blocked.txt", tmp_path / "later.txt"
     real_open, original_deadline = builtins.open, fileio._writer_deadline
     real_start = api._start_filewriter
-    writers, deadlines, wait_started = [], [], []
+    writers, deadlines = [], []
 
     def start(ctx, conf):
         real_start(ctx, conf)
@@ -334,7 +383,7 @@ def test_api_reports_blocked_writer_as_output_error_and_keeps_other_runs_local(t
 
     def deadline(fw, max_wait=None):
         deadlines.append(max_wait)
-        wait_started.append(time.monotonic())
+        assert entered.wait(2), "worker did not reach the blocked output file"
         return original_deadline(fw, 0.04)
 
     def blocked(*args, **kwargs):
@@ -347,14 +396,11 @@ def test_api_reports_blocked_writer_as_output_error_and_keeps_other_runs_local(t
     monkeypatch.setattr(api, "_start_filewriter", start)
     monkeypatch.setattr(fileio, "open", blocked, raising=False)
     monkeypatch.setattr(fileio, "_writer_deadline", deadline)
-    safety = threading.Timer(1, release.set)
-    safety.start()
     db = SQLiteDatabase(":memory:")
     try:
         sql = f'-- !x! WRITE "first" TO "{target}"\n-- !x! WRITE "later" TO "{later}"\n'
         sql += "SELECT * FROM missing_table;" if halt else "SELECT 1;"
         result = api.run(sql=sql, connection=db)
-        assert time.monotonic() - wait_started[0] <= 0.29
         assert not result.success
         output_errors = [
             error for error in result.errors if error.source == "<output>" and "File output lost" in error.message
@@ -366,6 +412,7 @@ def test_api_reports_blocked_writer_as_output_error_and_keeps_other_runs_local(t
             assert HALT_FLUSH_SECONDS in deadlines
             assert any("missing_table" in error.message for error in result.errors)
         assert writers[0].abandoned.is_set()
+        assert writers[0].is_alive(), "the API must return while its writer is blocked"
         healthy = tmp_path / "healthy.txt"
         monkeypatch.setattr(fileio, "_writer_deadline", original_deadline)
         result = api.run(sql=f'-- !x! WRITE "healthy" TO "{healthy}"', connection=db)
@@ -377,7 +424,6 @@ def test_api_reports_blocked_writer_as_output_error_and_keeps_other_runs_local(t
         assert not later.exists()
     finally:
         release.set()
-        safety.cancel()
         for writer in writers:
             fileio.filewriter_end(writer)
             writer.join(2)
