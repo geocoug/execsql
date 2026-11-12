@@ -33,9 +33,10 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql lint`                             | Static analysis: structure, unknown metacommands, variables, targets                                                                                                  | No                |
 | `execsql run`                              | Run the script against PostgreSQL, MySQL, SQLite, DuckDB, …                                                                                                           | Yes               |
 | `execsql config`                           | Show every config option, its value, and the file that set it                                                                                                         | No                |
-| `execsql list`                             | Reference lists, or database metadata with `list schema`                                                                                                              | Only `schema`     |
+| `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary                                                                                                           | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                                                               | No                |
 | `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/stable/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
+| `execsql inspect database`                 | Inspect tables, columns, types and relationships as JSON                                                                                                              | Yes               |
 | [VS Code extension](extras/vscode-execsql) | Highlighting plus everything `execsql lsp` provides                                                                                                                   | No                |
 
 `format` and `lint` take files or directories.
@@ -113,7 +114,7 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
-execsql list schema --dsn URL [--schema NAME] [--table NAME]
+execsql inspect database --dsn URL [--schema NAME] [--table NAME]
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
@@ -261,7 +262,7 @@ If you use other extras, retain them in the install command, for example `"execs
 Inspect a table without running a script or reading its rows:
 
 ```sh
-execsql list schema --dsn sqlite:///project.sqlite --schema main --table samples
+execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
 ```
 
 Python callers can use `execsql.inspect_schema()` with a connection URL or an

@@ -13,10 +13,11 @@ ______________________________________________________________________
 
 ### Added
 
-- `execsql list schema` and Python `inspect_schema()` return filtered, versioned JSON metadata for tables, columns and keys.
+- `execsql inspect database` and Python `inspect_schema()` return filtered, versioned JSON metadata for tables, columns and keys.
 
 ### Changed
 
+- `inspect` is a reserved CLI command name; run a bare script named `inspect` with `execsql run inspect`.
 - **Nested substitution variables** expand faster in scripts with many defined variables.
 
 ______________________________________________________________________

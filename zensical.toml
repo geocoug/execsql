@@ -24,7 +24,8 @@ nav = [
         { "execsql config" = "reference/cli/config.md" },
         { "execsql list" = "reference/cli/list.md" },
         { "execsql init" = "reference/cli/init.md" },
-        { "execsql lsp" = "reference/cli/lsp.md" }
+        { "execsql lsp" = "reference/cli/lsp.md" },
+        { "execsql inspect" = "reference/cli/inspect.md" }
     ] },
     { "Scripting" = [
         { "Reference" = [

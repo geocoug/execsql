@@ -1,4 +1,4 @@
-"""Read-only catalog discovery, shared by the Python API and ``list schema``.
+"""Read-only catalog discovery, shared by the Python API and ``inspect database``.
 
 Catalog readers use raw cursors: they never call execute()/select_data(), whose
 error paths roll back the caller's transaction. No reader commits or rolls back.

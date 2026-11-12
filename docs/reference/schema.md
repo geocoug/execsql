@@ -3,8 +3,8 @@
 Inspect database structure without running a script or fetching application rows:
 
 ```sh
-execsql list schema --dsn sqlite:///project.sqlite --schema main --table samples
-execsql list schema --dsn postgresql://localhost/project --schema public
+execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
+execsql inspect database --dsn postgresql://localhost/project --schema public
 ```
 
 Output is always JSON. A successful lookup exits with status **0**, including when

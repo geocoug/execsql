@@ -12,4 +12,4 @@ from execsql.cli.commands import config  # noqa: F401
 from execsql.cli.commands import listing  # noqa: F401
 from execsql.cli.commands import init  # noqa: F401
 from execsql.cli.commands import lsp  # noqa: F401
-from execsql.cli.commands import schema  # noqa: F401
+from execsql.cli.commands import inspect  # noqa: F401

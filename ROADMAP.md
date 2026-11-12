@@ -17,7 +17,7 @@ Agents need database facts before authoring SQL. Build on the existing database
 adapters, JSON lint output, Python `execsql.run()` API, run manifest and dry-run
 parser rather than adding a separate execution engine.
 
-Schema discovery is available through `execsql list schema` and Python
+Schema discovery is available through `execsql inspect database` and Python
 `execsql.inspect_schema()` ([#190](https://github.com/geocoug/execsql/issues/190)).
 The [schema discovery reference](docs/reference/schema.md) defines its contract
 and adapter coverage. It provides:
@@ -52,7 +52,7 @@ interfaces that already exist; each milestone must be useful independently.
 | **A1. Schema discovery (delivered)**     | Filtered, read-only JSON metadata with explicit adapter capabilities and errors; see the interface above.                                                                                                                                                                                                                                      | Existing database adapters.                                                |
 | **A2. Versioned JSON execution results** | Document error codes, statement outcomes, reliable affected-row counts and transaction outcomes. Share the result schema across CLI, Python and future integrations. Report confirmed commits, rollbacks and unknown outcomes separately, including work committed before failure; a failed run must not imply atomic execution or safe retry. | Existing manifest and Python API; coordinate the JSON conventions with A1. |
 | **A3. Unattended mode**                  | Inventory every password request, `PROMPT`, `PAUSE` and other interactive operation. Each consumes an explicitly supplied answer or returns a structured input-required error. Define prompt identifiers and credential delivery; do not guess answers or expose secrets in output.                                                            | A2 for structured input-required outcomes.                                 |
-| **A4. Machine-readable preflight**       | Reuse the parser/dry run to report includes, required inputs, connections, file writes, shell commands and unresolved expressions, with source locations. Mark runtime-dependent effects as unknown. Static inspection does not prove SQL, procedures or external commands safe.                                                               | Existing parser/dry run; this can be developed independently of A2–A3.     |
+| **A4. Machine-readable preflight**       | Add `execsql inspect script` using the parser/dry run to report includes, required inputs, connections, file writes, shell commands and unresolved expressions, with source locations. Mark runtime-dependent effects as unknown. Static inspection does not prove SQL, procedures or external commands safe.                                  | Existing parser/dry run; this can be developed independently of A2–A3.     |
 | **A5. Optional MCP interface**           | Expose schema inspection, script validation and execution of explicitly selected scripts through the established APIs and result schemas. Keep the integration optional and define execution permissions separately from inspection access.                                                                                                    | Completed A1–A4 interfaces; no duplicated execution engine.                |
 
 Explicit run context is not a prerequisite for A1–A5. Each interface must respect

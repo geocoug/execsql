@@ -118,11 +118,11 @@ SURFACE: dict[str, dict[str, object]] = {
         "hidden": set(),
     },
     "lsp": {"arguments": [], "options": {"--check", "--log-level", "--log-file"}, "hidden": {"--stdio"}},
+    "inspect": {"arguments": [], "options": set(), "hidden": set()},
 }
 
 #: ``execsql list`` is a group: one command per reference list.
 LIST_COMMANDS = {name: {"--output-format"} for name in ("metacommands", "encodings", "plugins", "keywords")}
-LIST_COMMANDS["schema"] = {"--dsn", "--schema", "--table"}
 
 
 def _spellings(param) -> str:
@@ -156,6 +156,15 @@ class TestSurface:
         for name, options in LIST_COMMANDS.items():
             assert _options(lists.commands[name], hidden=False) == options
             assert _options(lists.commands[name], hidden=True) == set()
+
+    def test_inspect_commands(self, group):
+        inspection = group.commands["inspect"]
+        assert list(inspection.list_commands(None)) == ["database"]
+        command = inspection.commands["database"]
+        assert _options(command, hidden=False) == {"--dsn", "--schema", "--table"}
+        assert _options(command, hidden=True) == set()
+        assert not command.hidden
+        assert [p for p in command.params if p.param_type_name == "argument"] == []
 
     def test_no_hidden_commands(self, group):
         assert [name for name, cmd in group.commands.items() if cmd.hidden] == []

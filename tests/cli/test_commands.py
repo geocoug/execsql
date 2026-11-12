@@ -43,7 +43,7 @@ class TestCommandSet:
         # A command's line starts two spaces in; a wrapped summary continues further in.
         rows = [line for line in section.splitlines()[1:] if line.startswith("  ") and not line.startswith("   ")]
         names = [line.split()[0] for line in rows]
-        assert names == ["run", "format", "lint", "config", "list", "init", "lsp"]
+        assert names == ["run", "format", "lint", "config", "list", "init", "lsp", "inspect"]
 
     def test_ping_is_listed_in_run_help(self):
         assert "--ping" in _invoke("run", "--help").output
