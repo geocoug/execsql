@@ -87,6 +87,14 @@ SQL Server is included only when an ODBC driver for it is installed. A template 
 
 `tests/test_transaction_model.py` checks the transaction rules (batches, `BREAK`, failed commits, `AUTOCOMMIT`, `ERROR_HALT`, an `ON ERROR_HALT` script, and interrupts: `KeyboardInterrupt` or a plain `SystemExit` after a statement, inside a metacommand, or before or after a commit) against scripts [Hypothesis](https://hypothesis.readthedocs.io/) generates: a small model of one SQLite connection predicts the rows stored, the rows left pending on the caller's connection, the errors reported and `SQL_ERROR()`, and a mismatch is shrunk to the shortest script that still differs. Each run, CI included, tries 700 new scripts (about 7 s); `EXECSQL_MODEL_EXAMPLES=5000` tries more (about a minute). A failure of this test, in CI too, is a bug in execsql or in the model: add the script it prints as an `@example` and fix one or the other, rather than rerunning. When you change a transaction rule, change the model with it; a combination that matters but is rarely generated goes in an `@example`.
 
+The **Transaction model** workflow runs 5,000 generated scripts every Monday at 07:23 UTC and can be started manually from GitHub Actions. It runs on SQLite, without the full-suite coverage floor, and saves a JUnit report containing any failing example. Run the same check locally with:
+
+```bash
+EXECSQL_MODEL_EXAMPLES=5000 uv run pytest tests/test_transaction_model.py -n 0 --no-cov
+```
+
+Keep focused regressions for multiple databases, driver behavior, error messages and BREAKPOINT input: the single-connection model does not replace them. Duplicate single-case checks have been consolidated into permanent `@example` cases.
+
 Whole-script CLI tests allow 120 seconds on Windows, where durable SQLite commits on shared runners have approached or exceeded a 30-second limit. Other platforms keep their 30-second defaults (60 seconds for standalone script fixtures). Explicit short timeout regressions keep their own limits. CI points temporary files at `runner.temp`; SQLite's normal durability and transaction settings remain in effect. Timed-out CLI processes report watchdog stacks, and slow successful processes report them as pytest warnings without changing the script's stdout/stderr or output files.
 
 ### Script behavior corpus

@@ -193,6 +193,37 @@ def substitute_directive(node: IncludeDirective, substitute: Callable[[str], str
     return replace(node, target=strip_quotes(values["target"].strip()), command=command)
 
 
+def block_metacommand_name(command: str) -> str | None:
+    """Name a block boundary that needs parsing with the surrounding source.
+
+    Reuse the source parser's patterns, including boundaries nested in an
+    inline IF. This only detects unsupported dynamic boundaries; it never
+    reclassifies variable text into executable control flow.
+    """
+    inline = _IF_INLINE_RX.match(command)
+    if inline:
+        return block_metacommand_name(inline.group("cmd").strip())
+    for pattern, name in (
+        (_IF_BLOCK_RX, "IF"),
+        (_ELSEIF_RX, "ELSEIF"),
+        (_ANDIF_RX, "ANDIF"),
+        (_ORIF_RX, "ORIF"),
+        (_ELSE_RX, "ELSE"),
+        (_ENDIF_RX, "ENDIF"),
+        (_LOOP_RX, "LOOP"),
+        (_ENDLOOP_RX, "END LOOP"),
+        (_BEGIN_BATCH_RX, "BEGIN BATCH"),
+        (_END_BATCH_RX, "END BATCH"),
+        (_BEGIN_SCRIPT_RX, "BEGIN SCRIPT"),
+        (_END_SCRIPT_RX, "END SCRIPT"),
+        (_BEGIN_SQL_RX, "BEGIN SQL"),
+        (_END_SQL_RX, "END SQL"),
+    ):
+        if pattern.match(command):
+            return name
+    return None
+
+
 def metacommand_node(command: str, span: SourceSpan) -> IfBlock | IncludeDirective | MetaCommandStatement:
     """The node for a metacommand that opens or closes no block, however it is reached.
 

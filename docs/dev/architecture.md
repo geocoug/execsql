@@ -243,6 +243,14 @@ ______________________________________________________________________
 
 `SubVarSet` (in `script/variables.py`) holds substitution variables in `_state.subvars`. Before each command runs, `substitute_vars()` in `engine.py` replaces all `!!var!!` patterns with their current values. The deferred form `!{var}!` is expanded at the point of use rather than at parse time, which is essential inside loops where the value changes on each iteration. See [Substitution Variables](../reference/substitution_vars.md) for user-facing syntax and types.
 
+The regular token scan resolves the first defined token it sees. If it cannot
+resolve a token, the nested fallback scans overlapping delimiters once to collect
+candidate names, then checks them in variable-definition order. It retains the
+plain, single-quoted, double-quoted priority for each variable. This avoids
+searching the statement for every unrelated variable without changing which
+nested token is replaced first. The benchmark in `scripts/benchmarks/substitution.py`
+compares this path across variable-pool sizes.
+
 ### Scoping classes
 
 - **`SubVarSet`** — global scope, shared across all scripts.

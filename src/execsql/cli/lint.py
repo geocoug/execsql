@@ -1074,13 +1074,12 @@ def _lint_nodes(
                 visited_scripts=visited_scripts,
                 guarded=guarded,
             )
-        elif isinstance(node, ScriptBlock):
+        elif isinstance(node, ScriptBlock) and node.name not in visited_scripts:
             # Lint the block body once (structural errors are caught by the
             # parser). Issues carry their own line, which already places them
             # inside the block, so the message does not repeat the block name.
-            if node.name not in visited_scripts:
-                visited_scripts.add(node.name)
-                _lint_nodes(node.body, script_dir, defined_vars, script_blocks, issues, visited_scripts=visited_scripts)
+            visited_scripts.add(node.name)
+            _lint_nodes(node.body, script_dir, defined_vars, script_blocks, issues, visited_scripts=visited_scripts)
 
 
 # ---------------------------------------------------------------------------

@@ -2111,5 +2111,73 @@
    "execsql2": "V\n",
    "why": "Firebird TABLE_EXISTS no longer commits held writes under AUTOCOMMIT OFF or in a batch (#138). The explicit rollback now removes the row."
   }
+ },
+ "extend_block_if": {
+  "exit": {
+   "status": "accepted",
+   "upstream": 0,
+   "execsql2": 1,
+   "why": "EXTEND SCRIPT ... WITH METACOMMAND refuses block boundaries before modifying the script; upstream appended and ran them. Define the complete block with BEGIN SCRIPT and append it with WITH SCRIPT instead (#119; divergence: Blocks added with EXTEND SCRIPT)."
+  },
+  "files/out.txt": {
+   "status": "accepted",
+   "upstream": "in s\nin IF\n",
+   "execsql2": null,
+   "why": "EXTEND SCRIPT ... WITH METACOMMAND refuses block boundaries before modifying the script; upstream appended and ran them. Define the complete block with BEGIN SCRIPT and append it with WITH SCRIPT instead (#119; divergence: Blocks added with EXTEND SCRIPT)."
+  },
+  "stderr": {
+   "status": "accepted",
+   "upstream": "",
+   "execsql2": "**** Error in metacommand.\n     Line 4 of script script.sql\n     IF cannot run here; write the complete block directly in the script. To append a block, define it with BEGIN SCRIPT and use EXTEND SCRIPT ... WITH SCRIPT.\n     Metacommand: EXTEND SCRIPT s WITH METACOMMAND IF (TRUE)\n     Error occurred at <TIME>.\n",
+   "why": "EXTEND SCRIPT ... WITH METACOMMAND refuses block boundaries before modifying the script; upstream appended and ran them. Define the complete block with BEGIN SCRIPT and append it with WITH SCRIPT instead (#119; divergence: Blocks added with EXTEND SCRIPT)."
+  }
+ },
+ "extend_block_loop": {
+  "exit": {
+   "status": "accepted",
+   "upstream": 0,
+   "execsql2": 1,
+   "why": "EXTEND SCRIPT ... WITH METACOMMAND refuses block boundaries before modifying the script; upstream appended and ran them. Define the complete block with BEGIN SCRIPT and append it with WITH SCRIPT instead (#119; divergence: Blocks added with EXTEND SCRIPT)."
+  },
+  "files/out.txt": {
+   "status": "accepted",
+   "upstream": "in s\n",
+   "execsql2": null,
+   "why": "EXTEND SCRIPT ... WITH METACOMMAND refuses block boundaries before modifying the script; upstream appended and ran them. Define the complete block with BEGIN SCRIPT and append it with WITH SCRIPT instead (#119; divergence: Blocks added with EXTEND SCRIPT)."
+  },
+  "stderr": {
+   "status": "accepted",
+   "upstream": "",
+   "execsql2": "**** Error in metacommand.\n     Line 4 of script script.sql\n     LOOP cannot run here; write the complete block directly in the script. To append a block, define it with BEGIN SCRIPT and use EXTEND SCRIPT ... WITH SCRIPT.\n     Metacommand: EXTEND SCRIPT s WITH METACOMMAND LOOP WHILE (FALSE)\n     Error occurred at <TIME>.\n",
+   "why": "EXTEND SCRIPT ... WITH METACOMMAND refuses block boundaries before modifying the script; upstream appended and ran them. Define the complete block with BEGIN SCRIPT and append it with WITH SCRIPT instead (#119; divergence: Blocks added with EXTEND SCRIPT)."
+  }
+ },
+ "variable_block_if": {
+  "files/out.txt": {
+   "status": "accepted",
+   "upstream": null,
+   "execsql2": "refused IF\nbody\nrefused ENDIF\nafter\n",
+   "why": "Variable-supplied block boundaries are metacommand errors following METACOMMAND_ERROR_HALT; upstream attempted to run the boundary. Write the complete block directly in the script (#119; divergence: Control flow from a substitution variable)."
+  }
+ },
+ "variable_end_loop": {
+  "exit": {
+   "status": "accepted",
+   "upstream": 1,
+   "execsql2": 0,
+   "why": "Variable-supplied block boundaries are metacommand errors following METACOMMAND_ERROR_HALT; upstream attempted to run the boundary. Write the complete block directly in the script (#119; divergence: Control flow from a substitution variable)."
+  },
+  "files/out.txt": {
+   "status": "accepted",
+   "upstream": null,
+   "execsql2": "refused END LOOP\nafter\n",
+   "why": "Variable-supplied block boundaries are metacommand errors following METACOMMAND_ERROR_HALT; upstream attempted to run the boundary. Write the complete block directly in the script (#119; divergence: Control flow from a substitution variable)."
+  },
+  "stderr": {
+   "status": "accepted",
+   "upstream": "**** Error in metacommand.\n     Line 3 of script script.sql\n     Unknown metacommand\n     END LOOP\n     Metacommand: !!cmd!!\n     Error occurred at <TIME>.\n",
+   "execsql2": "",
+   "why": "Variable-supplied block boundaries are metacommand errors following METACOMMAND_ERROR_HALT; upstream attempted to run the boundary. Write the complete block directly in the script (#119; divergence: Control flow from a substitution variable)."
+  }
  }
 }

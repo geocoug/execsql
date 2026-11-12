@@ -1,0 +1,5 @@
+-- !x! METACOMMAND_ERROR_HALT OFF
+-- !x! SUB cmd END LOOP
+-- !x! !!cmd!!
+-- !x! IF (METACOMMAND_ERROR()) { WRITE "refused END LOOP" TO out.txt }
+-- !x! WRITE "after" TO out.txt
