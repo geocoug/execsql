@@ -42,18 +42,39 @@ shared machine contract with `--output-format json`. It provides:
 which metadata is available, and consume a documented JSON contract with a
 versioning policy, without executing a SQL script or requesting row data.
 
-## Product track: agents and unattended automation
+## Inspection extensions
+
+Retain `execsql inspect database` and its existing filters. Proposed object-specific
+commands make the inspection scope explicit:
+
+| Proposed command                             | Intended output                                                                                      |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `execsql inspect schema NAME`                | Tables/views within the selected schema.                                                             |
+| `execsql inspect table NAME --schema SCHEMA` | Columns, types, nullability, primary key and relationships for one table.                            |
+| `execsql inspect file PATH`                  | File format, encoding and delimiter where applicable, column names and inferred types before import. |
+
+Use readable text by default and `--output-format json` for automation. Database
+commands share the existing inspection API and connection options. File inspection
+should reuse the import readers and type inference; its scoped design must define
+supported formats, sampling limits and how uncertain detection is reported.
+These are proposals, not implemented commands; implementation requires its own
+scope approval.
+
+## Product track: agents and automation
 
 The order below expresses feature priority, not a strict serial implementation
 schedule. Dependencies determine what can proceed independently. Build on
 interfaces that already exist; each milestone must be useful independently.
 
-| Milestone                            | Outcome and completion criteria                                                                                                                                                                                                                                                                               | Dependencies                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **A1. Schema discovery (delivered)** | Filtered, read-only JSON metadata with explicit adapter capabilities and errors; see the interface above.                                                                                                                                                                                                     | Existing database adapters.                                                               |
-| **A3. Unattended mode**              | Inventory every password request, `PROMPT`, `PAUSE` and other interactive operation. Each consumes an explicitly supplied answer or returns a structured input-required error. Define prompt identifiers and credential delivery; do not guess answers or expose secrets in output.                           | Existing CLI/Python error handling; define input-required outcomes within this milestone. |
-| **A4. Machine-readable preflight**   | Add `execsql inspect script` using the parser/dry run to report includes, required inputs, connections, file writes, shell commands and unresolved expressions, with source locations. Mark runtime-dependent effects as unknown. Static inspection does not prove SQL, procedures or external commands safe. | Existing parser/dry run; this can be developed independently of unattended mode.          |
-| **A5. Optional MCP interface**       | Expose schema inspection, script validation and execution of explicitly selected scripts through the established APIs and result schemas. Keep the integration optional and define execution permissions separately from inspection access.                                                                   | Existing Python API/manifest plus A1, A3 and A4; no duplicated execution engine.          |
+| Milestone                            | Outcome and completion criteria                                                                                                                                                                                                             | Dependencies                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **A1. Schema discovery (delivered)** | Filtered, read-only JSON metadata with explicit adapter capabilities and errors; see the interface above.                                                                                                                                   | Existing database adapters.                                                                 |
+| **A5. Optional MCP interface**       | Expose schema inspection, script validation and execution of explicitly selected scripts through the established APIs and result schemas. Keep the integration optional and define execution permissions separately from inspection access. | Existing Python API/manifest plus A1; reconsider scope without A3/A4 before implementation. |
+
+**Decisions, 2026-11-13:** skip A3's unattended mode; no current workflow justifies
+the additional prompt-answer and credential machinery. Skip A4's `inspect script`;
+existing `--parse-tree` and `--dry-run` cover current preview needs. Neither remains
+an implementation prerequisite for A5.
 
 Explicit run context is not a prerequisite for these milestones. Each interface must respect
 existing run and connection-ownership constraints.
