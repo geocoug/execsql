@@ -135,7 +135,7 @@ def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_pa
         CREATE VIEW sample_ids AS SELECT id FROM samples;
         """)
     args = ["inspect", "database", flag, f"sqlite:///{path}"]
-    overview = CliRunner().invoke(app, args)
+    overview = CliRunner().invoke(app, [*args, "--schema", "main"])
     assert overview.exit_code == 0, overview.output
     assert "Object" in overview.stdout and "Columns" in overview.stdout
     assert "main.samples" in overview.stdout and "main.sample_ids" in overview.stdout
@@ -151,12 +151,75 @@ def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_pa
     assert details.stderr == ""
 
 
-def test_empty_lookup_is_a_successful_human_message(tmp_path):
+def test_empty_database_shows_main_namespace_with_zero_counts(tmp_path):
     path = tmp_path / "empty.sqlite"
     sqlite3.connect(path).close()
     result = CliRunner().invoke(app, ["inspect", "database", "--dsn", f"sqlite:///{path}"])
     assert result.exit_code == 0
-    assert "No matching tables or views." in result.stdout
+    assert "main" in result.stdout and "Namespace" in result.stdout
+    assert "0" in result.stdout
+
+
+def test_database_overview_and_json_retain_existing_metadata(tmp_path):
+    path = tmp_path / "project.sqlite"
+    with sqlite3.connect(path) as db:
+        db.executescript("CREATE TABLE samples(v INT); CREATE VIEW sample_view AS SELECT v FROM samples;")
+    dsn = f"sqlite:///{path}"
+    args = ["inspect", "database", "--dsn", dsn]
+    text = CliRunner().invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert "Database: project.sqlite" in text.stdout and "Engine: SQLite" in text.stdout
+    assert "Namespace" in text.stdout and "Tables" in text.stdout and "Views" in text.stdout
+    assert "main" in text.stdout and "visible to this connection" in text.stdout
+    assert "execsql inspect schema NAME" in text.stdout
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 0, machine.output
+    result = json.loads(machine.stdout)
+    assert result == inspect_schema(dsn=dsn, include_database=True)
+    assert result["tables"] == inspect_schema(dsn=dsn)["tables"]
+    assert result["schemas"] == [{"name": "main", "table_count": 1, "view_count": 1}]
+    for scope in (["database", "--schema", "main"], ["schema", "main"], ["table", "samples"]):
+        filtered = CliRunner().invoke(app, ["inspect", *scope, "--dsn", dsn, "--output-format", "json"])
+        assert filtered.exit_code == 0, filtered.output
+        assert "database" not in json.loads(filtered.stdout)
+
+
+@pytest.mark.parametrize("kind", ["none", "unknown"])
+def test_database_without_namespace_inventory_retains_object_overview(monkeypatch, kind):
+    from execsql import schema as discovery
+
+    item = discovery._table(None, "samples", "table")
+    metadata = {
+        "success": True,
+        "dialect": None,
+        "adapter": "DSN",
+        "tables": [item],
+        "database": {"name": "project", "engine": "Driver engine", "namespace_kind": kind},
+        "schemas": [] if kind == "none" else None,
+    }
+    monkeypatch.setattr(discovery, "inspect_schema", lambda **kwargs: metadata)
+    result = CliRunner().invoke(app, ["inspect", "database", "--dsn", "unused"])
+    assert result.exit_code == 0, result.output
+    assert "Database: project" in result.stdout and "Engine: Driver engine" in result.stdout
+    assert "samples" in result.stdout and "1 object(s)" in result.stdout
+    assert ("Schema enumeration unavailable" in result.stdout) is (kind == "unknown")
+
+
+def test_namespace_overview_treats_catalog_names_as_literal_text(monkeypatch):
+    from execsql import schema as discovery
+
+    metadata = {
+        "success": True,
+        "dialect": "PostgreSQL",
+        "tables": [],
+        "database": {"name": "[bold]project\n", "engine": "PostgreSQL", "namespace_kind": "schema"},
+        "schemas": [{"name": "[bold]empty\x1b[2J", "table_count": 0, "view_count": 0}],
+    }
+    monkeypatch.setattr(discovery, "inspect_schema", lambda **kwargs: metadata)
+    result = CliRunner().invoke(app, ["inspect", "database", "--dsn", "unused"])
+    assert result.exit_code == 0, result.output
+    assert "[bold]project\\x0a" in result.stdout and "[bold]empty\\x1b[2J" in result.stdout
+    assert "\x1b" not in result.stdout
 
 
 def test_human_errors_go_to_stderr_with_a_useful_hint(tmp_path):

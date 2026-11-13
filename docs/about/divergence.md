@@ -264,6 +264,10 @@ New options in `execsql.conf`:
     `execsql inspect schema NAME` and `execsql inspect table NAME [--schema NAME]`
     provide object-specific forms with the same output contract and password policy;
     the original `inspect database` filters remain supported.
+    Unfiltered `inspect database` adds database identity and a namespace/count
+    overview, including namespaces with no visible tables/views; schema-less
+    databases retain a flat object list. Python `include_database=True` requests
+    the same additive JSON fields. Existing filtered results stay compatible.
 
 Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
 — no longer exist. The monolith paired a statement object with its source

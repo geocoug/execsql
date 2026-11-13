@@ -268,14 +268,16 @@ execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 ```
 
 `--connection-string` is an alias for `--dsn`, matching `execsql run`.
-`inspect database` and `inspect schema NAME` print readable overviews;
+`inspect database` shows identity and schemas/namespaces with table/view counts;
+`inspect schema NAME` lists that schema's objects;
 `inspect table NAME` shows columns and relationships. Existing
 `inspect database --schema NAME --table NAME` filters remain supported.
 Use `--output-format json` for automation. Text mode on a terminal can prompt
 for a URL user's password; `--no-passwd` uses supplied or driver credentials.
 
 Python callers can use `execsql.inspect_schema()` with a connection URL or an
-existing execsql adapter. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
+existing execsql adapter. Add `include_database=True` for unfiltered database
+identity and namespace counts. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
 for the versioned JSON contract and adapter coverage.
 
 ## Templates

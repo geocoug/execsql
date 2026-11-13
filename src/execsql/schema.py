@@ -396,6 +396,99 @@ _READERS = {
 }
 
 
+def _odbc_info(db: Database, code: int) -> Any:
+    """Get driver metadata; only explicit unsupported information is unavailable."""
+    try:
+        return db.conn.getinfo(code)
+    except Exception as exc:
+        if exc.args and exc.args[0] in ("IM001", "HYC00", "HY096"):
+            return None
+        raise
+
+
+def _database_overview(
+    db: Database,
+    tables: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, Any]] | None]:
+    """Identify the database and enumerate namespaces independently of its objects.
+
+    Counts cover the same visible objects as the existing table reader. ODBC
+    SQL_ALL_SCHEMAS has no catalog association, so its counts aggregate schema
+    names across the catalogs visible through the driver's table enumeration.
+    """
+    dialect = db.type.dbms_id
+    kind = "schema"
+    engine: str | None = dialect
+    namespaces: list[str] | None
+    name: str | None
+    if dialect == "SQLite":
+        attached = _rows(db, "PRAGMA database_list")
+        name = next((Path(file).name if file else ":memory:" for _, ns, file in attached if ns == "main"), None)
+        namespaces = [ns for _, ns, _ in attached]
+        kind = "attached_database"
+    elif dialect in ("PostgreSQL", "DuckDB", "SQL Server"):
+        current = "DB_NAME()" if dialect == "SQL Server" else "current_database()"
+        name = _rows(db, f"SELECT {current}")[0][0]
+        namespaces = [
+            row[0]
+            for row in _rows(
+                db,
+                "SELECT schema_name FROM information_schema.schemata "
+                f"WHERE catalog_name = {current} AND schema_name NOT IN ('information_schema', 'pg_catalog', 'sys')",
+            )
+        ]
+    elif dialect == "Oracle":
+        name, current_schema = _rows(
+            db,
+            "SELECT SYS_CONTEXT('USERENV', 'DB_NAME'), SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual",
+        )[0]
+        namespaces = [current_schema]  # Match the existing reader's current-owner scope.
+    elif dialect == "MySQL":
+        name = _rows(db, "SELECT database()")[0][0]
+        namespaces, kind = [], "none"  # A MySQL schema is the database, not a child namespace.
+    elif dialect == "Firebird":
+        name = _rows(db, "SELECT RDB$GET_CONTEXT('SYSTEM', 'DB_NAME') FROM RDB$DATABASE")[0][0]
+        namespaces, kind = [], "none"
+    else:  # Access and generic ODBC: never echo db_name, which may be a connection string.
+        name = _odbc_info(db, 16)  # SQL_DATABASE_NAME
+        if dialect == "Access":
+            namespaces, kind = [], "none"
+        else:
+            engine = _odbc_info(db, 17)  # SQL_DBMS_NAME
+            usage = _odbc_info(db, 91)  # SQL_SCHEMA_USAGE
+            if usage == 0:
+                namespaces, kind = [], "none"
+            elif usage is None:
+                namespaces, kind = None, "unknown"
+            else:
+                if not isinstance(usage, int):
+                    raise ValueError("Invalid ODBC schema usage metadata.")
+                with db._cursor() as cursor:
+                    rows = _optional_catalog(cursor, "tables", catalog="", schema="%", table="", tableType="")
+                namespaces = None if rows is None else [row[1] for row in rows if row[1] is not None]
+                if namespaces is None:
+                    kind = "unknown"
+    if name is not None and not isinstance(name, str):
+        raise ValueError("Invalid database name metadata.")
+    if engine is not None and not isinstance(engine, str):
+        raise ValueError("Invalid database engine metadata.")
+    identity = {"name": name, "engine": engine, "namespace_kind": kind}
+    if namespaces is None:
+        return identity, None
+    if kind == "none":
+        return identity, []
+    # Retain namespaces of visible objects even if the namespace catalog has
+    # different privilege filtering. A namespace without visible objects is zero.
+    counts: dict[str | None, dict[str, Any]] = {
+        ns: {"name": ns, "table_count": 0, "view_count": 0} for ns in namespaces
+    }
+    for item in tables:
+        ns = item["schema"]
+        counts.setdefault(ns, {"name": ns, "table_count": 0, "view_count": 0})
+        counts[ns]["view_count" if item["kind"] == "view" else "table_count"] += 1
+    return identity, sorted(counts.values(), key=lambda s: s["name"] or "")
+
+
 def inspect_schema(
     *,
     dsn: str | None = None,
@@ -403,6 +496,7 @@ def inspect_schema(
     schema: str | None = None,
     table: str | None = None,
     prompt_password: bool = False,
+    include_database: bool = False,
 ) -> dict[str, Any]:
     """Return JSON-compatible metadata; see the schema discovery reference.
 
@@ -413,6 +507,7 @@ def inspect_schema(
     their messages can contain credentials. KeyboardInterrupt/SystemExit propagate.
     Password prompting is disabled unless explicitly enabled with *prompt_password*;
     URL callers enabling it must provide an interactive terminal.
+    *include_database* adds identity and namespace counts to unfiltered inspection.
     """
     from execsql.api import _connect_from_dsn, _LibraryConfig
     from execsql.exceptions import ScriptExit
@@ -425,6 +520,8 @@ def inspect_schema(
     for name, value in (("schema", schema), ("table", table)):
         if value is not None and (not isinstance(value, str) or not value or "\x00" in value):
             raise ValueError(f"{name} must be a nonempty name without NUL characters.")
+    if include_database and (schema is not None or table is not None):
+        raise ValueError("Database overview requires unfiltered inspection.")
     result: dict[str, Any] = {
         "schema_version": 1,
         "success": False,
@@ -434,6 +531,8 @@ def inspect_schema(
         "tables": [],
         "error": None,
     }
+    if include_database:
+        result.update(database=None, schemas=None)
     ctx = RuntimeContext()
     ctx.conf = cast(Any, _LibraryConfig())
     phase = "connection"
@@ -461,6 +560,10 @@ def inspect_schema(
                     result["capabilities"][field] = all(t[field] is not None for t in tables) if tables else None
             for item in tables:
                 item["columns"].sort(key=lambda c: c["ordinal_position"])
+            if include_database:
+                identity, namespaces = _database_overview(db, tables)
+                result.update(database=identity, schemas=namespaces)
+                result["capabilities"]["schemas"] = namespaces is not None
             result["tables"] = sorted(tables, key=lambda t: (t["catalog"] or "", t["schema"] or "", t["name"]))
             result["success"] = True
         except (Exception, ScriptExit) as exc:
@@ -472,6 +575,8 @@ def inspect_schema(
                 except Exception:
                     result["success"] = False
                     result["tables"] = []
+                    if include_database:
+                        result.update(database=None, schemas=None)
                     result["error"] = {"code": "close_error", "message": "Schema discovery connection cleanup failed."}
     return result
 

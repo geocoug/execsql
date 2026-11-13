@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Added
 
+- Python `inspect_schema(include_database=True)` and unfiltered `execsql inspect database --output-format json` include database identity and visible namespace counts, including namespaces with no visible tables/views.
+
 - `execsql inspect schema NAME` lists tables/views in one schema; `execsql inspect table NAME [--schema NAME]` shows columns, keys and relationships. Both support text and JSON output.
 
 - `execsql inspect database` accepts `--connection-string` as an alias for `--dsn`, matching `execsql run`.
@@ -23,8 +25,12 @@ ______________________________________________________________________
 
 ### Changed
 
+- Unfiltered `execsql inspect database` prints database identity and a schema/namespace overview; use `inspect schema NAME` for objects or `inspect table NAME` for column/key details. Schema-less databases keep a flat object overview.
+
 - `execsql inspect database` prints readable table summaries and column/key details by default; use `--output-format json` for automation.
+
 - `inspect` is a reserved CLI command name; run a bare script named `inspect` with `execsql run inspect`.
+
 - **Nested substitution variables** expand faster in scripts with many defined variables.
 
 ### Fixed
