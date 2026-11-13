@@ -51,6 +51,7 @@ def test_all_inspection_scopes_with_live_url_connections(dbms, tmp_path):
                 result = CliRunner().invoke(
                     app,
                     ["inspect", *scope, "--dsn", url, "--no-passwd", "--output-format", output_format],
+                    env={"COLUMNS": "60"},
                 )
                 assert result.exit_code == 0, result.output
                 assert result.stderr == ""
