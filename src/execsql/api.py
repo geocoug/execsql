@@ -589,10 +589,8 @@ def run(
                 _roll_back_after_interrupt(ctx)
                 raise
 
-            # Non-halting SQL errors (halt_on_error=False) are recorded in
-            # status.error_history as execution continues; a halting error never
-            # reaches the history, so there is no overlap with the exception
-            # paths above.  They happened first, so they are listed first.
+            # Execution errors are captured before error-halt handlers run.
+            # Unreported termination and output errors above happened last.
             if ctx.status is not None:
                 errors[:0] = [
                     ScriptError(message=err_msg, source=err_source, line=err_line, sql=err_cmd)
@@ -686,17 +684,12 @@ def _capture_errors(
     *,
     interrupted: bool = False,
 ) -> None:
-    """Record the error that halted the run, after ``exit_now()`` raised ``SystemExit``.
+    """Record termination and lost output not already captured in error history.
 
-    ``exit_now`` leaves the halting :class:`ErrInfo` on the context, and any
-    file output lost at the halt as a second error.  A failed
-    SQL statement's text is in ``$LAST_ERROR``, which the executor sets just
-    before halting; it is reported only when the halt came from SQL, so a
-    metacommand error is never paired with an earlier statement.  A ``HALT``
-    carries no error, only its exit status; nor does a run *interrupted* by a
-    ``SystemExit`` that execsql did not raise (a signal handler's).
+    ``exit_now()`` snapshots execution errors before handlers run. An explicit
+    HALT or an external SystemExit still needs its own termination diagnostic.
     """
-    err = ctx.halt_error
+    err = None if interrupted else ctx.halt_error
     if err is None and interrupted:
         msg = "Script interrupted by SystemExit" + (
             f" with exit status {exit_code}." if type(exit_code) is int else "."
@@ -709,14 +702,15 @@ def _capture_errors(
     lc = ctx.last_command
     if err is not None and lc is not None and lc.command_type == "sql" and ctx.subvars is not None:
         sql = ctx.subvars.varvalue("$LAST_ERROR") or None
-    errors.append(
-        ScriptError(
-            message=msg,
-            source=_last_source(ctx, err),
-            line=_last_line(ctx, err),
-            sql=sql,
-        ),
-    )
+    if err is None or ctx.status is None or ctx.status.last_halting_error_id != id(err):
+        errors.append(
+            ScriptError(
+                message=msg,
+                source=_last_source(ctx, err),
+                line=_last_line(ctx, err),
+                sql=sql,
+            ),
+        )
     if ctx.halt_output_error is not None:
         errors.append(ScriptError(message=ctx.halt_output_error.errmsg(), source="<output>"))
 

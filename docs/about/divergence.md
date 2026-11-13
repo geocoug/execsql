@@ -69,6 +69,10 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+- Python `run()` keeps the original failure before errors from an `ON ERROR_HALT`
+    script, even when the handler also halts. Each result error retains its own
+    source line and SQL after substitution; see [error handling](../api/index.md#errors).
+
 - `--manifest` includes non-halting SQL and metacommand errors, retaining their
     order, source locations and existing secret masking even if later commands
     succeed. A later halting error appears once, before errors from its

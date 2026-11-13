@@ -198,6 +198,21 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     _state.halt_error = errinfo
     if errinfo is not None:
         stamp_errinfo(errinfo)
+        if _state.status is not None:
+            # Snapshot before an error-halt handler changes the last command,
+            # substitution variables, or even the error that ends the run.
+            lc = _state.last_command
+            line: int | None
+            if errinfo.script_file and errinfo.script_line_no:
+                source, line = errinfo.script_file, errinfo.script_line_no
+            else:
+                source = getattr(lc, "source", None) or "<unknown>"
+                line = getattr(lc, "line_no", None)
+            sql = None
+            if lc is not None and lc.command_type == "sql" and _state.subvars is not None:
+                sql = _state.subvars.varvalue("$LAST_ERROR") or None
+            _state.status.error_history.append((source, line, sql, errinfo.errmsg()))
+            _state.status.last_halting_error_id = id(errinfo)
         if (manifest := _manifest.current()) is not None:
             # Record the cause before an ON ERROR_HALT handler can fail too.
             manifest.add_error(errinfo)

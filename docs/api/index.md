@@ -83,6 +83,11 @@ result = run(script="load.sql", dsn="sqlite:///data.db", config_file="restricted
 
 Expected configuration, connection and script-execution failures normally return `success=False`; `result.errors` lists what went wrong in the order it happened. Each `ScriptError` has a `message`, a `source`, a `line`, and, for a failed SQL statement, the statement in `sql`.
 
+If an `ON ERROR_HALT` script also fails, the original error appears first,
+followed by the handler's errors, even when the handler halts the run. Each
+error retains its own source line and SQL after substitution, including when
+the handler changes substitution variables.
+
 | `source`                   | What failed                                                                                |
 | -------------------------- | ------------------------------------------------------------------------------------------ |
 | script path or `<inline>`  | The script could not be read or parsed, or a statement or metacommand in it failed; `line` is its line number |
