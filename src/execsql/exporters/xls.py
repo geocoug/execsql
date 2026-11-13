@@ -19,7 +19,7 @@ Both back-ends are optional dependencies; install via
 
 import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, BinaryIO, cast
 
 from execsql.exceptions import XlsFileError, XlsxFileError
 from execsql.utils.errors import fatal_error, install_hint
@@ -195,6 +195,7 @@ class XlsxFile:
         self.encoding: str | None = None
         self.wbk: Any = None
         self.read_only = False
+        self._source: BinaryIO | None = None
         self.errlog = self.XlsxLog()
 
     def open(self, filename: str, encoding: str | None = None, read_only: bool = False) -> None:
@@ -208,7 +209,15 @@ class XlsxFile:
 
             check_zip_decompression_ratio(filename)
             if read_only:
-                self.wbk = self._openpyxl.load_workbook(filename, read_only=True)
+                # The caller has selected the format. A binary stream also
+                # supports explicitly identified XLSX content with another suffix.
+                self._source = open(filename, "rb")  # noqa: SIM115 -- owned until close()
+                try:
+                    self.wbk = self._openpyxl.load_workbook(self._source, read_only=True)
+                except BaseException:
+                    self._source.close()
+                    self._source = None
+                    raise
             else:
                 self.wbk = self._openpyxl.load_workbook(filename)
         else:
@@ -216,8 +225,13 @@ class XlsxFile:
 
     def close(self) -> None:
         """Close the open workbook and reset all state attributes."""
-        if self.wbk is not None:
-            self.wbk.close()
+        try:
+            if self.wbk is not None:
+                self.wbk.close()
+        finally:
+            if self._source is not None:
+                self._source.close()
+                self._source = None
             self.wbk = None
             self.filename = None
             self.encoding = None

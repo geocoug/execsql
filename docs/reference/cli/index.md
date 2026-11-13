@@ -2,16 +2,16 @@
 
 The package is named `execsql2`; the executable is **execsql**. Run `execsql --help` to list commands and `execsql COMMAND --help` for that command's options.
 
-| Command                                | Use it to                                                                | Database needed? |
-| -------------------------------------- | ------------------------------------------------------------------------ | ---------------- |
-| [run](../../getting-started/syntax.md) | Execute a SQL script with metacommands.                                  | Yes              |
-| [format](../../guides/formatter.md)    | Normalize SQL/metacommand layout; check formatting in CI.                | No               |
-| [lint](../lint.md)                     | Find script structure, variable and target problems before execution.    | No               |
-| [config](config.md)                    | Inspect configuration sources, generate a template or validate settings. | No               |
-| [list](list.md)                        | Discover metacommands, encodings, plugins and keywords.                  | No               |
-| [init](init.md)                        | Create project configuration, a script and pre-commit hooks.             | No               |
-| [lsp](lsp.md)                          | Provide language features to your editor.                                | No               |
-| [inspect](inspect.md)                  | Inspect database structure before execution.                             | Yes              |
+| Command                                | Use it to                                                                | Database needed?     |
+| -------------------------------------- | ------------------------------------------------------------------------ | -------------------- |
+| [run](../../getting-started/syntax.md) | Execute a SQL script with metacommands.                                  | Yes                  |
+| [format](../../guides/formatter.md)    | Normalize SQL/metacommand layout; check formatting in CI.                | No                   |
+| [lint](../lint.md)                     | Find script structure, variable and target problems before execution.    | No                   |
+| [config](config.md)                    | Inspect configuration sources, generate a template or validate settings. | No                   |
+| [list](list.md)                        | Discover metacommands, encodings, plugins and keywords.                  | No                   |
+| [init](init.md)                        | Create project configuration, a script and pre-commit hooks.             | No                   |
+| [lsp](lsp.md)                          | Provide language features to your editor.                                | No                   |
+| [inspect](inspect.md)                  | Inspect database structure or importable files before execution.         | Database scopes only |
 
 ## First workflow
 

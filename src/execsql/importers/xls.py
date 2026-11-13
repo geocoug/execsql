@@ -24,15 +24,17 @@ def xls_data(
     sheetname: str,
     junk_header_rows: int,
     encoding: str | None = None,
+    *,
+    file_format: str | None = None,
 ) -> tuple:
     """Returns the data from the specified worksheet as a list of headers and a list of lists of rows."""
     from execsql.utils.strings import clean_words, trim_words, fold_words, dedup_words
 
     conf = _state.conf
 
-    if len(filename) < 4:
+    if len(filename) < 4 and file_format is None:
         raise ErrInfo(type="cmd", other_msg=f"{filename} is not a recognizable Excel spreadsheet name.")
-    ext3 = filename[-3:].lower()
+    ext3 = {"xls": "xls", "xlsx": "lsx"}.get(file_format or "", filename[-3:].lower())
     wbk: Any
     if ext3 == "xls":
         # xlrd imported lazily
@@ -59,10 +61,13 @@ def xls_data(
         alldata = wbk.sheet_data(sheetname, junk_header_rows)
     except Exception as e:
         raise ErrInfo(type="cmd", other_msg=f"Error reading worksheet {sheetname} from {filename}.") from e
+    finally:
+        if ext3 == "lsx":
+            wbk.close()
+        elif wbk.wbk is not None:
+            wbk.wbk.release_resources()
     if len(alldata) == 0:
         raise ErrInfo(type="cmd", other_msg=f"There are no data on worksheet {sheetname} of file {filename}.")
-    if ext3 == "lsx":
-        wbk.close()
     if len(alldata) == 1:
         return alldata[0], []
     colhdrs = alldata[0]

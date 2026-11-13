@@ -6,7 +6,7 @@
 
 ## Commands { #commands }
 
-*execsql* has eight subcommands. See the [command overview](../reference/cli/index.md). `run` executes scripts; `inspect database` connects for metadata-only inspection:
+*execsql* has eight subcommands. See the [command overview](../reference/cli/index.md). `run` executes scripts; `inspect database` connects for metadata-only inspection, while `inspect file` needs no database:
 
 ```text
 execsql run    [OPTIONS] SQL_SCRIPT [SERVER DATABASE | DATABASE_FILE]
@@ -17,20 +17,21 @@ execsql list   metacommands|encodings|plugins|keywords [--output-format text|jso
 execsql inspect database --dsn URL
 execsql inspect schema NAME --dsn URL
 execsql inspect table NAME --dsn URL [--schema NAME]
+execsql inspect file PATH [--sheet NAME] [--sample-rows N]
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
 
-| Command   | Purpose                                                                                                 |
-| --------- | ------------------------------------------------------------------------------------------------------- |
-| `run`     | Execute a script against a database.                                                                    |
-| `format`  | Normalize metacommand keywords, block indentation, and SQL layout.                                      |
-| `lint`    | Static analysis without a database. Exits 1 when any error is found.                                    |
-| `config`  | List every config option with its value, default and source; `--init` prints the template.              |
-| `list`    | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.                  |
-| `init`    | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.                     |
-| `lsp`     | The language server editors start for `.sql` files; see [Editor Support](../guides/editors.md#editors). |
-| `inspect` | Read-only database metadata; see [inspect database](../reference/cli/inspect.md).                       |
+| Command   | Purpose                                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------------------------- |
+| `run`     | Execute a script against a database.                                                                          |
+| `format`  | Normalize metacommand keywords, block indentation, and SQL layout.                                            |
+| `lint`    | Static analysis without a database. Exits 1 when any error is found.                                          |
+| `config`  | List every config option with its value, default and source; `--init` prints the template.                    |
+| `list`    | Print metacommands, encoding names, installed plugins, or the full keyword vocabulary.                        |
+| `init`    | Set up a project: `execsql.conf`, a script with a header, and the pre-commit hooks.                           |
+| `lsp`     | The language server editors start for `.sql` files; see [Editor Support](../guides/editors.md#editors).       |
+| `inspect` | Read-only database structure or file/import metadata; see [inspection commands](../reference/cli/inspect.md). |
 
 `format` and `lint` accept files or directories; directories are searched
 recursively for `*.sql`, and `-` reads one script from stdin. A CI job runs them
@@ -223,6 +224,25 @@ allows a hidden password prompt for a URL user. `-w` / `--no-passwd` disables it
 `--prompt-password` explicitly allows it with JSON output on a terminal.
 Redirected stdin and JSON output never prompt automatically. See [schema discovery](../reference/schema.md) for the contract, scope and
 adapter support.
+
+`execsql inspect file PATH` needs no database. It reports formats, column names
+and IMPORT-inferred types, or lists workbook sheets when `--sheet` is omitted.
+It has its own options:
+
+| Option                       | Meaning                                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `--format FORMAT`            | Override the extension hint: csv, tsv, text, json, jsonl, xls, xlsx, ods, parquet, feather.           |
+| `--sheet NAME`               | Worksheet name or 1-based index to inspect.                                                           |
+| `--sample-rows N`            | Positive inference-row limit; default scans all rows. Some readers still materialize the full source. |
+| `--encoding NAME`            | Text or legacy XLS encoding override.                                                                 |
+| `--delimiter CHAR`           | Delimited-text override; one character or TAB/US/SPACE. Defaults quote to double quote.               |
+| `--quote CHAR`               | Quote character or `none`; requires `--delimiter`.                                                    |
+| `--skip-rows N`              | Non-negative lines/worksheet rows to skip before the header.                                          |
+| `--config FILE`              | Explicit import configuration in addition to normal tool config search.                               |
+| `--output-format text\|json` | Human-readable text (default) or the shared JSON contract.                                            |
+
+See [file inspection](../reference/files.md) for the complete contract, format
+behavior, sampling limits and examples. Incomplete samples are provisional.
 
 The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
 `execsql run --help` lists them all. `-h`/`--help` works on every command.

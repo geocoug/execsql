@@ -160,3 +160,57 @@ def _connection_hint(dsn: str) -> str:
         "Include the user in the URL and use --prompt-password on a terminal for password authentication, "
         "or --no-passwd for driver/OS authentication."
     )
+
+
+def print_file_inspection(result: dict[str, Any]) -> None:
+    """Render the file contract as literal metadata, never source row values."""
+    _console.print(_literal(f"File: {result['file']}"), style="bold")
+    _console.print(_literal(f"Format: {result['format']} ({result['format_source']})"))
+    if result["encoding"] is not None:
+        encoding = result["encoding"]
+        _console.print(_literal(f"Encoding: {encoding['name']} ({encoding['source']})"))
+    if result["format"] == "delimited":
+        _console.print(
+            _literal(f"Delimiter: {result['delimiter']!r}; quote: {result['quote']!r} ({result['dialect_source']})"),
+        )
+    if result["skip_rows"]:
+        _console.print(f"Skipped before header: {result['skip_rows']} line(s)/worksheet row(s).")
+    if result["worksheets"] is not None and result["sheet"] is None:
+        _console.print("Worksheets:")
+        for index, name in enumerate(result["worksheets"], 1):
+            _console.print(_literal(f"  {index}. {name}"))
+        _console.print("Use --sheet NAME to inspect columns.")
+    else:
+        if result["sheet"] is not None:
+            _console.print(_literal(f"Worksheet: {result['sheet']}"))
+        scan = result["scan"]
+        complete = "complete" if scan["complete"] else "incomplete; inferred types are provisional"
+        _console.print(f"Scan: {scan['mode']}, {scan['rows_examined']} data rows examined ({complete}).")
+        if not scan["complete"]:
+            _console.print(f"Total data rows: {scan['total_rows'] if scan['total_rows'] is not None else 'unknown'}")
+        if scan["mode"] == "sample" and scan["source_materialized"]:
+            _console.print(
+                "This reader materialized the full source; sampling limited inference, not file reads or memory.",
+            )
+        columns = Table(box=box.SIMPLE, show_edge=False)
+        stored = any(column["source_type"] is not None for column in result["columns"])
+        for heading in ("Column", "Inferred type", "Nulls"):
+            columns.add_column(heading, overflow="fold")
+        if stored:
+            columns.add_column("Stored type", overflow="fold")
+        for column in result["columns"]:
+            values: list[Text | str] = [
+                _literal(column["name"]),
+                _literal(column["inferred_type"]),
+                str(column["null_count"]),
+            ]
+            if stored:
+                values.append(_literal(column["source_type"] or "unavailable"))
+            columns.add_row(*values)
+        _console.print(columns)
+    _console.print(
+        _literal("Configuration files: " + (", ".join(result["config_files"]) or "none (built-in defaults)")),
+    )
+    _console.print(
+        _literal("Import settings: " + ", ".join(f"{name}={value}" for name, value in result["settings"].items())),
+    )

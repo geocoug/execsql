@@ -37,6 +37,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                                                               | No                |
 | `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/stable/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
 | `execsql inspect database\|schema\|table`  | Inspect database/schema summaries or table columns, types and relationships as text or JSON                                                                           | Yes               |
+| `execsql inspect file`                     | Inspect import formats, worksheets, columns and inferred types as text or JSON                                                                                        | No                |
 | [VS Code extension](extras/vscode-execsql) | Highlighting plus everything `execsql lsp` provides                                                                                                                   | No                |
 
 `format` and `lint` take files or directories.
@@ -117,6 +118,7 @@ execsql list   metacommands|encodings|plugins|keywords
 execsql inspect database --dsn URL
 execsql inspect schema NAME --dsn URL
 execsql inspect table NAME --dsn URL [--schema NAME]
+execsql inspect file PATH [--sheet NAME] [--sample-rows N]
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
@@ -281,6 +283,20 @@ Python callers can use `execsql.inspect_schema()` with a connection URL or an
 existing execsql adapter. Add `include_database=True` for unfiltered database
 identity and namespace counts. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
 for the versioned JSON contract and adapter coverage.
+
+Inspect an importable file before loading it:
+
+```sh
+execsql inspect file results.csv
+execsql inspect file results.xlsx --sheet Data
+execsql inspect file results.parquet --sample-rows 1000 --output-format json
+```
+
+Full scans use the existing import readers and type inference. Samples are marked
+provisional when incomplete; some readers still materialize the full source.
+Workbooks without `--sheet` list worksheets. Python `execsql.inspect_file()` shares
+the same result contract. See [file inspection](https://execsql2.readthedocs.io/en/stable/reference/files/)
+for formats, optional readers, effective configuration and scan limits.
 
 ## Templates
 

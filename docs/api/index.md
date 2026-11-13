@@ -14,6 +14,12 @@ execsql adapter. See [schema discovery](../reference/schema.md) for the shared
 CLI/Python JSON contract, optional terminal password prompting, connection
 ownership and adapter coverage.
 
+Use `execsql.inspect_file("results.csv")` for read-only file format/column metadata
+and IMPORT type inference, with optional `sample_rows=`, `sheet=` and
+`config_file=`. It needs no database. Full scans are the default; incomplete
+samples are provisional. See [file inspection](../reference/files.md) for supported
+formats, effective configuration, resource behavior and the CLI/Python contract.
+
 The primary public API is `execsql.run()`:
 
 ```python

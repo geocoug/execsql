@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql inspect file PATH` and Python `inspect_file()` report import formats, columns and inferred types without a database; support full scans, explicit samples, worksheet selection, configuration and text/JSON output for all built-in import formats.
+
 - Python `inspect_schema(include_database=True)` and `execsql inspect database --output-format json` include database identity and visible namespace counts, including namespaces with no visible tables/views.
 
 - `execsql inspect schema NAME` lists tables/views in one schema; `execsql inspect table NAME [--schema NAME]` shows columns, keys and relationships. Both support text and JSON output.

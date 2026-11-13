@@ -252,6 +252,13 @@ New options in `execsql.conf`:
 
 ### Tools
 
+- `execsql inspect file PATH` and Python `execsql.inspect_file()` inspect all
+    built-in import formats without a database or source writes. Full scans reuse
+    IMPORT readers and type inference; explicit samples report completeness and
+    whether the source was materialized. Workbooks list worksheets or inspect a
+    selected sheet. Text and JSON share format, columns, inference and effective
+    input configuration; see [file inspection](../reference/files.md).
+
 - CLI `execsql inspect` and Python `execsql.inspect_schema()` inspect database
     structure without running scripts or fetching application
     rows. The [schema discovery reference](../reference/schema.md) documents
