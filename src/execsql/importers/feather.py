@@ -17,14 +17,8 @@ from execsql.importers.base import import_data_table
 __all__ = ["import_feather", "import_parquet"]
 
 
-def import_feather(
-    db: Database,
-    schemaname: str | None,
-    tablename: str,
-    filename: str,
-    is_new: Any,
-) -> None:
-    """Import an Apache Arrow Feather (IPC) file into a database table."""
+def columnar_data(filename: str, kind: str) -> Any:
+    """Read the native frame identically for IMPORT and read-only inspection."""
     from execsql.utils.errors import exception_desc
 
     try:
@@ -33,9 +27,20 @@ def import_feather(
         raise ErrInfo(
             "exception",
             exception_msg=exception_desc(),
-            other_msg="The polars Python library must be installed to import data from the Feather format.",
+            other_msg=f"The polars Python library must be installed to import data from the {kind.title()} format.",
         ) from e
-    df = pl.read_ipc(filename)
+    return pl.read_ipc(filename) if kind == "feather" else pl.read_parquet(filename)
+
+
+def import_feather(
+    db: Database,
+    schemaname: str | None,
+    tablename: str,
+    filename: str,
+    is_new: Any,
+) -> None:
+    """Import an Apache Arrow Feather (IPC) file into a database table."""
+    df = columnar_data(filename, "feather")
     hdrs = df.columns
     data = [list(row) for row in df.rows()]
     import_data_table(db, schemaname, tablename, is_new, hdrs, data)
@@ -49,17 +54,7 @@ def import_parquet(
     is_new: Any,
 ) -> None:
     """Import a Parquet file into a database table."""
-    from execsql.utils.errors import exception_desc
-
-    try:
-        import polars as pl
-    except Exception as e:
-        raise ErrInfo(
-            "exception",
-            exception_msg=exception_desc(),
-            other_msg="The polars Python library must be installed to import data from the Parquet format.",
-        ) from e
-    df = pl.read_parquet(filename)
+    df = columnar_data(filename, "parquet")
     hdrs = df.columns
     data = [list(row) for row in df.rows()]
     import_data_table(db, schemaname, tablename, is_new, hdrs, data)

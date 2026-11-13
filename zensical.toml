@@ -33,7 +33,8 @@ nav = [
             { "Substitution Variables" = "reference/substitution_vars.md" },
             { "Configuration" = "reference/configuration.md" },
             { "Security" = "reference/security.md" },
-            { "Schema discovery" = "reference/schema.md" }
+            { "Schema discovery" = "reference/schema.md" },
+            { "File inspection" = "reference/files.md" }
         ] },
         { "Guides" = [
             { "SQL Syntax" = "guides/sql_syntax.md" },

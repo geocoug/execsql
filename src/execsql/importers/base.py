@@ -18,7 +18,7 @@ from execsql.exceptions import ErrInfo
 from execsql.db.base import Database
 import execsql.state as _state
 
-__all__ = ["import_data_table", "refuse_existing_table"]
+__all__ = ["import_data_table", "prepare_import_data", "refuse_existing_table"]
 
 
 def refuse_existing_table(db: Database, schema_name: str | None, table_name: str) -> None:
@@ -43,17 +43,8 @@ def refuse_existing_table(db: Database, schema_name: str | None, table_name: str
         )
 
 
-def import_data_table(
-    db: Database,
-    schemaname: str | None,
-    tablename: str,
-    is_new: Any,
-    hdrs: list[str],
-    data: list[Any],
-) -> None:
-    """Create (if needed) and populate a database table from in-memory row data."""
-    from execsql.utils.errors import exception_desc
-
+def prepare_import_data(hdrs: list[str], data: list[Any]) -> tuple[list[str], list[Any]]:
+    """Apply the existing row-import header rules without touching a database."""
     conf = _state.conf
     if any(x is None or len(x.strip()) == 0 for x in hdrs):
         if conf.del_empty_cols:
@@ -86,6 +77,22 @@ def import_data_table(
         from execsql.utils.strings import dedup_words
 
         hdrs = dedup_words(hdrs)
+    return hdrs, data
+
+
+def import_data_table(
+    db: Database,
+    schemaname: str | None,
+    tablename: str,
+    is_new: Any,
+    hdrs: list[str],
+    data: list[Any],
+) -> None:
+    """Create (if needed) and populate a database table from in-memory row data."""
+    from execsql.utils.errors import exception_desc
+
+    conf = _state.conf
+    hdrs, data = prepare_import_data(hdrs, data)
 
     tablespec_cache: Any = None
 

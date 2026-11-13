@@ -45,7 +45,7 @@ versioning policy, without executing a SQL script or requesting row data.
 ## Inspection extensions
 
 Each inspection command owns one level: database, schema or table. Schema/table inspection
-commands are delivered; file inspection remains a proposal:
+and file inspection commands are delivered:
 
 Database inspection shows identity, engine and namespaces with visible
 table/view counts, including namespaces without visible objects. Schema-less
@@ -54,17 +54,18 @@ Database inspection has no schema/table filters; table inspection retains
 `--schema` to qualify its name. PostgreSQL discovery hides reserved `pg_*`
 schemas by default while permitting explicit schema inspection.
 
-| Command                                        | Status and output                                                                                              |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `execsql inspect schema NAME`                  | Delivered: tables/views within the selected schema.                                                            |
-| `execsql inspect table NAME [--schema SCHEMA]` | Delivered: columns, types, nullability, primary key and relationships for matching tables/views.               |
-| `execsql inspect file PATH`                    | Proposed: file format, encoding and delimiter where applicable, column names and inferred types before import. |
+| Command                                        | Status and output                                                                                                                                                 |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `execsql inspect schema NAME`                  | Delivered: tables/views within the selected schema.                                                                                                               |
+| `execsql inspect table NAME [--schema SCHEMA]` | Delivered: columns, types, nullability, primary key and relationships for matching tables/views.                                                                  |
+| `execsql inspect file PATH`                    | Delivered: all built-in import formats, worksheet selection, full/sample scans, stored columnar types, IMPORT inference and effective configuration as text/JSON. |
 
 Use readable text by default and `--output-format json` for automation. Database
 commands share the existing inspection API and connection options. File inspection
-should reuse the import readers and type inference; its scoped design must define
-supported formats, sampling limits and how uncertain detection is reported.
-File inspection requires its own scope approval before implementation.
+reuses import readers and inference, with full scans by default and explicit
+provisional samples. The [file reference](docs/reference/files.md) documents
+formats, optional readers, effective configuration, worksheet behavior and
+materialization costs. It needs no database and does not modify source files.
 
 ## Product track: agents and automation
 

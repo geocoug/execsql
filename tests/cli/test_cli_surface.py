@@ -159,7 +159,7 @@ class TestSurface:
 
     def test_inspect_commands(self, group):
         inspection = group.commands["inspect"]
-        assert list(inspection.list_commands(None)) == ["database", "schema", "table"]
+        assert list(inspection.list_commands(None)) == ["database", "schema", "table", "file"]
         common = {
             "--dsn --connection-string",
             "--output-format",
@@ -174,6 +174,20 @@ class TestSurface:
             arguments = [p for p in command.params if p.param_type_name == "argument"]
             assert [p.metavar for p in arguments] == ([] if name == "database" else ["NAME"])
             assert all(p.required for p in arguments)
+        command = inspection.commands["file"]
+        assert _options(command, hidden=False) == {
+            "--format",
+            "--sheet",
+            "--sample-rows",
+            "--encoding",
+            "--delimiter",
+            "--quote",
+            "--skip-rows",
+            "--config",
+            "--output-format",
+        }
+        assert _options(command, hidden=True) == set()
+        assert [p.metavar for p in command.params if p.param_type_name == "argument"] == ["PATH"]
 
     def test_no_hidden_commands(self, group):
         assert [name for name, cmd in group.commands.items() if cmd.hidden] == []

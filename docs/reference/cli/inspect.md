@@ -1,11 +1,12 @@
 # execsql inspect
 
-Inspect database structure without executing scripts or reading application rows:
+Inspect database structure or importable files without executing scripts:
 
 ```sh
 execsql inspect database --dsn sqlite:///project.sqlite
 execsql inspect schema main --dsn sqlite:///project.sqlite
 execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
+execsql inspect file results.csv
 ```
 
 `database` connects to the selected database and prints its identity, engine and
@@ -15,13 +16,19 @@ unavailable namespace enumeration is labeled explicitly.
 `schema NAME` lists matching tables/views, column counts and key summaries.
 `table NAME` shows ordered columns, catalog types, nullability, primary keys
 and outgoing foreign-key relationships. Unknown and unavailable metadata are
-marked explicitly. No SQL scripts are run and no application rows are fetched.
+marked explicitly. No SQL scripts are run. Database inspection fetches no
+application rows; file inspection reads source data for inference.
 
-| Command               | Scope and text output                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `inspect database`    | Database identity and namespace counts; no schema/table filters.                                                   |
-| `inspect schema NAME` | Tables/views, column counts and key summaries in one exact schema.                                                 |
-| `inspect table NAME`  | Ordered columns, types, nullability, keys and relationships for matching tables/views; optional `--schema` filter. |
+| Command               | Scope and text output                                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `inspect database`    | Database identity and namespace counts; no schema/table filters.                                                           |
+| `inspect schema NAME` | Tables/views, column counts and key summaries in one exact schema.                                                         |
+| `inspect table NAME`  | Ordered columns, types, nullability, keys and relationships for matching tables/views; optional `--schema` filter.         |
+| `inspect file PATH`   | File format, columns and IMPORT-inferred types; list workbook sheets or select one with `--sheet`. No database connection. |
+
+The following connection options and catalog rules apply to database/schema/table
+inspection. File inspection has its own [options and reference](../files.md),
+including configuration, encoding, sampling and worksheet selection.
 
 `NAME` is required for `schema` and `table`. Names are exact and case-sensitive;
 a dot in a name is literal, so use `--schema public` separately from the table

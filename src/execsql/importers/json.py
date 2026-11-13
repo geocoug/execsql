@@ -63,6 +63,17 @@ def _flatten(obj: Any, prefix: str = "", sep: str = ".") -> dict[str, Any]:
     return items
 
 
+def json_format(filename: str, encoding: str) -> str:
+    """Identify the same array/object-stream forms IMPORT accepts, ignoring suffix."""
+    with open(filename, encoding=encoding) as fh:
+        first_char = next((ch for ch in iter(lambda: fh.read(1), "") if not ch.isspace()), None)
+    if first_char == "[":
+        return "json"
+    if first_char == "{":
+        return "jsonl"
+    raise ErrInfo(type="error", other_msg="JSON import expects a file starting with '[' (array) or '{' (object/JSONL).")
+
+
 def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
     """Read a JSON file and return a list of flat dicts.
 
@@ -75,19 +86,8 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
     whole file — switching to a streaming parser would require
     ``ijson`` as a dependency.
     """
-    # Peek at the first non-whitespace character to decide which
-    # parsing strategy to use, without slurping the entire file.
-    with open(filename, encoding=encoding) as fh:
-        first_char: str | None = None
-        while True:
-            ch = fh.read(1)
-            if not ch:
-                break
-            if not ch.isspace():
-                first_char = ch
-                break
-
-    if first_char == "[":
+    kind = json_format(filename, encoding)
+    if kind == "json":
         # Standard JSON array — must buffer the whole file (json.loads
         # has no streaming mode; ijson would be needed for that).
         text = Path(filename).read_text(encoding=encoding)
@@ -95,7 +95,7 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
         if not isinstance(raw, list):
             raise ErrInfo(type="error", other_msg="JSON file root is not an array of objects.")
         records = raw
-    elif first_char == "{":
+    else:
         # JSONL (JSON Lines) — stream the file line-by-line.
         records = []
         with open(filename, encoding=encoding) as fh:
@@ -116,12 +116,6 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
                         other_msg=f"Line {lineno} is not a JSON object.",
                     )
                 records.append(obj)
-    else:
-        raise ErrInfo(
-            type="error",
-            other_msg="JSON import expects a file starting with '[' (array) or '{' (object/JSONL).",
-        )
-
     if not records:
         raise ErrInfo(type="error", other_msg="JSON file contains no records.")
 
@@ -134,6 +128,17 @@ def _parse_json_file(filename: str, encoding: str) -> list[dict[str, Any]]:
             )
 
     return [_flatten(rec) for rec in records]
+
+
+def json_data(filename: str, encoding: str) -> tuple[list[str], list[list[Any]]]:
+    """Read, flatten and align JSON records using the IMPORT rules."""
+    flat_records = _parse_json_file(filename, encoding)
+    seen: dict[str, None] = {}
+    for rec in flat_records:
+        for key in rec:
+            seen[key] = None
+    hdrs = list(seen)
+    return hdrs, [[rec.get(h) for h in hdrs] for rec in flat_records]
 
 
 def import_json(
@@ -159,7 +164,7 @@ def import_json(
     enc = encoding if encoding else _state.conf.import_encoding
 
     try:
-        flat_records = _parse_json_file(filename, enc)
+        hdrs, data = json_data(filename, enc)
     except ErrInfo:
         raise
     except Exception as e:
@@ -168,16 +173,5 @@ def import_json(
             exception_msg=exception_desc(),
             other_msg=f"Can't parse JSON file {filename}",
         ) from e
-
-    # Build a union of all keys across records (preserving first-seen order).
-    seen: dict[str, None] = {}
-    for rec in flat_records:
-        for key in rec:
-            if key not in seen:
-                seen[key] = None
-    hdrs = list(seen)
-
-    # Build row data aligned to hdrs — missing keys become None.
-    data = [[rec.get(h) for h in hdrs] for rec in flat_records]
 
     import_data_table(db, schemaname, tablename, is_new, hdrs, data)
