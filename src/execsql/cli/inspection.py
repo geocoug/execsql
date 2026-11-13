@@ -59,7 +59,7 @@ def print_inspection(result: dict[str, Any], *, detailed: bool) -> None:
             _literal("unavailable" if foreign is None else len(foreign)),
         )
     _console.print(overview)
-    _console.print(f"{len(tables)} object(s). Use --table NAME to inspect columns and relationships.")
+    _console.print(f"{len(tables)} object(s). Use execsql inspect table NAME --dsn URL [--schema SCHEMA] for details.")
 
 
 def _print_table(item: dict[str, Any]) -> None:

@@ -159,19 +159,21 @@ class TestSurface:
 
     def test_inspect_commands(self, group):
         inspection = group.commands["inspect"]
-        assert list(inspection.list_commands(None)) == ["database"]
-        command = inspection.commands["database"]
-        assert _options(command, hidden=False) == {
+        assert list(inspection.list_commands(None)) == ["database", "schema", "table"]
+        common = {
             "--dsn --connection-string",
-            "--schema",
-            "--table",
             "--output-format",
             "--prompt-password",
             "-w --no-passwd",
         }
-        assert _options(command, hidden=True) == set()
-        assert not command.hidden
-        assert [p for p in command.params if p.param_type_name == "argument"] == []
+        for name, filters in {"database": {"--schema", "--table"}, "schema": set(), "table": {"--schema"}}.items():
+            command = inspection.commands[name]
+            assert _options(command, hidden=False) == common | filters
+            assert _options(command, hidden=True) == set()
+            assert not command.hidden
+            arguments = [p for p in command.params if p.param_type_name == "argument"]
+            assert [p.metavar for p in arguments] == ([] if name == "database" else ["NAME"])
+            assert all(p.required for p in arguments)
 
     def test_no_hidden_commands(self, group):
         assert [name for name, cmd in group.commands.items() if cmd.hidden] == []

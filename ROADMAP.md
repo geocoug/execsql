@@ -44,21 +44,20 @@ versioning policy, without executing a SQL script or requesting row data.
 
 ## Inspection extensions
 
-Retain `execsql inspect database` and its existing filters. Proposed object-specific
-commands make the inspection scope explicit:
+Retain `execsql inspect database` and its existing filters. Schema/table inspection
+commands are delivered; file inspection remains a proposal:
 
-| Proposed command                             | Intended output                                                                                      |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `execsql inspect schema NAME`                | Tables/views within the selected schema.                                                             |
-| `execsql inspect table NAME --schema SCHEMA` | Columns, types, nullability, primary key and relationships for one table.                            |
-| `execsql inspect file PATH`                  | File format, encoding and delimiter where applicable, column names and inferred types before import. |
+| Command                                        | Status and output                                                                                              |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `execsql inspect schema NAME`                  | Delivered: tables/views within the selected schema.                                                            |
+| `execsql inspect table NAME [--schema SCHEMA]` | Delivered: columns, types, nullability, primary key and relationships for matching tables/views.               |
+| `execsql inspect file PATH`                    | Proposed: file format, encoding and delimiter where applicable, column names and inferred types before import. |
 
 Use readable text by default and `--output-format json` for automation. Database
 commands share the existing inspection API and connection options. File inspection
 should reuse the import readers and type inference; its scoped design must define
 supported formats, sampling limits and how uncertain detection is reported.
-These are proposals, not implemented commands; implementation requires its own
-scope approval.
+File inspection requires its own scope approval before implementation.
 
 ## Product track: agents and automation
 

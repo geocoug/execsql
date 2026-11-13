@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql inspect schema NAME` lists tables/views in one schema; `execsql inspect table NAME [--schema NAME]` shows columns, keys and relationships. Both support text and JSON output.
+
 - `execsql inspect database` accepts `--connection-string` as an alias for `--dsn`, matching `execsql run`.
 
 - `execsql inspect database --prompt-password` and Python `inspect_schema(prompt_password=True)` allow password prompting on a terminal (automatic for CLI text output); `--no-passwd` disables CLI prompting.
