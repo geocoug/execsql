@@ -389,6 +389,8 @@ def _sql_failed(ctx: RuntimeContext, e: ErrInfo, cmd: str, source: str, line_no:
     _fail_open_batches(ctx, source, line_no)
     if ctx.status.halt_on_err:
         exit_now(1, e)
+    if ctx.manifest is not None:
+        ctx.manifest.add_error(e)
     ctx.status.error_history.append((source, line_no, cmd, e.errmsg()))
 
 
@@ -453,6 +455,8 @@ def _metacommand_failed(
     _fail_open_batches(ctx, source, line_no)
     if status.halt_on_metacommand_err or always_halt or e.always_halt:
         exit_now(1, e)
+    if ctx.manifest is not None:
+        ctx.manifest.add_error(e)
     status.error_history.append((source, line_no, cmd, e.errmsg()))
 
 

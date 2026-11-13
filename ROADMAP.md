@@ -1,12 +1,12 @@
 # Roadmap
 
-Updated 2026-11-12. This is the consolidated direction for execsql2: product
+Updated 2026-11-13. This is the consolidated direction for execsql2: product
 features, engineering work and compatibility proposals. [GitHub issues](https://github.com/geocoug/execsql/issues)
 remain the actionable backlog; this document records priorities, dependencies and
 completion criteria. Approving the roadmap accepts its priorities; implementation
 still requires approval of a specific change's scope. It assigns no release dates.
 
-**Next product milestone: versioned JSON execution results (A2).**
+**Current focus: targeted improvements to existing logs, the run manifest and Python results.**
 Performance work can proceed alongside the product milestones. Each change needs
 an agreed scope; once approved, carry it through commits, PR, CI, required review
 and merge under [AGENTS.md](AGENTS.md).
@@ -48,16 +48,27 @@ The order below expresses feature priority, not a strict serial implementation
 schedule. Dependencies determine what can proceed independently. Build on
 interfaces that already exist; each milestone must be useful independently.
 
-| Milestone                                | Outcome and completion criteria                                                                                                                                                                                                                                                                                                                | Dependencies                                                               |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| **A1. Schema discovery (delivered)**     | Filtered, read-only JSON metadata with explicit adapter capabilities and errors; see the interface above.                                                                                                                                                                                                                                      | Existing database adapters.                                                |
-| **A2. Versioned JSON execution results** | Document error codes, statement outcomes, reliable affected-row counts and transaction outcomes. Share the result schema across CLI, Python and future integrations. Report confirmed commits, rollbacks and unknown outcomes separately, including work committed before failure; a failed run must not imply atomic execution or safe retry. | Existing manifest and Python API; coordinate the JSON conventions with A1. |
-| **A3. Unattended mode**                  | Inventory every password request, `PROMPT`, `PAUSE` and other interactive operation. Each consumes an explicitly supplied answer or returns a structured input-required error. Define prompt identifiers and credential delivery; do not guess answers or expose secrets in output.                                                            | A2 for structured input-required outcomes.                                 |
-| **A4. Machine-readable preflight**       | Add `execsql inspect script` using the parser/dry run to report includes, required inputs, connections, file writes, shell commands and unresolved expressions, with source locations. Mark runtime-dependent effects as unknown. Static inspection does not prove SQL, procedures or external commands safe.                                  | Existing parser/dry run; this can be developed independently of A2–A3.     |
-| **A5. Optional MCP interface**           | Expose schema inspection, script validation and execution of explicitly selected scripts through the established APIs and result schemas. Keep the integration optional and define execution permissions separately from inspection access.                                                                                                    | Completed A1–A4 interfaces; no duplicated execution engine.                |
+| Milestone                            | Outcome and completion criteria                                                                                                                                                                                                                                                                               | Dependencies                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **A1. Schema discovery (delivered)** | Filtered, read-only JSON metadata with explicit adapter capabilities and errors; see the interface above.                                                                                                                                                                                                     | Existing database adapters.                                                               |
+| **A3. Unattended mode**              | Inventory every password request, `PROMPT`, `PAUSE` and other interactive operation. Each consumes an explicitly supplied answer or returns a structured input-required error. Define prompt identifiers and credential delivery; do not guess answers or expose secrets in output.                           | Existing CLI/Python error handling; define input-required outcomes within this milestone. |
+| **A4. Machine-readable preflight**   | Add `execsql inspect script` using the parser/dry run to report includes, required inputs, connections, file writes, shell commands and unresolved expressions, with source locations. Mark runtime-dependent effects as unknown. Static inspection does not prove SQL, procedures or external commands safe. | Existing parser/dry run; this can be developed independently of unattended mode.          |
+| **A5. Optional MCP interface**       | Expose schema inspection, script validation and execution of explicitly selected scripts through the established APIs and result schemas. Keep the integration optional and define execution permissions separately from inspection access.                                                                   | Existing Python API/manifest plus A1, A3 and A4; no duplicated execution engine.          |
 
-Explicit run context is not a prerequisite for A1–A5. Each interface must respect
+Explicit run context is not a prerequisite for these milestones. Each interface must respect
 existing run and connection-ownership constraints.
+
+## Reporting direction
+
+**Decision, 2026-11-13:** drop A2's separate versioned execution report and detailed
+per-command/transaction trace. No current consumer justifies another reporting
+interface or its collection and maintenance costs.
+
+Improve `execsql.log`, the existing `--manifest` output and Python `ScriptResult`
+where a concrete bug or caller need warrants it. Preserve existing interfaces,
+secret redaction and execution behavior. Measure the cost of any new
+instrumentation before enabling it. The remaining automation milestones build on
+these existing interfaces; a separate report is not a prerequisite.
 
 ## Engineering track: performance and execution architecture
 

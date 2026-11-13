@@ -193,3 +193,77 @@ class TestSecrets:
         _result, m = _run(work, OK, "--var", "region=west", "-a", "x", "--manifest", "runs/m.json")
         assert [f["path"] for f in m["files_written"]][0] == "out/west.csv"
         assert m["files_read"][0]["path"] == "in.csv"
+
+
+class TestNonHaltingErrors:
+    def test_sql_errors_are_kept_in_order_when_the_script_continues(self, work):
+        script = "-- !x! ERROR_HALT OFF\nselect * from missing_first;\nselect * from missing_second;\nselect 1;\n"
+        result, manifest = _run(work, script, "--manifest", "runs/m.json")
+        assert result.returncode == 0, result.stderr
+        assert manifest["exit_status"] == 0
+        assert [e["line"] for e in manifest["errors"]] == [2, 3]
+        assert [e["source"] for e in manifest["errors"]] == ["s.sql", "s.sql"]
+        assert [e["command"] for e in manifest["errors"]] == [
+            "select * from missing_first;",
+            "select * from missing_second;",
+        ]
+        assert "missing_first" in manifest["errors"][0]["message"]
+        assert "missing_second" in manifest["errors"][1]["message"]
+
+    def test_metacommand_errors_do_not_disappear_after_successful_commands(self, work):
+        script = (
+            "-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! USE missing_one\n-- !x! USE missing_two\n"
+            '-- !x! WRITE "continued" TO after.txt\n'
+        )
+        result, manifest = _run(work, script, "--manifest", "runs/m.json")
+        assert result.returncode == 0, result.stderr
+        assert (work / "after.txt").read_text().strip() == "continued"
+        assert [e["line"] for e in manifest["errors"]] == [2, 3]
+        assert [e["command"] for e in manifest["errors"]] == ["USE missing_one", "USE missing_two"]
+
+    def test_non_halting_errors_precede_a_halting_error_without_duplicates(self, work):
+        script = (
+            "-- !x! ERROR_HALT OFF\nselect * from missing_first;\n"
+            "-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! USE missing_alias\n"
+            "-- !x! ERROR_HALT ON\nselect * from missing_last;\n"
+        )
+        result, manifest = _run(work, script, "--manifest", "runs/m.json")
+        assert result.returncode == 1
+        assert manifest["exit_status"] == 1
+        assert [e["line"] for e in manifest["errors"]] == [2, 4, 6]
+
+    def test_repeated_failures_at_the_same_source_location_are_distinct(self, work):
+        script = (
+            "-- !x! BEGIN SCRIPT broken\nselect * from missing_table;\n-- !x! END SCRIPT\n"
+            "-- !x! ERROR_HALT OFF\n-- !x! EXECUTE SCRIPT broken\n-- !x! EXECUTE SCRIPT broken\n"
+        )
+        result, manifest = _run(work, script, "--manifest", "runs/m.json")
+        assert result.returncode == 0, result.stderr
+        assert [e["line"] for e in manifest["errors"]] == [2, 2]
+
+    def test_non_halting_errors_use_the_existing_secret_redaction(self, work):
+        from execsql.utils.crypto import Encrypt
+
+        secret = "pw_" + "Zq7Rv2Lm9Px4"
+        script = (
+            f"-- !x! METACOMMAND_ERROR_HALT OFF\n-- !x! SUB_DECRYPT pw {Encrypt().encrypt(secret)}\n"
+            '-- !x! IMPORT TO NEW t FROM "in_!!pw!!.csv"\n-- !x! WRITE "continued" TO after.txt\n'
+        )
+        result, manifest = _run(work, script, "--manifest", "runs/m.json")
+        assert result.returncode == 0, result.stderr
+        assert len(manifest["errors"]) == 1
+        assert "in_***.csv" in manifest["errors"][0]["message"]
+        assert secret not in (work / "runs" / "m.json").read_text()
+
+    @pytest.mark.parametrize("handler_halts", [False, True])
+    def test_original_error_precedes_errors_in_its_halt_handler(self, work, handler_halts):
+        script = (
+            f"-- !x! BEGIN SCRIPT on_error\n-- !x! ERROR_HALT {'ON' if handler_halts else 'OFF'}\nselect * from handler_missing;\n"
+            "-- !x! END SCRIPT\n-- !x! ON ERROR_HALT EXECUTE SCRIPT on_error\n"
+            "select * from original_missing;\n"
+        )
+        result, manifest = _run(work, script, "--manifest", "runs/m.json")
+        assert result.returncode == 1, result.stderr
+        assert [e["line"] for e in manifest["errors"]] == [6, 3]
+        assert "original_missing" in manifest["errors"][0]["message"]
+        assert "handler_missing" in manifest["errors"][1]["message"]

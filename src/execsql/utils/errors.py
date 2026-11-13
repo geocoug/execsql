@@ -193,9 +193,14 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
     # HALT and a canceled prompt carry no error and still end the run.
     if errinfo is not None and _state.prompt_input is not None:
         raise errinfo
+    from execsql import manifest as _manifest
+
     _state.halt_error = errinfo
     if errinfo is not None:
         stamp_errinfo(errinfo)
+        if (manifest := _manifest.current()) is not None:
+            # Record the cause before an ON ERROR_HALT handler can fail too.
+            manifest.add_error(errinfo)
         if _state.subvars is not None:
             _state.subvars.add_substitution("$ERROR_MESSAGE", errinfo.errmsg())
         errinfo.write()
@@ -272,12 +277,10 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
 
     filewriter_end()
     # Last, so the ON ERROR_HALT / ON CANCEL_HALT actions above are in it.
-    from execsql import manifest as _manifest
-
     if (manifest := _manifest.current()) is not None:
         if lost_output is not None:
             manifest.add_error(lost_output)
-        manifest.finish(exit_status, errinfo)
+        manifest.finish(exit_status)
     raise ScriptExit(exit_status)
 
 
