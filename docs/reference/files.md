@@ -40,8 +40,10 @@ uv tool install 'execsql2[formats]'
 
 A missing or broken optional dependency produces a structured `dependency_error`
 and an installation hint. Inspection retains the XLSX archive checks and ODS
-archive/expansion limits used by imports. Sampling does not bypass those limits
-or suppress parser errors outside the inference sample.
+archive/expansion limits used by imports. Sampling does not bypass those limits.
+Readers that parse the whole source can report parser errors outside the inference
+sample. Delimited-text sampling stops after the sample and one lookahead row, so
+parser errors in later rows can remain undiscovered.
 
 ## Full scans and sampling
 
