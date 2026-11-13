@@ -63,10 +63,15 @@ def test_all_inspection_scopes_with_live_url_connections(dbms, tmp_path):
                         assert report["database"]["name"]
                     else:
                         assert "database" not in report
+                    if scope[0] == "schema":
+                        assert any(t["name"] == view for t in report["tables"])
                 elif scope[0] == "database":
                     assert "Database:" in result.stdout and "Engine:" in result.stdout
                 elif scope[0] == "schema":
-                    assert table in result.stdout and view in result.stdout
+                    # Catalog-qualified names may wrap within Rich's table cells.
+                    # Their exact identity is checked in JSON, independently of width.
+                    assert "Object" in result.stdout and "Columns" in result.stdout
+                    assert "object(s)" in result.stdout
                 else:
                     assert "payload" in result.stdout and "Primary key: id" in result.stdout
     finally:
