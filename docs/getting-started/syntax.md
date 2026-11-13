@@ -402,7 +402,14 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
     }
     ```
 
-    Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. `variables` lists the names set with `-a` and `--var`, not their values. A password (from `--dsn`, a prompt or the keyring), a `SUB_DECRYPT` result, or a common secret shape (a URL's password, `password=...`, an API token) that ends up in a path, a connection target or an error message is written as `***`. Values given with `-a` and `--var` are kept where a path uses them, as in `out/west.csv`, although the log masks them: keep a secret out of `-a` and `--var` if the manifest is collected.
+    Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. Errors are retained in execution order even when `ERROR_HALT OFF` or
+    `METACOMMAND_ERROR_HALT OFF` lets the script continue. A later successful command
+    does not erase them, and a later halting error is recorded once. The original
+    halting cause precedes any errors from its `ON ERROR_HALT` script, even if
+    that script also stops on an error. `exit_status`
+    remains the CLI exit code; a script that carries on to its end can have
+    `exit_status: 0` and a nonempty `errors` array. Check both when assessing a run.
+    `variables` lists the names set with `-a` and `--var`, not their values. A password (from `--dsn`, a prompt or the keyring), a `SUB_DECRYPT` result, or a common secret shape (a URL's password, `password=...`, an API token) that ends up in a path, a connection target or an error message is written as `***`. Values given with `-a` and `--var` are kept where a path uses them, as in `out/west.csv`, although the log masks them: keep a secret out of `-a` and `--var` if the manifest is collected.
 
     The path is checked before the run starts: if *FILE* cannot be written (its folder is a file, or not writable), `execsql run` exits 2 before any SQL runs.
 

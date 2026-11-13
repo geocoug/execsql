@@ -27,6 +27,10 @@ ______________________________________________________________________
 
 ### Fixed
 
+- `--manifest` records SQL and metacommand errors when the script continues with error halting disabled.
+
+- `--manifest` keeps the original failure before errors raised by an `ON ERROR_HALT` script.
+
 - `execsql inspect database` errors distinguish missing files, malformed URLs and rejected credentials, with diagnostic hints for text output.
 
 ______________________________________________________________________

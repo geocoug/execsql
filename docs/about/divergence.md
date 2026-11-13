@@ -69,6 +69,12 @@ ______________________________________________________________________
 
 ### Bug Fixes
 
+- `--manifest` includes non-halting SQL and metacommand errors, retaining their
+    order, source locations and existing secret masking even if later commands
+    succeed. A later halting error appears once, before errors from its
+    `ON ERROR_HALT` script, even if that handler also halts. The CLI exit-code rules are
+    unchanged; see [run manifest](../getting-started/syntax.md#options).
+
 `PROMPT ACTION` preserves the selected script's fatal errors. An unevaluable condition or other error that stops `EXECUTE SCRIPT` also stops ACTION execution, even with `METACOMMAND_ERROR_HALT OFF`; errors are not downgraded to ignorable prompt failures. Invalid targets and missing arguments still follow the prompt's normal error policy.
 
 Textual dialog construction and control failures follow the script's metacommand error policy in ordinary prompts and the full console. They close the failed dialog and fail open batches; with `METACOMMAND_ERROR_HALT OFF`, later prompts remain usable. They do not count as user cancellation or console Quit.
