@@ -4,7 +4,8 @@ Inspect database structure without running a script or fetching application rows
 
 ```sh
 execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
-execsql inspect database --dsn postgresql://localhost/project --schema public
+execsql inspect schema public --dsn postgresql://localhost/project
+execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 ```
 
 `--dsn` and `--connection-string` accept the same connection URL.
@@ -13,10 +14,20 @@ The CLI prints readable text by default: an overview of matching tables/views,
 column counts and key summaries, or ordered columns and relationships when
 `--table` is selected. Missing metadata is labeled unavailable or unknown.
 
+`inspect schema NAME` is the object-specific form of `inspect database --schema NAME`.
+`inspect table NAME [--schema SCHEMA]` is the form of
+`inspect database --table NAME [--schema SCHEMA]` that shows column/key details.
+Both use the same connection/password options, exit codes and JSON contract as
+`inspect database`. The original filter-based forms remain supported.
+Table inspection accepts views too. Without `--schema`, it returns every exact
+table/view match within the adapter's default scope, rather than choosing one
+schema; supply `--schema` to disambiguate.
+
 For the versioned JSON contract described below, add `--output-format json`:
 
 ```sh
 execsql inspect database --dsn sqlite:///project.sqlite --table samples --output-format json
+execsql inspect table samples --dsn sqlite:///project.sqlite --output-format json
 ```
 
 A successful lookup exits with status **0**, including when no objects match.
@@ -71,7 +82,7 @@ connection problem using the driver separately when more detail is required.
 
 ## Filters and scope
 
-`--schema` / `schema=` and `--table` / `table=` each accept one exact,
+Schema/table positional names, `--schema` / `schema=` and `--table` / `table=` each accept one exact,
 case-sensitive catalog name. Names are separate components: a dot in a table name
 is literal, not a schema separator. Do not add SQL quoting around the name;
 ordinary shell quoting is still needed for spaces. Percent signs and underscores

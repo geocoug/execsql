@@ -15,6 +15,8 @@ execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords [--output-format text|json]
 execsql inspect database --dsn URL [--schema NAME] [--table NAME]
+execsql inspect schema NAME --dsn URL
+execsql inspect table NAME --dsn URL [--schema NAME]
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
@@ -205,10 +207,16 @@ When `-t` is not specified, the default is SQLite (`l`).
 
 ## Options Reference { #options }
 
-`execsql inspect database` has its own options: required `--dsn URL` (alias `--connection-string URL`), optional
-`--schema NAME` and `--table NAME` (exact, case-sensitive names), and
+`execsql inspect database`, `inspect schema NAME` and `inspect table NAME` have
+their own options: required `--dsn URL` (alias `--connection-string URL`), and
 `--output-format text|json` (text by default). Without `--table`, text summarizes
-matching objects; with it, text shows columns and relationships. Text on a terminal
+matching objects for `database`; with it, text shows columns and relationships.
+`inspect schema NAME` requires an exact, case-sensitive schema name and prints
+an overview. `inspect table NAME` requires an exact table/view name and prints
+column/key details; its optional `--schema NAME` narrows the search. `database`
+retains both optional `--schema NAME` and `--table NAME` filters.
+Names are separate components; a dot in a table name is literal.
+Text on a terminal
 allows a hidden password prompt for a URL user. `-w` / `--no-passwd` disables it;
 `--prompt-password` explicitly allows it with JSON output on a terminal.
 Redirected stdin and JSON output never prompt automatically. See [schema discovery](../reference/schema.md) for the contract, scope and

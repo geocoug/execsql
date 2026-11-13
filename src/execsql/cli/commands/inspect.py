@@ -1,4 +1,4 @@
-"""Read-only inspection commands for databases and future script preflight."""
+"""Read-only inspection of databases, schemas and tables."""
 
 from __future__ import annotations
 
@@ -21,20 +21,82 @@ inspect_app = typer.Typer(
 )
 app.add_typer(inspect_app, name="inspect")
 
+_SchemaOpt = Annotated[str | None, typer.Option("--schema", help="Exact schema name (case-sensitive).")]
+_PromptPasswordOpt = Annotated[
+    bool,
+    typer.Option("--prompt-password", help="Allow a password prompt on a terminal, including with JSON output."),
+]
+
 
 @inspect_app.command(cls=ExecsqlCommand, name="database")
 def database_cmd(
     dsn: RequiredDsnOpt,
-    schema: Annotated[str | None, typer.Option("--schema", help="Exact schema name (case-sensitive). ")] = None,
+    schema: _SchemaOpt = None,
     table: Annotated[str | None, typer.Option("--table", help="Exact table or view name (case-sensitive). ")] = None,
     output_format: OutputFormatOpt = OutputFormat.text,
     no_passwd: NoPasswdOpt = False,
-    prompt_password: Annotated[
-        bool,
-        typer.Option("--prompt-password", help="Allow a password prompt on a terminal, including with JSON output."),
-    ] = False,
+    prompt_password: _PromptPasswordOpt = False,
 ) -> None:
     """Inspect tables, columns and keys without reading rows. Text by default."""
+    _inspect(
+        dsn=dsn,
+        schema=schema,
+        table=table,
+        output_format=output_format,
+        no_passwd=no_passwd,
+        prompt_password=prompt_password,
+    )
+
+
+@inspect_app.command(cls=ExecsqlCommand, name="schema")
+def schema_cmd(
+    name: Annotated[str, typer.Argument(metavar="NAME", help="Exact schema name (case-sensitive).")],
+    dsn: RequiredDsnOpt,
+    output_format: OutputFormatOpt = OutputFormat.text,
+    no_passwd: NoPasswdOpt = False,
+    prompt_password: _PromptPasswordOpt = False,
+) -> None:
+    """List tables/views and key summaries within one schema. Text by default."""
+    _inspect(
+        dsn=dsn,
+        schema=name,
+        table=None,
+        output_format=output_format,
+        no_passwd=no_passwd,
+        prompt_password=prompt_password,
+    )
+
+
+@inspect_app.command(cls=ExecsqlCommand, name="table")
+def table_cmd(
+    name: Annotated[str, typer.Argument(metavar="NAME", help="Exact table or view name (case-sensitive).")],
+    dsn: RequiredDsnOpt,
+    schema: _SchemaOpt = None,
+    output_format: OutputFormatOpt = OutputFormat.text,
+    no_passwd: NoPasswdOpt = False,
+    prompt_password: _PromptPasswordOpt = False,
+) -> None:
+    """Inspect columns, types, keys and relationships for a table or view."""
+    _inspect(
+        dsn=dsn,
+        schema=schema,
+        table=name,
+        output_format=output_format,
+        no_passwd=no_passwd,
+        prompt_password=prompt_password,
+    )
+
+
+def _inspect(
+    *,
+    dsn: str,
+    schema: str | None,
+    table: str | None,
+    output_format: OutputFormat,
+    no_passwd: bool,
+    prompt_password: bool,
+) -> None:
+    """Apply one connection, prompting and output policy to every catalog scope."""
     from execsql.schema import inspect_schema
 
     from execsql.cli.inspection import print_inspection, print_inspection_error

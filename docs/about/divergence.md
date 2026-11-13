@@ -261,6 +261,9 @@ New options in `execsql.conf`:
     automatic only for text-mode CLI inspection on an interactive terminal;
     `--no-passwd` disables it and `--prompt-password` permits it with JSON.
     `--dsn` and `--connection-string` are interchangeable, as for `execsql run`.
+    `execsql inspect schema NAME` and `execsql inspect table NAME [--schema NAME]`
+    provide object-specific forms with the same output contract and password policy;
+    the original `inspect database` filters remain supported.
 
 Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
 — no longer exist. The monolith paired a statement object with its source

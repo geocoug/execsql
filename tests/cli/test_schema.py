@@ -11,7 +11,14 @@ from execsql.cli import app
 
 
 @pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
-def test_cli_matches_python_and_reads_no_rows(tmp_path, flag):
+@pytest.mark.parametrize(
+    "scope",
+    [
+        ["database", "--schema", "main", "--table", "samples%"],
+        ["table", "samples%", "--schema", "main"],
+    ],
+)
+def test_cli_matches_python_and_reads_no_rows(tmp_path, flag, scope):
     path = tmp_path / "project.sqlite"
     with sqlite3.connect(path) as db:
         db.execute('CREATE TABLE "samples%" (id INTEGER PRIMARY KEY, location_id INT)')
@@ -19,7 +26,7 @@ def test_cli_matches_python_and_reads_no_rows(tmp_path, flag):
     dsn = f"sqlite:///{path}"
     result = CliRunner().invoke(
         app,
-        ["inspect", "database", flag, dsn, "--schema", "main", "--table", "samples%", "--output-format", "json"],
+        ["inspect", *scope, flag, dsn, "--output-format", "json"],
     )
     assert result.exit_code == 0, result.output
     metadata = json.loads(result.stdout)
@@ -38,11 +45,84 @@ def test_cli_error_is_json_and_nonzero(tmp_path):
     assert result.stderr == ""
 
 
-def test_cli_help():
-    result = CliRunner().invoke(app, ["inspect", "database", "--help"])
+@pytest.mark.parametrize("command", ["database", "schema", "table"])
+def test_cli_help(command):
+    result = CliRunner().invoke(app, ["inspect", command, "--help"])
     assert result.exit_code == 0
     assert "--dsn" in result.stdout and "--connection-string" in result.stdout
-    assert "--schema" in result.stdout and "--table" in result.stdout
+    if command == "database":
+        assert "--schema" in result.stdout and "--table" in result.stdout
+    else:
+        assert "NAME" in result.stdout and "[required]" in result.stdout
+        assert "--output-format" in result.stdout and "--prompt-password" in result.stdout
+
+
+@pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
+def test_schema_summary_and_json_match_existing_filter(tmp_path, flag):
+    path = tmp_path / "schema.sqlite"
+    with sqlite3.connect(path) as db:
+        db.executescript(
+            "CREATE TABLE samples(id INTEGER PRIMARY KEY); CREATE VIEW sample_ids AS SELECT id FROM samples;",
+        )
+    dsn = f"sqlite:///{path}"
+    args = ["inspect", "schema", "main", flag, dsn]
+    text = CliRunner().invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert "main.samples" in text.stdout and "main.sample_ids" in text.stdout
+    assert "2 object(s)" in text.stdout and "Primary key" in text.stdout
+    assert "execsql inspect table NAME" in text.stdout
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 0, machine.output
+    assert json.loads(machine.stdout) == inspect_schema(dsn=dsn, schema="main")
+    assert machine.stderr == ""
+    absent = CliRunner().invoke(app, ["inspect", "schema", "MAIN", flag, dsn])
+    assert absent.exit_code == 0 and "No matching tables or views." in absent.stdout
+
+
+@pytest.mark.parametrize("kind", ["TABLE", "VIEW"])
+def test_table_inspection_uses_literal_names_and_shows_details(tmp_path, kind):
+    path = tmp_path / "literal.sqlite"
+    name = "Odd.Name%_"
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE source (id INTEGER PRIMARY KEY, parent_id INT REFERENCES source(id))")
+        db.execute(f'CREATE {kind} "{name}" ' + ("(value TEXT)" if kind == "TABLE" else "AS SELECT id FROM source"))
+    dsn = f"sqlite:///{path}"
+    args = ["inspect", "table", name, "--dsn", dsn, "--schema", "main"]
+    text = CliRunner().invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert f"main.{name} ({kind.lower()})" in text.stdout
+    assert "Nullable" in text.stdout and "Primary key:" in text.stdout
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 0, machine.output
+    assert json.loads(machine.stdout) == inspect_schema(dsn=dsn, schema="main", table=name)
+    assert len(json.loads(machine.stdout)["tables"]) == 1
+    keys = CliRunner().invoke(app, ["inspect", "table", "source", "--dsn", dsn])
+    assert "Primary key: id" in keys.stdout
+    assert "(parent_id) -> main.source (id)" in keys.stdout
+
+
+@pytest.mark.parametrize("command", ["schema", "table"])
+@pytest.mark.parametrize("arguments", [[], ["--dsn", "sqlite:///:memory:"], ["samples"]])
+def test_object_inspection_requires_name_and_connection(command, arguments):
+    result = CliRunner().invoke(app, ["inspect", command, *arguments])
+    assert result.exit_code == 2
+
+
+@pytest.mark.parametrize("command", ["schema", "table"])
+def test_object_inspection_rejects_empty_names_before_connecting(monkeypatch, command):
+    def unexpected_connect(*args, **kwargs):
+        pytest.fail("Invalid names must be rejected before connection")
+
+    monkeypatch.setattr("execsql.api._connect_from_dsn", unexpected_connect)
+    result = CliRunner().invoke(app, ["inspect", command, "", "--dsn", "sqlite:///:memory:"])
+    assert result.exit_code == 2
+
+
+def test_inspection_group_lists_all_scopes():
+    result = CliRunner().invoke(app, ["inspect", "--help"])
+    assert result.exit_code == 0
+    for scope in ("database", "schema", "table"):
+        assert scope in result.stdout
 
 
 @pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
@@ -59,7 +139,7 @@ def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_pa
     assert overview.exit_code == 0, overview.output
     assert "Object" in overview.stdout and "Columns" in overview.stdout
     assert "main.samples" in overview.stdout and "main.sample_ids" in overview.stdout
-    assert "3 object(s)" in overview.stdout and "--table NAME" in overview.stdout
+    assert "3 object(s)" in overview.stdout and "execsql inspect table NAME" in overview.stdout
     assert "schema_version" not in overview.stdout
     details = CliRunner().invoke(app, [*args, "--table", "samples"])
     assert details.exit_code == 0, details.output
@@ -130,7 +210,8 @@ def test_terminal_control_codes_from_catalog_names_are_escaped(monkeypatch):
     assert "\x1b" not in result.stdout and "\\x1b[2J\\x0a" in result.stdout
 
 
-def test_password_policy_keeps_json_and_redirected_input_noninteractive(monkeypatch):
+@pytest.mark.parametrize("scope", [["database"], ["schema", "main"], ["table", "samples"]])
+def test_password_policy_keeps_json_and_redirected_input_noninteractive(monkeypatch, scope):
     from unittest.mock import MagicMock
     from execsql import schema as discovery
 
@@ -144,24 +225,26 @@ def test_password_policy_keeps_json_and_redirected_input_noninteractive(monkeypa
         (True, ["--output-format", "json", "--prompt-password"], True),
     ]:
         monkeypatch.setattr("execsql.cli.commands.inspect._terminal_available", lambda terminal=terminal: terminal)
-        result = CliRunner().invoke(app, ["inspect", "database", "--dsn", "postgresql://user@host/db", *options])
+        result = CliRunner().invoke(app, ["inspect", *scope, "--dsn", "postgresql://user@host/db", *options])
         assert result.exit_code == 0, result.output
         assert inspect.call_args.kwargs["prompt_password"] is expected
 
 
-def test_forced_password_prompt_rejects_redirected_input_and_conflicting_flags():
+@pytest.mark.parametrize("scope", [["database"], ["schema", "main"], ["table", "samples"]])
+def test_forced_password_prompt_rejects_redirected_input_and_conflicting_flags(scope):
     for options in (["--prompt-password"], ["--prompt-password", "--no-passwd"]):
-        result = CliRunner().invoke(app, ["inspect", "database", "--dsn", "postgresql://user@host/db", *options])
+        result = CliRunner().invoke(app, ["inspect", *scope, "--dsn", "postgresql://user@host/db", *options])
         assert result.exit_code == 2
         assert "terminal" in result.stderr or "cannot be combined" in result.stderr
 
 
-def test_error_output_never_echoes_credentials(monkeypatch):
+@pytest.mark.parametrize("scope", [["database"], ["schema", "main"], ["table", "samples"]])
+def test_error_output_never_echoes_credentials(monkeypatch, scope):
     def fail(*args, **kwargs):
         raise RuntimeError("password authentication failed: password=not-public postgresql://user:not-public@host/db")
 
     monkeypatch.setattr("execsql.api._connect_from_dsn", fail)
-    args = ["inspect", "database", "--dsn", "postgresql://user:not-public@host/db"]
+    args = ["inspect", *scope, "--dsn", "postgresql://user:not-public@host/db"]
     human = CliRunner().invoke(app, args)
     assert human.exit_code == 1
     assert "Database authentication failed." in human.stderr

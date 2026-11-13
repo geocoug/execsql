@@ -36,7 +36,7 @@ Scripts are ordinary SQL plus metacommands embedded in comments (`-- !x!`), whic
 | `execsql list`                             | Metacommands, encodings, plugins, or the keyword vocabulary                                                                                                           | No                |
 | `execsql init`                             | Set up a project: config file, a script with a header, pre-commit hooks                                                                                               | No                |
 | `execsql lsp`                              | [Language server](https://execsql2.readthedocs.io/en/stable/guides/editors/): lint findings, completion, hover, navigation, quick fixes and formatting in your editor | No                |
-| `execsql inspect database`                 | Inspect tables, columns, types and relationships as text or JSON                                                                                                      | Yes               |
+| `execsql inspect database\|schema\|table`  | Inspect database/schema summaries or table columns, types and relationships as text or JSON                                                                           | Yes               |
 | [VS Code extension](extras/vscode-execsql) | Highlighting plus everything `execsql lsp` provides                                                                                                                   | No                |
 
 `format` and `lint` take files or directories.
@@ -115,6 +115,8 @@ execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
 execsql inspect database --dsn URL [--schema NAME] [--table NAME]
+execsql inspect schema NAME --dsn URL
+execsql inspect table NAME --dsn URL [--schema NAME]
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
 ```
@@ -262,11 +264,13 @@ If you use other extras, retain them in the install command, for example `"execs
 Inspect a table without running a script or reading its rows:
 
 ```sh
-execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
+execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 ```
 
 `--connection-string` is an alias for `--dsn`, matching `execsql run`.
-The default output is a readable overview; `--table` shows columns and relationships.
+`inspect database` and `inspect schema NAME` print readable overviews;
+`inspect table NAME` shows columns and relationships. Existing
+`inspect database --schema NAME --table NAME` filters remain supported.
 Use `--output-format json` for automation. Text mode on a terminal can prompt
 for a URL user's password; `--no-passwd` uses supplied or driver credentials.
 
