@@ -8,15 +8,18 @@ execsql inspect schema main --dsn sqlite:///project.sqlite
 execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 ```
 
-`database` connects to the selected database and prints readable tables by default.
-Without `--table`, it lists matching tables/views, column counts and key summaries.
+`database` connects to the selected database and prints its identity, engine and
+schema/namespace inventory by default, with visible table/view counts. Namespaces
+with no visible objects are included. Schema-less databases show objects directly;
+unavailable namespace enumeration is labeled explicitly.
+With `--schema`, it lists matching tables/views, column counts and key summaries.
 With `--table`, it shows ordered columns, catalog types, nullability, primary keys
 and outgoing foreign-key relationships. Unknown and unavailable metadata are
 marked explicitly. No SQL scripts are run and no application rows are fetched.
 
 | Command               | Scope and text output                                                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `inspect database`    | Matching tables/views across the adapter's default scope; optional `--schema` and `--table` filters.               |
+| `inspect database`    | Database identity and namespace counts; optional `--schema` and `--table` filters retain object overview/details.  |
 | `inspect schema NAME` | Tables/views, column counts and key summaries in one exact schema.                                                 |
 | `inspect table NAME`  | Ordered columns, types, nullability, keys and relationships for matching tables/views; optional `--schema` filter. |
 

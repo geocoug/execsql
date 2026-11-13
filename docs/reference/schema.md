@@ -10,15 +10,20 @@ execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 
 `--dsn` and `--connection-string` accept the same connection URL.
 
-The CLI prints readable text by default: an overview of matching tables/views,
-column counts and key summaries, or ordered columns and relationships when
-`--table` is selected. Missing metadata is labeled unavailable or unknown.
+The CLI prints readable text by default. Unfiltered `inspect database` shows
+database identity, engine and a schema/namespace overview with visible table/view
+counts. Empty namespaces appear too. Schema-less databases show their objects
+directly. `inspect schema NAME` lists matching tables/views, column counts and key
+summaries; table inspection shows ordered columns and relationships.
+Missing metadata is labeled unavailable or unknown.
 
 `inspect schema NAME` is the object-specific form of `inspect database --schema NAME`.
 `inspect table NAME [--schema SCHEMA]` is the form of
 `inspect database --table NAME [--schema SCHEMA]` that shows column/key details.
 Both use the same connection/password options, exit codes and JSON contract as
 `inspect database`. The original filter-based forms remain supported.
+Using `--schema` or `--table` on `inspect database` retains the existing object
+overview/detail output. Only its unfiltered form adds the database overview.
 Table inspection accepts views too. Without `--schema`, it returns every exact
 table/view match within the adapter's default scope, rather than choosing one
 schema; supply `--schema` to disambiguate.
@@ -54,10 +59,23 @@ for table in metadata["tables"]:
 
 Supply exactly one of `dsn=` or `connection=`. The latter accepts an existing
 execsql `Database` adapter, including Access and ODBC DSN adapters. It is not a raw
-driver connection. `inspect_schema()` returns a JSON-compatible dictionary with
-exactly the same structure as the CLI's `--output-format json` output. Invalid Python arguments raise `ValueError`;
+driver connection. `inspect_schema()` returns a JSON-compatible dictionary using
+the CLI's shared output contract. Invalid Python arguments raise `ValueError`;
 operational failures return `success: false`. Keyboard interrupts and process exits
 propagate after owned-connection cleanup.
+
+To request the same database overview metadata as the unfiltered CLI:
+
+```python
+metadata = inspect_schema(dsn="sqlite:///project.sqlite", include_database=True)
+print(metadata["database"])
+print(metadata["schemas"])
+```
+
+`include_database=True` requires unfiltered inspection: combining it with
+`schema=` or `table=` raises `ValueError`. Its default is `False`, preserving
+existing Python results and catalog queries. The CLI enables it only for
+unfiltered `inspect database`.
 
 A connection opened from a URL belongs to this call and is closed afterward.
 Existing database files are required; inspection never requests database creation.
@@ -110,6 +128,33 @@ row counts, credentials or complete DDL are included. Database permissions still
 determine which objects and metadata are visible. Metadata visibility is not proof
 that a subsequent SQL operation is permitted.
 
+### Database overview scope
+
+Namespace enumeration reads catalogs independently of the table list, so a
+namespace with no visible tables or views still appears. Counts are **visible
+object counts**, not application-row counts; zero means no matching objects are
+visible to this connection. The existing table visibility and default scope above
+are unchanged.
+
+| Adapter            | Database identity and namespace inventory                                                                                                                                                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| PostgreSQL, DuckDB | Current database and visible non-system schemas from `information_schema.schemata`, restricted to the current catalog.                                                                                                                                                                                                   |
+| SQL Server         | `DB_NAME()` and visible schemas from `information_schema.schemata`, excluding system schemas.                                                                                                                                                                                                                            |
+| SQLite             | Main database filename (or `:memory:`) and attached namespaces from `PRAGMA database_list`, including empty attachments and `temp` when present.                                                                                                                                                                         |
+| Oracle             | Database name and current schema from `SYS_CONTEXT`; the scope remains the current owner, including when it has no visible objects.                                                                                                                                                                                      |
+| MySQL / MariaDB    | Current database from `database()`. Schema and database are the same scope, so the overview shows objects directly.                                                                                                                                                                                                      |
+| Firebird           | Database identity from `RDB$GET_CONTEXT`; no schema namespace, so objects are shown directly.                                                                                                                                                                                                                            |
+| Access             | Driver-reported database identity and a flat object overview.                                                                                                                                                                                                                                                            |
+| ODBC DSN           | Driver-reported identity/engine and schema support via `SQLGetInfo`; schema names via `SQLTables` enumeration where supported. Names are aggregated across the catalogs visible to the existing table reader, since schema enumeration supplies no catalog association. Detailed table identities retain their catalogs. |
+
+ODBC's explicit unsupported-information/catalog responses produce unavailable
+metadata; genuine driver/query errors fail inspection. If namespace enumeration
+is unavailable, text says so and shows visible objects. Identity never comes from
+a raw DSN/connection string. These extra catalog reads retain the same connection
+ownership and transaction rules as table inspection.
+See the driver's [SQLTables schema-enumeration contract](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqltables-function)
+for the catalog-association limitation.
+
 ## JSON contract
 
 The envelope has `schema_version: 1`. Consumers must check this field and
@@ -117,6 +162,22 @@ The envelope has `schema_version: 1`. Consumers must check this field and
 **1**; consumers should ignore unknown fields. Removing/renaming fields or changing
 their meaning or type requires a new contract version, independent of the package
 version. This initial interface produces only contract version **1**.
+
+Database overviews add optional fields without changing the existing `tables`
+array or contract version:
+
+- `database`: `name`, `engine` (strings or `null` when unavailable), and
+    `namespace_kind` (`schema`, `attached_database`, `none` or `unknown`).
+- `schemas`: a sorted array of `{name, table_count, view_count}` entries. `name`
+    may be `null` for visible objects without a schema. An empty array with
+    `namespace_kind: "none"` means a flat database; `null` means enumeration is
+    unavailable. Counts aggregate visible tables/views by namespace name.
+- `capabilities.schemas`: whether namespace availability is known, including a
+    known schema-less database. Check `namespace_kind` to distinguish that case.
+
+The fields are omitted when the overview is not requested. Failed overview
+requests return `database: null` and `schemas: null`; always check `success`
+before using metadata.
 
 For a `samples` table referencing `locations.id`, an abbreviated result is:
 

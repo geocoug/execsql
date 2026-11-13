@@ -88,7 +88,8 @@ def test_filters_are_exact_names_not_patterns_or_sql(sqlite_db, table):
 
 
 @pytest.mark.parametrize("autocommit", [True, False])
-def test_borrowed_connection_keeps_pending_writes_and_context(sqlite_db, autocommit):
+@pytest.mark.parametrize("include_database", [False, True])
+def test_borrowed_connection_keeps_pending_writes_and_context(sqlite_db, autocommit, include_database):
     import execsql.state as state
 
     original = state.get_context()
@@ -96,7 +97,7 @@ def test_borrowed_connection_keeps_pending_writes_and_context(sqlite_db, autocom
     sqlite_db.conn.execute("CREATE TABLE t(v INT)")
     sqlite_db.conn.execute("INSERT INTO t VALUES (17)")
     assert sqlite_db.conn.in_transaction
-    assert inspect_schema(connection=sqlite_db)["success"]
+    assert inspect_schema(connection=sqlite_db, include_database=include_database)["success"]
     assert state.get_context() is original
     assert sqlite_db.conn.in_transaction
     sqlite_db.conn.rollback()
@@ -145,13 +146,16 @@ def test_connection_errors_are_structured_and_secret_free(monkeypatch, capsys):
     assert capsys.readouterr() == ("", "")
 
 
-def test_close_failure_is_reported(sqlite_db, monkeypatch):
+@pytest.mark.parametrize("include_database", [False, True])
+def test_close_failure_is_reported(sqlite_db, monkeypatch, include_database):
     monkeypatch.setattr("execsql.api._connect_from_dsn", lambda *a, **kw: sqlite_db)
     with monkeypatch.context() as patch:
         patch.setattr(sqlite_db, "close", MagicMock(side_effect=RuntimeError("secret")))
-        result = inspect_schema(dsn="sqlite:///")
+        result = inspect_schema(dsn="sqlite:///", include_database=include_database)
     assert not result["success"] and result["tables"] == []
     assert result["error"]["code"] == "close_error"
+    if include_database:
+        assert result["database"] is None and result["schemas"] is None
 
 
 @pytest.mark.parametrize(

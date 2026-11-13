@@ -34,10 +34,38 @@ def _primary_key(item: dict[str, Any]) -> str:
     return "unavailable" if keys is None else ", ".join(keys) if keys else "none"
 
 
-def print_inspection(result: dict[str, Any], *, detailed: bool) -> None:
+def print_inspection(result: dict[str, Any], *, detailed: bool, database_overview: bool = False) -> None:
     """Show a catalog overview, or columns/relationships for selected tables."""
     engine = result["dialect"] or f"{result['adapter']} (dialect unknown)"
-    _console.print(_literal(engine), style="bold")
+    database = result.get("database") if database_overview else None
+    if database is not None:
+        _console.print(_literal(f"Database: {database['name'] or 'unavailable'}"), style="bold")
+        _console.print(_literal(f"Engine: {database['engine'] or engine}"))
+        namespaces = result["schemas"]
+        if database["namespace_kind"] in ("schema", "attached_database") and namespaces is not None:
+            overview = Table(box=box.SIMPLE, show_edge=False)
+            for title in (
+                "Namespace" if database["namespace_kind"] == "attached_database" else "Schema",
+                "Tables",
+                "Views",
+            ):
+                overview.add_column(title, overflow="fold")
+            for namespace in namespaces:
+                overview.add_row(
+                    _literal(namespace["name"] if namespace["name"] is not None else "(no schema)"),
+                    str(namespace["table_count"]),
+                    str(namespace["view_count"]),
+                )
+            _console.print(overview)
+            _console.print("Counts cover tables/views visible to this connection.")
+            if not namespaces:
+                _console.print("No visible schemas or namespaces.")
+            _console.print("Use execsql inspect schema NAME --dsn URL to inspect its objects.")
+            return
+        if namespaces is None:
+            _console.print("Schema enumeration unavailable; showing visible objects.")
+    else:
+        _console.print(_literal(engine), style="bold")
     tables = result["tables"]
     if not tables:
         _console.print("No matching tables or views.")

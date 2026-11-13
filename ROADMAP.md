@@ -47,6 +47,11 @@ versioning policy, without executing a SQL script or requesting row data.
 Retain `execsql inspect database` and its existing filters. Schema/table inspection
 commands are delivered; file inspection remains a proposal:
 
+Unfiltered database inspection shows identity, engine and namespaces with visible
+table/view counts, including namespaces without visible objects. Schema-less
+adapters show objects directly; unavailable namespace discovery is explicit.
+Filtered database forms and existing JSON fields remain compatible.
+
 | Command                                        | Status and output                                                                                              |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `execsql inspect schema NAME`                  | Delivered: tables/views within the selected schema.                                                            |

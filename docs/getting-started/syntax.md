@@ -209,8 +209,10 @@ When `-t` is not specified, the default is SQLite (`l`).
 
 `execsql inspect database`, `inspect schema NAME` and `inspect table NAME` have
 their own options: required `--dsn URL` (alias `--connection-string URL`), and
-`--output-format text|json` (text by default). Without `--table`, text summarizes
-matching objects for `database`; with it, text shows columns and relationships.
+`--output-format text|json` (text by default). Unfiltered `database` shows database
+identity and schema/namespace counts, including namespaces without visible objects;
+schema-less databases show objects directly. Its `--schema` filter lists objects;
+`--table` shows columns and relationships.
 `inspect schema NAME` requires an exact, case-sensitive schema name and prints
 an overview. `inspect table NAME` requires an exact table/view name and prints
 column/key details; its optional `--schema NAME` narrows the search. `database`

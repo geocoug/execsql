@@ -37,7 +37,7 @@ def database_cmd(
     no_passwd: NoPasswdOpt = False,
     prompt_password: _PromptPasswordOpt = False,
 ) -> None:
-    """Inspect tables, columns and keys without reading rows. Text by default."""
+    """Show database identity and namespaces; use filters to inspect objects."""
     _inspect(
         dsn=dsn,
         schema=schema,
@@ -45,6 +45,7 @@ def database_cmd(
         output_format=output_format,
         no_passwd=no_passwd,
         prompt_password=prompt_password,
+        database_overview=schema is None and table is None,
     )
 
 
@@ -95,6 +96,7 @@ def _inspect(
     output_format: OutputFormat,
     no_passwd: bool,
     prompt_password: bool,
+    database_overview: bool = False,
 ) -> None:
     """Apply one connection, prompting and output policy to every catalog scope."""
     from execsql.schema import inspect_schema
@@ -108,13 +110,19 @@ def _inspect(
         raise typer.BadParameter("Password prompting requires an interactive terminal.")
     allow_prompt = not no_passwd and terminal and (prompt_password or output_format is OutputFormat.text)
     try:
-        result = inspect_schema(dsn=dsn, schema=schema, table=table, prompt_password=allow_prompt)
+        result = inspect_schema(
+            dsn=dsn,
+            schema=schema,
+            table=table,
+            prompt_password=allow_prompt,
+            include_database=database_overview,
+        )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
     if output_format is OutputFormat.json:
         sys.stdout.write(json.dumps(result, indent=2, ensure_ascii=True) + "\n")
     elif result["success"]:
-        print_inspection(result, detailed=table is not None)
+        print_inspection(result, detailed=table is not None, database_overview=database_overview)
     else:
         print_inspection_error(result, dsn)
     if not result["success"]:
