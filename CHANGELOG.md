@@ -13,7 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
-- Python `inspect_schema(include_database=True)` and unfiltered `execsql inspect database --output-format json` include database identity and visible namespace counts, including namespaces with no visible tables/views.
+- Python `inspect_schema(include_database=True)` and `execsql inspect database --output-format json` include database identity and visible namespace counts, including namespaces with no visible tables/views.
 
 - `execsql inspect schema NAME` lists tables/views in one schema; `execsql inspect table NAME [--schema NAME]` shows columns, keys and relationships. Both support text and JSON output.
 
@@ -21,13 +21,15 @@ ______________________________________________________________________
 
 - `execsql inspect database --prompt-password` and Python `inspect_schema(prompt_password=True)` allow password prompting on a terminal (automatic for CLI text output); `--no-passwd` disables CLI prompting.
 
-- Python `inspect_schema()` and `execsql inspect database --output-format json` return filtered, versioned metadata for tables, columns and keys.
+- Python `inspect_schema()` and CLI inspection return versioned metadata for tables, columns and keys.
 
 ### Changed
 
-- Unfiltered `execsql inspect database` prints database identity and a schema/namespace overview; use `inspect schema NAME` for objects or `inspect table NAME` for column/key details. Schema-less databases keep a flat object overview.
+- `execsql inspect database` prints database identity and a schema/namespace overview; use `inspect schema NAME` for objects or `inspect table NAME` for column/key details. Schema-less databases keep a flat object overview.
 
-- `execsql inspect database` prints readable table summaries and column/key details by default; use `--output-format json` for automation.
+- `execsql inspect database` has no `--schema` or `--table` filters; select objects with `inspect schema NAME` or `inspect table NAME [--schema NAME]`.
+
+- PostgreSQL inspection excludes reserved `pg_*` schemas from default discovery, including temporary and TOAST schemas; explicitly name a schema to inspect it.
 
 - `inspect` is a reserved CLI command name; run a bare script named `inspect` with `execsql run inspect`.
 

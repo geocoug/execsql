@@ -220,3 +220,51 @@ def test_overview_failure_and_interrupt_preserve_connection_ownership(monkeypatc
 def test_database_overview_rejects_filters_before_connecting(filters):
     with pytest.raises(ValueError, match="unfiltered"):
         inspect_schema(dsn="unused", include_database=True, **filters)
+
+
+@pytest.mark.parametrize("dbms", ["postgres"])
+def test_postgres_defaults_hide_system_namespaces_but_explicit_names_work(dbms, tmp_path):
+    db = open_backend(dbms, tmp_path)
+    created = False
+    try:
+        db.execute("CREATE SCHEMA pgcustom_discovery")
+        db.commit()
+        created = True
+        db.execute("CREATE TEMP TABLE discovery_temporary(payload TEXT)")
+        db.commit()
+        namespace = discovery._rows(
+            db,
+            "SELECT nspname FROM pg_catalog.pg_namespace WHERE oid = pg_my_temp_schema()",
+        )[0][0]
+        assert namespace.startswith("pg_temp_")
+        overview = inspect_schema(connection=db, include_database=True)
+        assert overview["success"], overview
+        assert not any(ns["name"].startswith("pg_") for ns in overview["schemas"])
+        assert {"name": "pgcustom_discovery", "table_count": 0, "view_count": 0} in overview["schemas"]
+        assert not any(t["schema"].startswith("pg_") for t in overview["tables"])
+        assert inspect_schema(connection=db, table="discovery_temporary")["tables"] == []
+        explicit = inspect_schema(connection=db, schema=namespace, table="discovery_temporary")
+        assert explicit["success"], explicit
+        assert [t["name"] for t in explicit["tables"]] == ["discovery_temporary"]
+    finally:
+        try:
+            db.rollback()
+            if created:
+                db.execute("DROP SCHEMA pgcustom_discovery")
+                db.commit()
+        finally:
+            db.close()
+
+
+@pytest.mark.parametrize("dbms", ["duckdb"])
+def test_pg_prefix_is_not_hidden_on_other_engines(dbms, tmp_path):
+    db = open_backend(dbms, tmp_path)
+    try:
+        db.execute("CREATE SCHEMA pg_custom")
+        db.execute("CREATE TABLE pg_custom.samples(v INT)")
+        overview = inspect_schema(connection=db, include_database=True)
+        assert overview["success"], overview
+        assert {"name": "pg_custom", "table_count": 1, "view_count": 0} in overview["schemas"]
+        assert any(t["schema"] == "pg_custom" for t in overview["tables"])
+    finally:
+        db.close()

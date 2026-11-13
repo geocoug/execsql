@@ -44,13 +44,15 @@ versioning policy, without executing a SQL script or requesting row data.
 
 ## Inspection extensions
 
-Retain `execsql inspect database` and its existing filters. Schema/table inspection
+Each inspection command owns one level: database, schema or table. Schema/table inspection
 commands are delivered; file inspection remains a proposal:
 
-Unfiltered database inspection shows identity, engine and namespaces with visible
+Database inspection shows identity, engine and namespaces with visible
 table/view counts, including namespaces without visible objects. Schema-less
 adapters show objects directly; unavailable namespace discovery is explicit.
-Filtered database forms and existing JSON fields remain compatible.
+Database inspection has no schema/table filters; table inspection retains
+`--schema` to qualify its name. PostgreSQL discovery hides reserved `pg_*`
+schemas by default while permitting explicit schema inspection.
 
 | Command                                        | Status and output                                                                                              |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |

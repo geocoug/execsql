@@ -252,8 +252,8 @@ New options in `execsql.conf`:
 
 ### Tools
 
-- `execsql inspect database` and Python `execsql.inspect_schema()` inspect selected tables
-    or schemas without running scripts or fetching application
+- CLI `execsql inspect` and Python `execsql.inspect_schema()` inspect database
+    structure without running scripts or fetching application
     rows. The [schema discovery reference](../reference/schema.md) documents
     exact-name filters, metadata capabilities, errors and connection ownership. The CLI
     prints readable tables by default, or the shared JSON contract with
@@ -262,12 +262,16 @@ New options in `execsql.conf`:
     `--no-passwd` disables it and `--prompt-password` permits it with JSON.
     `--dsn` and `--connection-string` are interchangeable, as for `execsql run`.
     `execsql inspect schema NAME` and `execsql inspect table NAME [--schema NAME]`
-    provide object-specific forms with the same output contract and password policy;
-    the original `inspect database` filters remain supported.
-    Unfiltered `inspect database` adds database identity and a namespace/count
+    provide object-specific forms with the same output contract and password policy.
+    `inspect database` adds database identity and a namespace/count
     overview, including namespaces with no visible tables/views; schema-less
     databases retain a flat object list. Python `include_database=True` requests
-    the same additive JSON fields. Existing filtered results stay compatible.
+    the same additive JSON fields. Each CLI command owns one level: `database`
+    has no schema/table filters; `table --schema` qualifies its object name.
+    The redundant database filters were removed before the inspection interface's
+    first release. Python's exact-name filters remain available.
+    PostgreSQL default discovery excludes all reserved `pg_*` namespaces,
+    including temporary and TOAST schemas. Explicit schema inspection still works.
 
 Upstream's statement wrappers — `SqlStmt`, `MetacommandStmt`, and `ScriptCmd`
 — no longer exist. The monolith paired a statement object with its source

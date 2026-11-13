@@ -166,7 +166,7 @@ class TestSurface:
             "--prompt-password",
             "-w --no-passwd",
         }
-        for name, filters in {"database": {"--schema", "--table"}, "schema": set(), "table": {"--schema"}}.items():
+        for name, filters in {"database": set(), "schema": set(), "table": {"--schema"}}.items():
             command = inspection.commands[name]
             assert _options(command, hidden=False) == common | filters
             assert _options(command, hidden=True) == set()

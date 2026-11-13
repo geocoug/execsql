@@ -3,27 +3,24 @@
 Inspect database structure without running a script or fetching application rows:
 
 ```sh
-execsql inspect database --dsn sqlite:///project.sqlite --schema main --table samples
+execsql inspect database --dsn sqlite:///project.sqlite
 execsql inspect schema public --dsn postgresql://localhost/project
 execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 ```
 
 `--dsn` and `--connection-string` accept the same connection URL.
 
-The CLI prints readable text by default. Unfiltered `inspect database` shows
+The CLI prints readable text by default. `inspect database` shows
 database identity, engine and a schema/namespace overview with visible table/view
 counts. Empty namespaces appear too. Schema-less databases show their objects
 directly. `inspect schema NAME` lists matching tables/views, column counts and key
 summaries; table inspection shows ordered columns and relationships.
 Missing metadata is labeled unavailable or unknown.
 
-`inspect schema NAME` is the object-specific form of `inspect database --schema NAME`.
-`inspect table NAME [--schema SCHEMA]` is the form of
-`inspect database --table NAME [--schema SCHEMA]` that shows column/key details.
-Both use the same connection/password options, exit codes and JSON contract as
-`inspect database`. The original filter-based forms remain supported.
-Using `--schema` or `--table` on `inspect database` retains the existing object
-overview/detail output. Only its unfiltered form adds the database overview.
+Each command owns one level of inspection. `inspect database` has no schema/table
+filters. Use `inspect schema NAME` for that schema's objects, or
+`inspect table NAME [--schema SCHEMA]` for column/key details. All three share
+connection/password options, exit codes and the JSON contract.
 Table inspection accepts views too. Without `--schema`, it returns every exact
 table/view match within the adapter's default scope, rather than choosing one
 schema; supply `--schema` to disambiguate.
@@ -31,7 +28,7 @@ schema; supply `--schema` to disambiguate.
 For the versioned JSON contract described below, add `--output-format json`:
 
 ```sh
-execsql inspect database --dsn sqlite:///project.sqlite --table samples --output-format json
+execsql inspect database --dsn sqlite:///project.sqlite --output-format json
 execsql inspect table samples --dsn sqlite:///project.sqlite --output-format json
 ```
 
@@ -64,7 +61,7 @@ the CLI's shared output contract. Invalid Python arguments raise `ValueError`;
 operational failures return `success: false`. Keyboard interrupts and process exits
 propagate after owned-connection cleanup.
 
-To request the same database overview metadata as the unfiltered CLI:
+To request the same database overview metadata as the database CLI:
 
 ```python
 metadata = inspect_schema(dsn="sqlite:///project.sqlite", include_database=True)
@@ -75,7 +72,7 @@ print(metadata["schemas"])
 `include_database=True` requires unfiltered inspection: combining it with
 `schema=` or `table=` raises `ValueError`. Its default is `False`, preserving
 existing Python results and catalog queries. The CLI enables it only for
-unfiltered `inspect database`.
+`inspect database`.
 
 A connection opened from a URL belongs to this call and is closed afterward.
 Existing database files are required; inspection never requests database creation.
@@ -100,7 +97,8 @@ connection problem using the driver separately when more detail is required.
 
 ## Filters and scope
 
-Schema/table positional names, `--schema` / `schema=` and `--table` / `table=` each accept one exact,
+Schema/table positional names, table inspection's `--schema`, and Python
+`schema=` / `table=` each accept one exact,
 case-sensitive catalog name. Names are separate components: a dot in a table name
 is literal, not a schema separator. Do not add SQL quoting around the name;
 ordinary shell quoting is still needed for spaces. Percent signs and underscores
@@ -109,15 +107,16 @@ are literal characters, not wildcard patterns. Missing objects return an empty
 
 Without a schema filter, scope follows the adapter:
 
-| Adapter            | Default scope                                                                                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PostgreSQL, DuckDB | User schemas in the current database; `pg_catalog`, `information_schema` and `sys` excluded. Attached DuckDB catalogs are excluded.                     |
-| MySQL / MariaDB    | The connection's current database. An explicit schema selects another accessible database.                                                              |
-| SQL Server         | Accessible schemas in the current database, excluding the system schemas above.                                                                         |
-| SQLite             | All attached namespaces, including `main` and `temp` when present; internal `sqlite_` objects excluded.                                                 |
-| Oracle             | The session's current schema. An explicit schema selects another accessible owner.                                                                      |
-| Firebird           | User tables and views; schema is `null`. A schema filter returns no matches.                                                                            |
-| Access / ODBC DSN  | Objects visible through the driver's ODBC catalog APIs. Each table includes its reported catalog, to distinguish identical names in different catalogs. |
+| Adapter           | Default scope                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL        | User schemas in the current database; reserved `pg_*` schemas, `information_schema` and `sys` excluded.                                                 |
+| DuckDB            | User schemas in the current database; `pg_catalog`, `information_schema` and `sys` excluded. Attached DuckDB catalogs are excluded.                     |
+| MySQL / MariaDB   | The connection's current database. An explicit schema selects another accessible database.                                                              |
+| SQL Server        | Accessible schemas in the current database, excluding the system schemas above.                                                                         |
+| SQLite            | All attached namespaces, including `main` and `temp` when present; internal `sqlite_` objects excluded.                                                 |
+| Oracle            | The session's current schema. An explicit schema selects another accessible owner.                                                                      |
+| Firebird          | User tables and views; schema is `null`. A schema filter returns no matches.                                                                            |
+| Access / ODBC DSN | Objects visible through the driver's ODBC catalog APIs. Each table includes its reported catalog, to distinguish identical names in different catalogs. |
 
 Only matching tables/views are included in the detailed results. ODBC drivers
 without search-pattern escaping may enumerate additional catalog candidates to
@@ -127,6 +126,13 @@ that does not add the referenced table to the result. No application row values,
 row counts, credentials or complete DDL are included. Database permissions still
 determine which objects and metadata are visible. Metadata visibility is not proof
 that a subsequent SQL operation is permitted.
+
+PostgreSQL reserves schema names beginning with the literal `pg_` prefix for
+system use. Default discovery excludes that prefix in both namespace and table
+catalog queries, including `pg_temp_*`, `pg_toast_temp_*` and `pg_toast`.
+An explicit schema name bypasses the default exclusion, for example
+`execsql inspect schema pg_catalog --dsn URL` or Python `schema="pg_catalog"`.
+The prefix rule applies only to PostgreSQL. See [PostgreSQL schemas](https://www.postgresql.org/docs/current/ddl-schemas.html).
 
 ### Database overview scope
 
@@ -253,6 +259,14 @@ set to `null` and `capabilities: {}`. Real query failures are never converted in
 successful empty results or unsupported capabilities.
 
 ## Adapter support and verification
+
+All three CLI commands are exercised through real URL connections, in both text
+and JSON modes, for SQLite, DuckDB, PostgreSQL, MySQL, MariaDB and SQL Server.
+Server-backed cases run in integration CI; unavailable optional local servers
+are skipped. Oracle and Firebird inspection currently has catalog-row mock tests,
+not live CLI/server coverage. Access and generic ODBC inspection is available
+through Python `connection=` only: the CLI URL parser has no schemes for those
+adapters, and their inspection tests use mocked catalog rows.
 
 | Adapter         | Tables, views, columns and types             | Primary / foreign keys                                 | Verification                        |
 | --------------- | -------------------------------------------- | ------------------------------------------------------ | ----------------------------------- |
