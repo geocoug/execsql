@@ -114,7 +114,7 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
-execsql inspect database --dsn URL [--schema NAME] [--table NAME]
+execsql inspect database --dsn URL
 execsql inspect schema NAME --dsn URL
 execsql inspect table NAME --dsn URL [--schema NAME]
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
@@ -270,8 +270,10 @@ execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 `--connection-string` is an alias for `--dsn`, matching `execsql run`.
 `inspect database` shows identity and schemas/namespaces with table/view counts;
 `inspect schema NAME` lists that schema's objects;
-`inspect table NAME` shows columns and relationships. Existing
-`inspect database --schema NAME --table NAME` filters remain supported.
+`inspect table NAME` shows columns and relationships. Use its optional `--schema`
+to qualify the table name; `inspect database` has no object filters.
+PostgreSQL's reserved `pg_*` schemas are hidden by default; an explicitly named
+schema remains inspectable.
 Use `--output-format json` for automation. Text mode on a terminal can prompt
 for a URL user's password; `--no-passwd` uses supplied or driver credentials.
 

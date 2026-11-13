@@ -14,7 +14,7 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords [--output-format text|json]
-execsql inspect database --dsn URL [--schema NAME] [--table NAME]
+execsql inspect database --dsn URL
 execsql inspect schema NAME --dsn URL
 execsql inspect table NAME --dsn URL [--schema NAME]
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
@@ -209,14 +209,14 @@ When `-t` is not specified, the default is SQLite (`l`).
 
 `execsql inspect database`, `inspect schema NAME` and `inspect table NAME` have
 their own options: required `--dsn URL` (alias `--connection-string URL`), and
-`--output-format text|json` (text by default). Unfiltered `database` shows database
+`--output-format text|json` (text by default). `database` shows database
 identity and schema/namespace counts, including namespaces without visible objects;
-schema-less databases show objects directly. Its `--schema` filter lists objects;
-`--table` shows columns and relationships.
+schema-less databases show objects directly. It has no `--schema` or `--table` filters.
 `inspect schema NAME` requires an exact, case-sensitive schema name and prints
 an overview. `inspect table NAME` requires an exact table/view name and prints
-column/key details; its optional `--schema NAME` narrows the search. `database`
-retains both optional `--schema NAME` and `--table NAME` filters.
+column/key details; its optional `--schema NAME` narrows the search.
+PostgreSQL's default scope excludes reserved `pg_*` schemas; explicitly name a
+schema with `inspect schema NAME` or `inspect table NAME --schema SCHEMA` to inspect it.
 Names are separate components; a dot in a table name is literal.
 Text on a terminal
 allows a hidden password prompt for a URL user. `-w` / `--no-passwd` disables it;

@@ -163,6 +163,14 @@ JOIN pg_catalog.pg_attribute pa ON pa.attrelid = pt.oid AND pa.attnum = c.confke
 WHERE c.contype = 'f' AND n.nspname = ? AND t.relname = ?"""
 
 
+def _default_schema_clause(dialect: str, column: str) -> str:
+    """Default catalog scope; PostgreSQL reserves the literal pg_ prefix."""
+    clause = f"{column} NOT IN ('information_schema', 'pg_catalog', 'sys')"
+    if dialect == "PostgreSQL":
+        clause += f" AND LEFT({column}, 3) <> 'pg_'"
+    return clause
+
+
 def _information_schema(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
     dialect = db.type.dbms_id
     clauses, params = [], []
@@ -174,7 +182,7 @@ def _information_schema(db: Database, schema: str | None, table: str | None) -> 
     elif dialect == "MySQL":
         clauses.append("table_schema = database()")
     else:
-        clauses.append("table_schema NOT IN ('information_schema', 'pg_catalog', 'sys')")
+        clauses.append(_default_schema_clause(dialect, "table_schema"))
     if table is not None:
         clauses.append("table_name = ?")
         params.append(table)
@@ -434,7 +442,7 @@ def _database_overview(
             for row in _rows(
                 db,
                 "SELECT schema_name FROM information_schema.schemata "
-                f"WHERE catalog_name = {current} AND schema_name NOT IN ('information_schema', 'pg_catalog', 'sys')",
+                f"WHERE catalog_name = {current} AND " + _default_schema_clause(dialect, "schema_name"),
             )
         ]
     elif dialect == "Oracle":

@@ -31,21 +31,19 @@ _PromptPasswordOpt = Annotated[
 @inspect_app.command(cls=ExecsqlCommand, name="database")
 def database_cmd(
     dsn: RequiredDsnOpt,
-    schema: _SchemaOpt = None,
-    table: Annotated[str | None, typer.Option("--table", help="Exact table or view name (case-sensitive). ")] = None,
     output_format: OutputFormatOpt = OutputFormat.text,
     no_passwd: NoPasswdOpt = False,
     prompt_password: _PromptPasswordOpt = False,
 ) -> None:
-    """Show database identity and namespaces; use filters to inspect objects."""
+    """Show database identity and namespaces with visible table/view counts."""
     _inspect(
         dsn=dsn,
-        schema=schema,
-        table=table,
+        schema=None,
+        table=None,
         output_format=output_format,
         no_passwd=no_passwd,
         prompt_password=prompt_password,
-        database_overview=schema is None and table is None,
+        database_overview=True,
     )
 
 

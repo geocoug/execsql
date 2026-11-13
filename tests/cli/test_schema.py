@@ -11,14 +11,7 @@ from execsql.cli import app
 
 
 @pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
-@pytest.mark.parametrize(
-    "scope",
-    [
-        ["database", "--schema", "main", "--table", "samples%"],
-        ["table", "samples%", "--schema", "main"],
-    ],
-)
-def test_cli_matches_python_and_reads_no_rows(tmp_path, flag, scope):
+def test_cli_matches_python_and_reads_no_rows(tmp_path, flag):
     path = tmp_path / "project.sqlite"
     with sqlite3.connect(path) as db:
         db.execute('CREATE TABLE "samples%" (id INTEGER PRIMARY KEY, location_id INT)')
@@ -26,7 +19,7 @@ def test_cli_matches_python_and_reads_no_rows(tmp_path, flag, scope):
     dsn = f"sqlite:///{path}"
     result = CliRunner().invoke(
         app,
-        ["inspect", *scope, flag, dsn, "--output-format", "json"],
+        ["inspect", "table", "samples%", "--schema", "main", flag, dsn, "--output-format", "json"],
     )
     assert result.exit_code == 0, result.output
     metadata = json.loads(result.stdout)
@@ -51,10 +44,21 @@ def test_cli_help(command):
     assert result.exit_code == 0
     assert "--dsn" in result.stdout and "--connection-string" in result.stdout
     if command == "database":
-        assert "--schema" in result.stdout and "--table" in result.stdout
+        assert "--schema" not in result.stdout and "--table" not in result.stdout
     else:
         assert "NAME" in result.stdout and "[required]" in result.stdout
         assert "--output-format" in result.stdout and "--prompt-password" in result.stdout
+
+
+@pytest.mark.parametrize("flag", ["--schema", "--table"])
+def test_database_rejects_object_filters_before_connecting(monkeypatch, flag):
+    def unexpected_connect(*args, **kwargs):
+        pytest.fail("Removed database flags must fail before connection")
+
+    monkeypatch.setattr("execsql.api._connect_from_dsn", unexpected_connect)
+    result = CliRunner().invoke(app, ["inspect", "database", "--dsn", "unused", flag, "samples"])
+    assert result.exit_code == 2
+    assert f"No such option: {flag}" in result.output
 
 
 @pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
@@ -134,14 +138,14 @@ def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_pa
         CREATE TABLE samples(id INTEGER PRIMARY KEY, location_id INT REFERENCES locations(id));
         CREATE VIEW sample_ids AS SELECT id FROM samples;
         """)
-    args = ["inspect", "database", flag, f"sqlite:///{path}"]
-    overview = CliRunner().invoke(app, [*args, "--schema", "main"])
+    connection = [flag, f"sqlite:///{path}"]
+    overview = CliRunner().invoke(app, ["inspect", "schema", "main", *connection])
     assert overview.exit_code == 0, overview.output
     assert "Object" in overview.stdout and "Columns" in overview.stdout
     assert "main.samples" in overview.stdout and "main.sample_ids" in overview.stdout
     assert "3 object(s)" in overview.stdout and "execsql inspect table NAME" in overview.stdout
     assert "schema_version" not in overview.stdout
-    details = CliRunner().invoke(app, [*args, "--table", "samples"])
+    details = CliRunner().invoke(app, ["inspect", "table", "samples", *connection])
     assert details.exit_code == 0, details.output
     assert "main.samples (table)" in details.stdout
     assert "Column" in details.stdout and "Nullable" in details.stdout
@@ -178,7 +182,7 @@ def test_database_overview_and_json_retain_existing_metadata(tmp_path):
     assert result == inspect_schema(dsn=dsn, include_database=True)
     assert result["tables"] == inspect_schema(dsn=dsn)["tables"]
     assert result["schemas"] == [{"name": "main", "table_count": 1, "view_count": 1}]
-    for scope in (["database", "--schema", "main"], ["schema", "main"], ["table", "samples"]):
+    for scope in (["schema", "main"], ["table", "samples"]):
         filtered = CliRunner().invoke(app, ["inspect", *scope, "--dsn", dsn, "--output-format", "json"])
         assert filtered.exit_code == 0, filtered.output
         assert "database" not in json.loads(filtered.stdout)
@@ -246,7 +250,7 @@ def test_unavailable_keys_and_unknown_column_metadata_are_explicit(monkeypatch, 
     }
     metadata = {"success": True, "dialect": None, "adapter": "DSN", "tables": [item]}
     monkeypatch.setattr(discovery, "inspect_schema", lambda **kw: metadata)
-    result = CliRunner().invoke(app, ["inspect", "database", "--dsn", "unused", "--table", item["name"]])
+    result = CliRunner().invoke(app, ["inspect", "table", item["name"], "--dsn", "unused"])
     assert result.exit_code == 0, result.output
     assert "DSN (dialect unknown)" in result.stdout
     assert "\nsensitive[bold]name (table)\n" in result.stdout  # metadata is never Rich markup
