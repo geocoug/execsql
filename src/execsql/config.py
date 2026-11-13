@@ -59,9 +59,11 @@ class StatObj:
         self.metacommand_error = False
         self.cancel_halt = True
         self.dialog_canceled = False
-        # Cumulative record of non-halting errors: (source, line_no, command, message).
+        # Cumulative record of execution errors: (source, line_no, command, message).
         # Unlike sql_error/metacommand_error, this is never reset between statements.
-        self.error_history: list[tuple[str, int | None, str, str]] = []
+        self.error_history: list[tuple[str, int | None, str | None, str]] = []
+        # The final ScriptExit must not add its already recorded error twice.
+        self.last_halting_error_id: int | None = None
         # BatchLevels is defined in the main module; defer import to avoid circular deps
         from execsql.script import BatchLevels
 

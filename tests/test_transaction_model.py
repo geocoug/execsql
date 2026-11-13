@@ -239,31 +239,28 @@ class _Model:
     interrupted: bool = False
 
     def run(self, nodes: list) -> None:
-        halting = False
         try:
             try:
                 self._body(nodes)
                 self.finished = True
             except _Halted as halt:
-                halting = True
                 # exit_now abandons every open batch, then runs ON ERROR_HALT.
                 self._abandon_all()
                 if halt.error and self.handler:
                     self.pending.append(("log", 1))
                     # Its commit also commits what plain AUTOCOMMIT ON left
                     # held, and fails on a row that cannot be committed.  That
-                    # failure is reported only under ERROR_HALT OFF (the run
-                    # is already halting).
-                    if self.autocommit and not self._commit() and not self.error_halt:
+                    # failure is reported after the original error, even if
+                    # ERROR_HALT ON makes the handler halt too.
+                    if self.autocommit and not self._commit():
                         self.errors += 1
         except _Interrupted:
             # The interrupt leaves every open batch on its way out of run().
             self.interrupted = True
             self._abandon_all()
             # A SystemExit is reported as the error that ended the run,
-            # unless a halt's error already is (an interrupted ON ERROR_HALT
-            # script).
-            if self.sigterm and not halting:
+            # after any original error whose ON ERROR_HALT script it interrupted.
+            if self.sigterm:
                 self.errors += 1
         # What is left pending stays on the caller's connection.
 

@@ -27,6 +27,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- Python `run()` retains the original failure before errors from an `ON ERROR_HALT` script, with each error's own source line and SQL.
+
 - `--manifest` records SQL and metacommand errors when the script continues with error halting disabled.
 
 - `--manifest` keeps the original failure before errors raised by an `ON ERROR_HALT` script.
