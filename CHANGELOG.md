@@ -27,6 +27,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- `execsql inspect database|schema|table` and Python `inspect_schema()` honor connection configuration; omit `--dsn`/`dsn=` to use configured targets, or select a file with `--config`/`config_file=`. Text configuration details are opt-in with `--show-settings` and `--show-config`; JSON and Python include both.
+
 - `execsql inspect file` hides import settings and configuration files in text output by default; use `--show-settings` and `--show-config` to display them. JSON and Python reports retain both.
 
 - `execsql inspect database` prints database identity and a schema/namespace overview; use `inspect schema NAME` for objects or `inspect table NAME` for column/key details. Schema-less databases keep a flat object overview.

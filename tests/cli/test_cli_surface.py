@@ -161,6 +161,9 @@ class TestSurface:
         inspection = group.commands["inspect"]
         assert list(inspection.list_commands(None)) == ["database", "schema", "table", "file"]
         common = {
+            "--config",
+            "--show-settings",
+            "--show-config",
             "--dsn --connection-string",
             "--output-format",
             "--prompt-password",

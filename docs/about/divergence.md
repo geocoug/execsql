@@ -270,6 +270,14 @@ New options in `execsql.conf`:
     automatic only for text-mode CLI inspection on an interactive terminal;
     `--no-passwd` disables it and `--prompt-password` permits it with JSON.
     `--dsn` and `--connection-string` are interchangeable, as for `execsql run`.
+    Owned connections read normal tool configuration and accept `--config` /
+    Python `config_file=`. Omitting the DSN uses configured connection defaults;
+    an explicit DSN replaces the target and user while retaining connection
+    controls such as encoding, certificate handling and keyring preferences.
+    Startup scripts and database creation are never executed. All inspection
+    commands offer independent `--show-settings` and `--show-config` text flags;
+    JSON/Python always include nonsecret settings and loaded configuration paths.
+    Borrowed adapters do not load or apply configuration.
     `execsql inspect schema NAME` and `execsql inspect table NAME [--schema NAME]`
     provide object-specific forms with the same output contract and password policy.
     `inspect database` adds database identity and a namespace/count

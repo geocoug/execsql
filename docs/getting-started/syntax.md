@@ -14,9 +14,9 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords [--output-format text|json]
-execsql inspect database --dsn URL
-execsql inspect schema NAME --dsn URL
-execsql inspect table NAME --dsn URL [--schema NAME]
+execsql inspect database [--dsn URL] [--config FILE]
+execsql inspect schema NAME [--dsn URL] [--config FILE]
+execsql inspect table NAME [--dsn URL] [--config FILE] [--schema NAME]
 execsql inspect file PATH [--sheet NAME] [--sample-rows N]
 execsql init   [DIR] [--script NAME | --no-script] [--no-config] [--no-pre-commit] [--force]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
@@ -209,7 +209,7 @@ When `-t` is not specified, the default is SQLite (`l`).
 ## Options Reference { #options }
 
 `execsql inspect database`, `inspect schema NAME` and `inspect table NAME` have
-their own options: required `--dsn URL` (alias `--connection-string URL`), and
+their own options: optional `--dsn URL` (alias `--connection-string URL`), and
 `--output-format text|json` (text by default). `database` shows database
 identity and schema/namespace counts, including namespaces without visible objects;
 schema-less databases show objects directly. It has no `--schema` or `--table` filters.
@@ -220,10 +220,21 @@ PostgreSQL's default scope excludes reserved `pg_*` schemas; explicitly name a
 schema with `inspect schema NAME` or `inspect table NAME --schema SCHEMA` to inspect it.
 Names are separate components; a dot in a table name is literal.
 Text on a terminal
-allows a hidden password prompt for a URL user. `-w` / `--no-passwd` disables it;
+follows the configured password-prompt preference for the connection's user. `-w` / `--no-passwd` disables it;
 `--prompt-password` explicitly allows it with JSON output on a terminal.
 Redirected stdin and JSON output never prompt automatically. See [schema discovery](../reference/schema.md) for the contract, scope and
 adapter support.
+
+| Option                                 | Meaning                                                                                                                       |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `--dsn URL`, `--connection-string URL` | Connection target and identity; omit to use `[connect]` defaults. Explicit URL fields/defaults replace the configured target. |
+| `--config FILE`                        | Read additional configuration after system, user and working-directory files. Connection controls apply even with a DSN.      |
+| `--show-settings`                      | Include nonsecret connection controls in text output; hidden by default.                                                      |
+| `--show-config`                        | Include loaded configuration files in text output; hidden by default.                                                         |
+
+JSON and Python include `settings` and `config_files` regardless of display flags.
+Inspection never executes startup scripts or creates a database, even when
+`[connect] new_db=Yes` is configured.
 
 `execsql inspect file PATH` needs no database. It reports formats, column names
 and IMPORT-inferred types, or lists workbook sheets when `--sheet` is omitted.

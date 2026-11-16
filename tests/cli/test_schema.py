@@ -10,6 +10,17 @@ from execsql import inspect_schema
 from execsql.cli import app
 
 
+@pytest.fixture(autouse=True)
+def isolated_configuration(monkeypatch):
+    from execsql.config import ConfigData
+
+    monkeypatch.setattr(
+        ConfigData,
+        "_search_paths",
+        classmethod(lambda cls, script_path, config_file, start_dir=None: [str(config_file)] if config_file else []),
+    )
+
+
 @pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
 def test_cli_matches_python_and_reads_no_rows(tmp_path, flag):
     path = tmp_path / "project.sqlite"
@@ -106,8 +117,8 @@ def test_table_inspection_uses_literal_names_and_shows_details(tmp_path, kind):
 
 
 @pytest.mark.parametrize("command", ["schema", "table"])
-@pytest.mark.parametrize("arguments", [[], ["--dsn", "sqlite:///:memory:"], ["samples"]])
-def test_object_inspection_requires_name_and_connection(command, arguments):
+@pytest.mark.parametrize("arguments", [[], ["--dsn", "sqlite:///:memory:"]])
+def test_object_inspection_requires_name(command, arguments):
     result = CliRunner().invoke(app, ["inspect", command, *arguments])
     assert result.exit_code == 2
 
@@ -285,7 +296,7 @@ def test_password_policy_keeps_json_and_redirected_input_noninteractive(monkeypa
     inspect = MagicMock(return_value={"success": True, "dialect": "SQLite", "tables": []})
     monkeypatch.setattr(discovery, "inspect_schema", inspect)
     for terminal, options, expected in [
-        (True, [], True),
+        (True, [], None),
         (False, [], False),
         (True, ["--no-passwd"], False),
         (True, ["--output-format", "json"], False),

@@ -501,30 +501,40 @@ def inspect_schema(
     *,
     dsn: str | None = None,
     connection: Database | None = None,
+    config_file: str | Path | None = None,
     schema: str | None = None,
     table: str | None = None,
-    prompt_password: bool = False,
+    prompt_password: bool | None = False,
     include_database: bool = False,
 ) -> dict[str, Any]:
     """Return JSON-compatible metadata; see the schema discovery reference.
 
-    Supply exactly one of *dsn* or an existing execsql adapter *connection*.
+    Supply *dsn*, an existing execsql adapter *connection*, or use configured
+    connection defaults. Owned connections read normal tool configuration plus
+    *config_file*. Borrowed connections do not load or apply configuration.
     Filters are exact, case-sensitive names, not SQL or wildcard expressions.
     Owned connections close on every exit; borrowed connections are never closed,
     committed or rolled back. Driver exceptions are deliberately not echoed, as
     their messages can contain credentials. KeyboardInterrupt/SystemExit propagate.
     Password prompting is disabled unless explicitly enabled with *prompt_password*;
     URL callers enabling it must provide an interactive terminal.
-    *include_database* adds identity and namespace counts to unfiltered inspection.
+    None for *prompt_password* follows configuration on an interactive terminal;
+    True/False explicitly allow/forbid prompting. *include_database* adds identity
+    and namespace counts to unfiltered inspection.
     """
     from execsql.api import _connect_from_dsn, _LibraryConfig
     from execsql.exceptions import ScriptExit
     from execsql.state import RuntimeContext, active_context
 
-    if prompt_password and dsn is not None and (sys.stdin is None or not sys.stdin.isatty()):
+    terminal = sys.stdin is not None and sys.stdin.isatty()
+    if prompt_password and connection is None and not terminal:
         raise ValueError("Password prompting requires an interactive terminal.")
-    if (dsn is None) == (connection is None):
-        raise ValueError("Provide exactly one of 'dsn' or 'connection'.")
+    if connection is not None and (dsn is not None or config_file is not None):
+        raise ValueError("A supplied connection cannot be combined with 'dsn' or 'config_file'.")
+    if config_file is not None and (
+        not isinstance(config_file, (str, Path)) or not str(config_file) or "\x00" in str(config_file)
+    ):
+        raise ValueError("config_file must be a nonempty path without NUL characters.")
     for name, value in (("schema", schema), ("table", table)):
         if value is not None and (not isinstance(value, str) or not value or "\x00" in value):
             raise ValueError(f"{name} must be a nonempty name without NUL characters.")
@@ -538,18 +548,48 @@ def inspect_schema(
         "capabilities": {},
         "tables": [],
         "error": None,
+        "settings": {},
+        "config_files": [],
     }
     if include_database:
         result.update(database=None, schemas=None)
     ctx = RuntimeContext()
     ctx.conf = cast(Any, _LibraryConfig())
-    phase = "connection"
+    phase = "configuration"
     db = connection
     with active_context(ctx):
         try:
             if db is None:
-                assert dsn is not None
-                db = _connect_from_dsn(dsn, prompt_password=prompt_password)
+                from execsql.cli.run import _tool_config, _connect_initial_db
+                from execsql.cli.dsn import _parse_connection_string
+
+                conf = _tool_config(str(config_file) if config_file is not None else None)
+                ctx.conf = conf
+                result["config_files"] = list(conf.files_read)
+                # Discovery must never inherit the run-only database-creation flag.
+                conf.new_db = False
+                conf.passwd_prompt = bool(
+                    terminal and (conf.passwd_prompt if prompt_password is None else prompt_password),
+                )
+                if dsn is None:
+                    _validate_inspection_connection(conf)
+                else:
+                    phase = "connection"
+                    params = _parse_connection_string(dsn)
+                    conf.db_type = params["db_type"]
+                    if params["trust_server_certificate"] is not None:
+                        conf.trust_server_certificate = params["trust_server_certificate"]
+                    if params["password"] is not None:
+                        conf.passwd_prompt = False
+                result["settings"] = _inspection_settings(conf)
+                phase = "connection"
+                if dsn is None:
+                    db = _connect_initial_db(conf)
+                else:
+                    encoding_options: dict[str, Any] = (
+                        {"encoding": conf.db_encoding} if conf.db_encoding is not None else {}
+                    )
+                    db = _connect_from_dsn(dsn, prompt_password=conf.passwd_prompt, **encoding_options)
             phase = "metadata"
             dialect = db.type.dbms_id
             result["adapter"] = dialect
@@ -577,7 +617,7 @@ def inspect_schema(
         except (Exception, ScriptExit) as exc:
             result["error"] = _inspection_error(phase, exc, dsn)
         finally:
-            if dsn is not None and db is not None:
+            if connection is None and db is not None:
                 try:
                     db.close()
                 except Exception:
@@ -589,9 +629,40 @@ def inspect_schema(
     return result
 
 
+def _validate_inspection_connection(conf: Any) -> None:
+    """Reject incomplete config before the run connector's fatal-error paths."""
+    if conf.db_type in ("l", "k", "a"):
+        valid = bool(conf.db_file)
+    elif conf.db_type == "d":
+        valid = bool(conf.db)
+    elif conf.db_type in ("p", "m", "s", "o", "f"):
+        valid = bool(conf.server and conf.db)
+    else:
+        valid = False
+    if not valid:
+        raise ValueError("Incomplete connection configuration")
+
+
+def _inspection_settings(conf: Any) -> dict[str, Any]:
+    """Whitelist nonsecret controls; never copy URLs, identities or credentials."""
+    settings = {
+        "db_type": conf.db_type,
+        "password_prompt": conf.passwd_prompt,
+        "use_keyring": conf.use_keyring,
+        "support_tier_notice": conf.support_tier_notice,
+    }
+    if conf.db_type not in ("l", "k"):
+        settings["database_encoding"] = conf.db_encoding
+    if conf.db_type == "s":
+        settings["trust_server_certificate"] = conf.trust_server_certificate
+    return settings
+
+
 def _inspection_error(phase: str, exc: BaseException, dsn: str | None) -> dict[str, str]:
     """Classify common connection problems without echoing secret-bearing errors."""
     message = f"Schema discovery {phase} failed."
+    if phase == "configuration":
+        message = "Cannot load inspection configuration or connection defaults; check --config and [connect], or supply --dsn."
     if phase == "connection" and dsn is not None:
         from execsql.cli.dsn import _parse_connection_string
         from execsql.utils.auth import is_login_failure

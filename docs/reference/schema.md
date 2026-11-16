@@ -9,6 +9,8 @@ execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 ```
 
 `--dsn` and `--connection-string` accept the same connection URL.
+Omit them to use the connection defined in execsql configuration. All three
+commands accept `--config FILE`, `--show-settings` and `--show-config`.
 
 The CLI prints readable text by default. `inspect database` shows
 database identity, engine and a schema/namespace overview with visible table/view
@@ -54,7 +56,7 @@ for table in metadata["tables"]:
     print(table["name"], table["columns"])
 ```
 
-Supply exactly one of `dsn=` or `connection=`. The latter accepts an existing
+Supply `dsn=`, use configured connection defaults, or supply `connection=`. The latter accepts an existing
 execsql `Database` adapter, including Access and ODBC DSN adapters. It is not a raw
 driver connection. `inspect_schema()` returns a JSON-compatible dictionary using
 the CLI's shared output contract. Invalid Python arguments raise `ValueError`;
@@ -74,7 +76,7 @@ print(metadata["schemas"])
 existing Python results and catalog queries. The CLI enables it only for
 `inspect database`.
 
-A connection opened from a URL belongs to this call and is closed afterward.
+A connection opened from a URL or configuration belongs to this call and is closed afterward.
 Existing database files are required; inspection never requests database creation.
 A supplied adapter stays open. Inspection issues no commits or rollbacks and does
 not change its autocommit setting. Catalog reads may start a driver transaction;
@@ -82,18 +84,65 @@ a failed query can leave that transaction aborted, as it would for a direct driv
 query. The caller retains responsibility for its borrowed connection's transaction.
 Concurrent operations on the same connection are not supported.
 
-Inspection does not run startup scripts or load execsql configuration files.
-The Python API does not prompt by default and never consults execsql's keyring.
-`prompt_password=True` explicitly enables hidden password prompting for a URL
-that includes a user; an interactive stdin is required. The CLI automatically
-allows that prompt for text output on a terminal. `--no-passwd` disables it;
-`--prompt-password` explicitly allows it with JSON output. JSON and redirected
-stdin never prompt automatically. Otherwise, supply credentials in the URL or use
+Inspection never executes startup scripts or honors `[connect] new_db`.
+Owned connections read the same configuration search as `format`, `lint` and
+`inspect file`: system, user and working-directory files, followed by
+`--config FILE` (Python `config_file=`), with local configuration chains.
+The database file's directory is not an additional search location. Normal
+configuration parsing and validation still apply, including required-include
+existence checks, but includes are never executed.
+
+Without a DSN, `[connect]` supplies the database type and target, username and
+port. File adapters require `db_file`; ODBC requires `db`; other adapters require
+`server` and `db`. An explicit DSN determines the entire target and identity:
+omitted URL fields use the URL/adapter defaults, never the configured host,
+database, username or port. Connection controls still apply: `[encoding] database`,
+`[connect] use_keyring` and `trust_server_certificate`, and
+`[interface] support_tier_notice`. A SQL Server URL's
+`?trust_server_certificate=yes|no` overrides the configured certificate setting.
+Import, export and script-execution settings do not affect catalog discovery.
+
+The Python API does not prompt or use keyring by default.
+`prompt_password=True` explicitly enables the normal authentication flow for
+a connection with a user, including keyring lookup/storage when configured;
+interactive stdin is required. `prompt_password=None` follows the configured
+`password_prompt` preference on a terminal. The CLI follows that preference
+automatically for text output on a terminal. `--no-passwd` disables prompting
+and keyring use; `--prompt-password` overrides the configured preference and
+explicitly allows prompting with JSON output. JSON and redirected stdin never
+prompt automatically. Otherwise, supply credentials in the URL or use
 driver-supported authentication. Keep credential-bearing
 URLs out of shell history and process arguments when possible; a Python connection
 lets applications use their own credential delivery. Returned errors use fixed,
 secret-free messages rather than echoing URLs or driver exception text. Diagnose a
 connection problem using the driver separately when more detail is required.
+
+Text hides configuration details by default. `--show-settings` displays a
+whitelist of nonsecret connection controls (`db_type`, effective `password_prompt`,
+`use_keyring`, `support_tier_notice`, and applicable `database_encoding` and
+`trust_server_certificate`); `--show-config` displays loaded configuration files.
+The flags work independently and affect only text presentation. JSON and Python
+always include `settings` and `config_files`; neither contains a DSN, username,
+password or unrelated configuration values. Borrowed `connection=` calls load no
+configuration and return empty settings/file lists; they reject `config_file=`
+and `dsn=` because connection setup belongs to the caller.
+
+For example, save this as `inspection.conf`:
+
+```ini
+[connect]
+db_type=l
+db_file=project.sqlite
+```
+
+```sh
+execsql inspect database --config inspection.conf
+execsql inspect table samples --config inspection.conf --show-settings --show-config
+```
+
+```python
+metadata = inspect_schema(config_file="inspection.conf", table="samples")
+```
 
 ## Filters and scope
 
@@ -232,6 +281,9 @@ For a `samples` table referencing `locations.id`, an abbreviated result is:
     ODBC key capabilities are determined from the selected objects: `false` means
     unavailable for at least one selected object, and `null` means no object was
     selected so support was not established. Check individual tables as well.
+- `settings` contains whitelisted nonsecret connection controls. `config_files`
+    lists loaded configuration paths in read order. Both are empty for borrowed
+    adapters. These additive fields retain contract version 1.
 - Tables sort by catalog, schema and name. `kind` is `table` or `view`. `catalog`
     and each relationship's `referenced_catalog` are ODBC-reported catalogs, otherwise `null`; `schema` is `null` when the
     backend has no schema namespace. Columns sort by one-based ordinal position.
@@ -253,7 +305,7 @@ Failure leaves `tables: []` and returns an error such as:
 {"code": "metadata_error", "message": "Schema discovery metadata failed."}
 ```
 
-Codes are `connection_error`, `metadata_error`, `close_error` and
+Codes are `configuration_error`, `connection_error`, `metadata_error`, `close_error` and
 `unsupported_adapter`. A failure before connecting has `adapter` and `dialect`
 set to `null` and `capabilities: {}`. Real query failures are never converted into
 successful empty results or unsupported capabilities.

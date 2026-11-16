@@ -14,6 +14,17 @@ from execsql.db.sqlite import SQLiteDatabase
 from tests.live_db import open_backend
 
 
+@pytest.fixture(autouse=True)
+def isolated_configuration(monkeypatch):
+    from execsql.config import ConfigData
+
+    monkeypatch.setattr(
+        ConfigData,
+        "_search_paths",
+        classmethod(lambda cls, script_path, config_file, start_dir=None: [str(config_file)] if config_file else []),
+    )
+
+
 @pytest.mark.parametrize("dbms", ["sqlite", "duckdb", "postgres", "mysql", "mariadb", "sqlserver"])
 def test_live_catalog_composite_keys_and_views(dbms, tmp_path):
     db = open_backend(dbms, tmp_path)
@@ -137,12 +148,12 @@ def test_owned_connection_closes_on_success_failure_and_interrupt(sqlite_db, mon
 def test_connection_errors_are_structured_and_secret_free(monkeypatch, capsys):
     def fail(*args, **kwargs):
         assert kwargs["prompt_password"] is False
-        raise ValueError("postgresql://user:password@host/db")
+        raise ValueError("postgresql://user:private-secret@host/db")
 
     monkeypatch.setattr("execsql.api._connect_from_dsn", fail)
-    result = inspect_schema(dsn="postgresql://user:password@host/db")
+    result = inspect_schema(dsn="postgresql://user:private-secret@host/db")
     assert result["error"]["code"] == "connection_error"
-    assert "password" not in json.dumps(result)
+    assert "secret" not in json.dumps(result)
     assert capsys.readouterr() == ("", "")
 
 
@@ -161,8 +172,10 @@ def test_close_failure_is_reported(sqlite_db, monkeypatch, include_database):
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {},
         {"dsn": "x", "connection": object()},
+        {"connection": object(), "config_file": "execsql.conf"},
+        {"config_file": ""},
+        {"config_file": "a\x00b"},
         {"dsn": "x", "schema": ""},
         {"dsn": "x", "table": "a\x00b"},
         {"dsn": "x", "table": 1},
