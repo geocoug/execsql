@@ -239,10 +239,13 @@ It has its own options:
 | `--quote CHAR`               | Quote character or `none`; requires `--delimiter`.                                                    |
 | `--skip-rows N`              | Non-negative lines/worksheet rows to skip before the header.                                          |
 | `--config FILE`              | Explicit import configuration in addition to normal tool config search.                               |
+| `--show-settings`            | Include effective import settings in text output; hidden by default.                                  |
+| `--show-config`              | Include loaded configuration files in text output; hidden by default.                                 |
 | `--output-format text\|json` | Human-readable text (default) or the shared JSON contract.                                            |
 
 See [file inspection](../reference/files.md) for the complete contract, format
 behavior, sampling limits and examples. Incomplete samples are provisional.
+JSON and Python reports always retain settings and configuration-file metadata.
 
 The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
 `execsql run --help` lists them all. `-h`/`--help` works on every command.

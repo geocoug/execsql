@@ -162,7 +162,12 @@ def _connection_hint(dsn: str) -> str:
     )
 
 
-def print_file_inspection(result: dict[str, Any]) -> None:
+def print_file_inspection(
+    result: dict[str, Any],
+    *,
+    show_settings: bool = False,
+    show_config: bool = False,
+) -> None:
     """Render the file contract as literal metadata, never source row values."""
     _console.print(_literal(f"File: {result['file']}"), style="bold")
     _console.print(_literal(f"Format: {result['format']} ({result['format_source']})"))
@@ -208,9 +213,11 @@ def print_file_inspection(result: dict[str, Any]) -> None:
                 values.append(_literal(column["source_type"] or "unavailable"))
             columns.add_row(*values)
         _console.print(columns)
-    _console.print(
-        _literal("Configuration files: " + (", ".join(result["config_files"]) or "none (built-in defaults)")),
-    )
-    _console.print(
-        _literal("Import settings: " + ", ".join(f"{name}={value}" for name, value in result["settings"].items())),
-    )
+    if show_config:
+        _console.print(
+            _literal("Configuration files: " + (", ".join(result["config_files"]) or "none (built-in defaults)")),
+        )
+    if show_settings:
+        _console.print(
+            _literal("Import settings: " + ", ".join(f"{name}={value}" for name, value in result["settings"].items())),
+        )

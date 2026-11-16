@@ -295,7 +295,9 @@ execsql inspect file results.parquet --sample-rows 1000 --output-format json
 Full scans use the existing import readers and type inference. Samples are marked
 provisional when incomplete; some readers still materialize the full source.
 Workbooks without `--sheet` list worksheets. Python `execsql.inspect_file()` shares
-the same result contract. See [file inspection](https://execsql2.readthedocs.io/en/stable/reference/files/)
+the same result contract. Text output hides import settings and configuration files;
+add `--show-settings` and `--show-config` to display them. JSON always includes both.
+See [file inspection](https://execsql2.readthedocs.io/en/stable/reference/files/)
 for formats, optional readers, effective configuration and scan limits.
 
 ## Templates
