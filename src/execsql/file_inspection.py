@@ -353,4 +353,6 @@ def inspect_file(
                 message = str(exc) if phase == "file" else "Cannot read file; check its format and parser settings."
             result["columns"], result["scan"] = [], None
             result["error"] = {"code": f"{phase}_error", "message": message}
+        if result["encoding"] is not None:
+            result["settings"]["import_encoding"] = result["encoding"]["name"]
     return result

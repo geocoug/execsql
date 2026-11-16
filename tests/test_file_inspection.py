@@ -188,6 +188,36 @@ def test_explicit_dialect_skip_and_effective_configuration(tmp_path):
     assert result["columns"][0]["inferred_type"] == "integer"
 
 
+@pytest.mark.parametrize(
+    "kind,physical_encoding",
+    [("csv", "utf-8"), ("csv", "utf-16"), ("json", "utf-8"), ("jsonl", "utf-8")],
+)
+def test_effective_encoding_matches_reader_override_and_bom(tmp_path, kind, physical_encoding):
+    from typer.testing import CliRunner
+    from execsql.cli import app
+
+    source = tmp_path / f"encoding.{kind}"
+    content = (
+        "id,value\n2,caf\u00e9\n"
+        if kind == "csv"
+        else ('[{"id":2,"value":"caf\u00e9"}]' if kind == "json" else '{"id":2,"value":"caf\u00e9"}\n')
+    )
+    source.write_text(content, encoding=physical_encoding)
+    conf = tmp_path / "encoding.conf"
+    conf.write_text("[encoding]\nimport=latin1\n")
+    report = inspect_file(source, config_file=conf, encoding="utf-8")
+    assert report["success"], report
+    expected = codecs.lookup(physical_encoding).name
+    assert report["encoding"] == {"name": expected, "source": "bom" if physical_encoding == "utf-16" else "explicit"}
+    assert report["settings"]["import_encoding"] == expected
+    args = ["inspect", "file", str(source), "--config", str(conf), "--encoding", "utf-8", "--show-settings"]
+    text = CliRunner().invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert f"import_encoding={expected}" in "".join(text.stdout.splitlines())
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 0 and json.loads(machine.stdout) == report
+
+
 def test_stored_types_remain_aligned_after_header_deletion(tmp_path):
     pl = pytest.importorskip("polars")
     path = tmp_path / "headers.parquet"

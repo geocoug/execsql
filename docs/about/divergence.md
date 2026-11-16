@@ -259,7 +259,8 @@ New options in `execsql.conf`:
     selected sheet. Text and JSON share format, columns and inference. Text shows
     effective import settings and configuration files only with `--show-settings`
     and `--show-config`; JSON and Python always retain both. See
-    [file inspection](../reference/files.md).
+    [file inspection](../reference/files.md). Reported effective encoding follows
+    the actual reader, including overrides and BOM detection.
 
 - CLI `execsql inspect` and Python `execsql.inspect_schema()` inspect database
     structure without running scripts or fetching application

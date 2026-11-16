@@ -110,7 +110,9 @@ Startup SQL/includes are never executed. JSON and Python reports include `config
 whitelist of effective import/inference settings, including header handling,
 Boolean/decimal rules, string normalization, integer threshold, dialect scan
 length and spreadsheet budgets. Unrelated configuration and variable values are
-not included. Command-line parsing controls are reported separately.
+not included. Command-line parsing controls are reported separately. When reader encoding is
+reported, `settings.import_encoding` uses that same canonical codec name, including
+explicit overrides and BOM precedence; `encoding.source` retains its provenance.
 
 ## Python and JSON contract
 

@@ -43,6 +43,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- `execsql inspect file` reports the actual reader encoding in effective settings, including explicit overrides and BOM detection.
+
 - Database inspection returns a silent `dependency_error` with an installation hint for unavailable or broken drivers; CLI diagnostics are printed once.
 
 - Database connections close when initial setup fails or is interrupted.
