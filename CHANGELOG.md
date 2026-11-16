@@ -27,6 +27,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- `execsql inspect file` hides import settings and configuration files in text output by default; use `--show-settings` and `--show-config` to display them. JSON and Python reports retain both.
+
 - `execsql inspect database` prints database identity and a schema/namespace overview; use `inspect schema NAME` for objects or `inspect table NAME` for column/key details. Schema-less databases keep a flat object overview.
 
 - `execsql inspect database` has no `--schema` or `--table` filters; select objects with `inspect schema NAME` or `inspect table NAME [--schema NAME]`.

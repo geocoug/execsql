@@ -6,6 +6,7 @@ or changing the source:
 ```sh
 execsql inspect file results.csv
 execsql inspect file results.csv --output-format json
+execsql inspect file results.csv --show-settings --show-config
 execsql inspect file results.xlsx
 execsql inspect file results.xlsx --sheet Data
 execsql inspect file results.parquet --sample-rows 1000
@@ -17,6 +18,11 @@ examined, column names, inferred types and observed NULL counts. Parquet/Feather
 also show their stored types. Actual row values are not included in the report.
 Output treats paths, headers and worksheet names literally, escaping terminal
 control characters.
+
+Text output omits the import settings and configuration-file list by default.
+Use `--show-settings` and `--show-config` to include either section independently.
+JSON and Python reports always include `settings` and `config_files`; these flags
+only control text display.
 
 ## Formats and selection
 
@@ -86,6 +92,8 @@ complete scan or when the reader materialized the full source; otherwise it is
 | `--quote CHAR`               | Override that quote character, or use `none`; requires `--delimiter`.                                                                            |
 | `--skip-rows N`              | Non-negative physical text lines or worksheet rows before the header. Only delimited text and spreadsheets.                                      |
 | `--config FILE`              | Read an explicit execsql configuration in addition to normal tool configuration.                                                                 |
+| `--show-settings`            | Include effective import settings in text output; hidden by default.                                                                             |
+| `--show-config`              | Include loaded configuration files in text output; hidden by default.                                                                            |
 | `--output-format text\|json` | Human-readable text (default), or the shared JSON contract.                                                                                      |
 
 CSV's existing BOM detection takes precedence over its configured/explicit
@@ -96,7 +104,7 @@ configured/explicit decoding, including `utf-8-sig` when needed for a UTF-8 BOM.
 The command and Python API read the same tool configuration as `format`/`lint`:
 system, user and working-directory files, then `--config`, including local config
 chains. The data file's directory is not an additional configuration search root.
-Startup SQL/includes are never executed. Reports include `config_files` and a
+Startup SQL/includes are never executed. JSON and Python reports include `config_files` and a
 whitelist of effective import/inference settings, including header handling,
 Boolean/decimal rules, string normalization, integer threshold, dialect scan
 length and spreadsheet budgets. Unrelated configuration and variable values are

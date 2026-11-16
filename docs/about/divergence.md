@@ -256,8 +256,10 @@ New options in `execsql.conf`:
     built-in import formats without a database or source writes. Full scans reuse
     IMPORT readers and type inference; explicit samples report completeness and
     whether the source was materialized. Workbooks list worksheets or inspect a
-    selected sheet. Text and JSON share format, columns, inference and effective
-    input configuration; see [file inspection](../reference/files.md).
+    selected sheet. Text and JSON share format, columns and inference. Text shows
+    effective import settings and configuration files only with `--show-settings`
+    and `--show-config`; JSON and Python always retain both. See
+    [file inspection](../reference/files.md).
 
 - CLI `execsql inspect` and Python `execsql.inspect_schema()` inspect database
     structure without running scripts or fetching application

@@ -184,6 +184,8 @@ class TestSurface:
             "--quote",
             "--skip-rows",
             "--config",
+            "--show-settings",
+            "--show-config",
             "--output-format",
         }
         assert _options(command, hidden=True) == set()

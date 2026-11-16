@@ -44,8 +44,46 @@ def test_file_command_all_formats(tmp_path, monkeypatch, kind, output_format):
         assert "Format:" in result.stdout and "Scan: full" in result.stdout
         assert "id" in result.stdout and "label" in result.stdout
         assert "integer" in result.stdout and "varchar(5)" in result.stdout
-        assert "Import settings:" in result.stdout
+        assert "Import settings:" not in result.stdout
+        assert "Configuration files:" not in result.stdout
     assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("show_settings,show_config", [(False, False), (True, False), (False, True), (True, True)])
+@pytest.mark.parametrize("listing", [False, True])
+def test_text_metadata_sections_are_independent_opt_ins(tmp_path, monkeypatch, show_settings, show_config, listing):
+    monkeypatch.setattr("execsql.cli.inspection._console.width", 60)
+    path = make_file(tmp_path, "xlsx" if listing else "csv")
+    config = tmp_path / "[bold]example.conf"
+    config.write_text("[input]\nboolean_int=No\n")
+    args = ["inspect", "file", str(path), "--config", str(config)]
+    if show_settings:
+        args.append("--show-settings")
+    if show_config:
+        args.append("--show-config")
+    result = CliRunner().invoke(app, args)
+    assert result.exit_code == 0, result.output
+    assert ("Import settings:" in result.stdout) is show_settings
+    assert ("boolean_int=False" in result.stdout) is show_settings
+    assert ("Configuration files:" in result.stdout) is show_config
+    assert (str(config) in "".join(result.stdout.splitlines())) is show_config
+    assert ("Worksheets:" in result.stdout) is listing
+
+
+@pytest.mark.parametrize("flags", [[], ["--show-settings"], ["--show-config"], ["--show-settings", "--show-config"]])
+def test_json_retains_metadata_regardless_of_text_display_flags(tmp_path, flags):
+    path = make_file(tmp_path, "csv")
+    config = tmp_path / "example.conf"
+    config.write_text("[input]\nboolean_int=No\n")
+    result = CliRunner().invoke(
+        app,
+        ["inspect", "file", str(path), "--config", str(config), "--output-format", "json", *flags],
+    )
+    assert result.exit_code == 0, result.output
+    report = json.loads(result.stdout)
+    assert report == inspect_file(path, config_file=config)
+    assert report["config_files"] == [str(config)]
+    assert report["settings"]["boolean_int"] is False
 
 
 def test_workbook_listing_and_sampling_warning(tmp_path):

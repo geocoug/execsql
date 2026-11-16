@@ -169,6 +169,14 @@ def file_cmd(
         typer.Option("--skip-rows", min=0, help="Skip leading lines/worksheet rows before the header."),
     ] = 0,
     config_file: ConfigFileOpt = None,
+    show_settings: Annotated[
+        bool,
+        typer.Option("--show-settings", help="Include effective import settings in text output."),
+    ] = False,
+    show_config: Annotated[
+        bool,
+        typer.Option("--show-config", help="Include loaded configuration files in text output."),
+    ] = False,
     output_format: OutputFormatOpt = OutputFormat.text,
 ) -> None:
     """Inspect import formats, columns and inferred types; full scan by default."""
@@ -194,7 +202,7 @@ def file_cmd(
     if output_format is OutputFormat.json:
         sys.stdout.write(json.dumps(result, indent=2, ensure_ascii=True) + "\n")
     elif result["success"]:
-        print_file_inspection(result)
+        print_file_inspection(result, show_settings=show_settings, show_config=show_config)
     else:
         _err_console.print(_literal(f"Error: {result['error']['message']}"), style="bold red")
     if not result["success"]:
