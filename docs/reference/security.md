@@ -82,13 +82,21 @@ Each person performs this setup under their own Unix account. A shared execsql i
 
 Before changing an existing installation, run `type -a execsql` to find the command your shell uses, including any alias or function. `uv tool list` lists tools managed by your current uv setup; an absent `execsql2` entry does not mean execsql is missing. It may be installed through pipx, in a virtual environment, or as a shared system installation. Use the installation you already run when adding dependencies or diagnosing keyring support.
 
-1. **Install plaintext support in the Python environment running execsql.** For a personal installation using PostgreSQL:
+1. **Check plaintext support in the Python environment running execsql.** For example, if `type -a execsql` reports `/opt/venvs/dataman/bin/execsql`, check the shared virtual environment:
+
+    ```sh
+    /opt/venvs/dataman/bin/python -c 'import keyring; import keyrings.alt.file; print("Plaintext backend available")'
+    ```
+
+    If this succeeds, no installation change is needed: each coworker can proceed with their own configuration below. If an import fails, ask the shared environment's administrator to install `keyring` and `keyrings.alt` there. Substitute your actual virtual environment path in these examples; no activation or `sudo` is needed to run the checks.
+
+    For a new personal installation using PostgreSQL:
 
     ```sh
     uv tool install "execsql2[postgres,auth-plaintext]"
     ```
 
-    With pipx, use `pipx install --force "execsql2[postgres,auth-plaintext]"`. Retain all existing database and feature extras when changing an installation. For a shared installation, ask its administrator to add `keyring` and `keyrings.alt` to that same Python environment. Installing them into an unrelated environment will not enable keyring support in execsql.
+    With pipx, use `pipx install --force "execsql2[postgres,auth-plaintext]"`. Retain all existing database and feature extras when changing an installation. Installing keyring packages into an unrelated environment will not enable keyring support in execsql.
 
 1. **Select the backend for your account.** Create or edit `~/.config/python_keyring/keyringrc.cfg`, merging this section with any existing configuration:
 
@@ -100,6 +108,14 @@ Before changing an existing installation, run `type -a execsql` to find the comm
     Create the parent directory first if needed: `mkdir -p ~/.config/python_keyring`. This is Python keyring's configuration, separate from `execsql.conf`. It affects other applications using Python keyring under your account, too.
 
     For selection limited to one command, omit the config-file change and prefix the command with `PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring`. This environment variable overrides the config file; an exported value also affects child processes. See the [keyring configuration reference](https://keyring.readthedocs.io/en/latest/#configuring).
+
+    Verify the selected backend under your own Unix account, using execsql's Python interpreter:
+
+    ```sh
+    /opt/venvs/dataman/bin/python -c 'import keyring; k = keyring.get_keyring(); print(type(k).__module__ + "." + type(k).__name__)'
+    ```
+
+    Expected output: `keyrings.alt.file.PlaintextKeyring`. This prints only the backend class, without retrieving a password. A shared installation does not make one user's backend selection apply to every coworker.
 
 1. **Restrict access to your password-storage directory:**
 
@@ -142,7 +158,13 @@ If reuse fails, check that `execsql` resolves to the intended installation, that
 "$(uv tool dir)/execsql2/bin/python" -m keyring diagnose
 ```
 
-For other installation methods, run `python -m keyring diagnose` using the Python interpreter from execsql's environment. Do not use `keyring get` or print the password file to diagnose setup: both expose credentials.
+For a shared virtual environment, use its interpreter instead:
+
+```sh
+/opt/venvs/dataman/bin/python -m keyring diagnose
+```
+
+The reported config path and data root belong to the Unix account running the command. They show where keyring looks for configuration and stores data; they do not confirm which backend is active or that a password has been saved. Use the backend check in step 2 to confirm selection. For other installation methods, run `python -m keyring diagnose` using the Python interpreter from execsql's environment. Do not use `keyring get` or print the password file to diagnose setup: both expose credentials.
 
 For encrypted file storage instead, install `auth-encrypted` and select `keyrings.alt.file.EncryptedKeyring` in the same `[backend]` setting. It uses a separate password file and asks for a master password when unlocking; it does not encrypt or migrate an existing plaintext password file.
 
