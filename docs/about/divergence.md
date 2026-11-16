@@ -280,7 +280,8 @@ New options in `execsql.conf`:
     Startup scripts and database creation are never executed. All inspection
     commands offer independent `--show-settings` and `--show-config` text flags;
     JSON/Python always include nonsecret settings and loaded configuration paths.
-    Borrowed adapters do not load or apply configuration.
+    Borrowed adapters do not load or apply configuration. Initial adapter setup
+    closes acquired connections on failure or interruption.
     `execsql inspect schema NAME` and `execsql inspect table NAME [--schema NAME]`
     provide object-specific forms with the same output contract and password policy.
     `inspect database` adds database identity and a namespace/count

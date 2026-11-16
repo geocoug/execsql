@@ -96,7 +96,8 @@ class SQLiteDatabase(Database):
         )
         self.type = dbt_sqlite
         self.timeout = timeout
-        self.open_db()
+        with self._initial_connection():
+            self.open_db()
 
     def __repr__(self) -> str:
         return f"SQLiteDatabase({self.db_name!r})"

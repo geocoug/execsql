@@ -171,8 +171,9 @@ class MySQLDatabase(Database):
         # server is reached — so it silently capped what execsql could move.
         self.encoding = encoding or "utf8mb4"
         self.paramstr = "%s"
-        self.open_db()
-        self.password = None  # Clear cleartext password after successful connection
+        with self._initial_connection():
+            self.open_db()
+            self.password = None  # Clear cleartext password after successful connection
 
     def __repr__(self) -> str:
         return (

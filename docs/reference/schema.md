@@ -78,6 +78,8 @@ existing Python results and catalog queries. The CLI enables it only for
 
 A connection opened from a URL or configuration belongs to this call and is closed afterward.
 Existing database files are required; inspection never requests database creation.
+If opening or initializing an owned adapter fails or is interrupted after a driver
+connection was acquired, that connection is closed before the error returns.
 A supplied adapter stays open. Inspection issues no commits or rollbacks and does
 not change its autocommit setting. Catalog reads may start a driver transaction;
 a failed query can leave that transaction aborted, as it would for a direct driver

@@ -197,7 +197,8 @@ class DuckDBDatabase(Database):
         )
         self.type = dbt_duckdb
         self.catalog_name = Path(DuckDB_fn).stem
-        self.open_db()
+        with self._initial_connection():
+            self.open_db()
 
     def current_schema(self) -> str | None:
         return self._query_current_schema("select current_schema()")

@@ -43,6 +43,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- Database connections close when initial setup fails or is interrupted.
+
 - `execsql inspect` rejects missing or unreadable explicit configuration files.
 
 - `execsql inspect file` omits private configuration contents from error reports.
