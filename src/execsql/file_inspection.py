@@ -12,6 +12,7 @@ from typing import Any, cast
 from collections.abc import Iterable
 
 from execsql.exceptions import ErrInfo, ScriptExit
+from execsql.config import check_explicit_config_file
 from execsql.models import DataTable
 from execsql.state import RuntimeContext, active_context
 
@@ -321,8 +322,7 @@ def inspect_file(
                 result["error"] = {"code": "unsupported_format", "message": "Unknown file extension; supply --format."}
                 return result
             phase = "configuration"
-            if config_file is not None and not Path(config_file).is_file():
-                raise FileNotFoundError("Configuration file does not exist.")
+            check_explicit_config_file(config_file)
             conf = _tool_config(str(config_file) if config_file is not None else None)
             ctx.conf = conf
             result["settings"] = {name: getattr(conf, name) for name in (*_SETTINGS, *INPUT_LIMIT_DEFAULTS)}
@@ -341,18 +341,16 @@ def inspect_file(
             _read(result, filename, kind, conf, sheet, sample_rows, encoding, delimiter, quote, skip_rows)
             result["success"] = True
         except (Exception, ScriptExit) as exc:
-            if phase == "dependency":
+            if phase == "configuration":
+                message = "Cannot load inspection configuration; check --config and execsql.conf settings."
+            elif phase == "dependency":
                 message = "Install execsql2[formats] with its working optional readers to inspect this format."
             elif isinstance(exc, ErrInfo):
                 message = exc.errmsg()
             elif isinstance(exc, ScriptExit):
                 message = "File reader halted."
             else:
-                message = (
-                    str(exc)
-                    if phase in ("file", "configuration")
-                    else "Cannot read file; check its format and parser settings."
-                )
+                message = str(exc) if phase == "file" else "Cannot read file; check its format and parser settings."
             result["columns"], result["scan"] = [], None
             result["error"] = {"code": f"{phase}_error", "message": message}
     return result

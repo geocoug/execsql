@@ -595,12 +595,15 @@ def inspect_schema(
             if db is None:
                 from execsql.cli.run import _tool_config, _connect_initial_db
                 from execsql.cli.dsn import _parse_connection_string
+                from execsql.config import check_explicit_config_file
 
+                check_explicit_config_file(config_file)
                 conf = _tool_config(str(config_file) if config_file is not None else None)
                 ctx.conf = conf
                 result["config_files"] = list(conf.files_read)
                 # Discovery must never inherit the run-only database-creation flag.
                 conf.new_db = False
+                conf.gui_level = 0
                 conf.passwd_prompt = bool(
                     terminal and (conf.passwd_prompt if prompt_password is None else prompt_password),
                 )

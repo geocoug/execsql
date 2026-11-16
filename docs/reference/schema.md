@@ -88,7 +88,8 @@ Inspection never executes startup scripts or honors `[connect] new_db`.
 Owned connections read the same configuration search as `format`, `lint` and
 `inspect file`: system, user and working-directory files, followed by
 `--config FILE` (Python `config_file=`), with local configuration chains.
-The database file's directory is not an additional search location. Normal
+The database file's directory is not an additional search location. Missing, non-file or unreadable explicit configuration paths fail before connection;
+implicit configuration files remain optional. Normal
 configuration parsing and validation still apply, including required-include
 existence checks, but includes are never executed.
 
@@ -102,6 +103,8 @@ database, username or port. Connection controls still apply: `[encoding] databas
 `?trust_server_certificate=yes|no` overrides the configured certificate setting.
 Import, export and script-execution settings do not affect catalog discovery.
 
+Inspection authentication always uses terminal input, regardless of configured
+GUI settings; it does not initialize or stop a host application's GUI backend.
 The Python API does not prompt or use keyring by default.
 `prompt_password=True` explicitly enables the normal authentication flow for
 a connection with a user, including keyring lookup/storage when configured;

@@ -43,6 +43,12 @@ ______________________________________________________________________
 
 ### Fixed
 
+- `execsql inspect` rejects missing or unreadable explicit configuration files.
+
+- `execsql inspect file` omits private configuration contents from error reports.
+
+- Database inspection uses terminal authentication even when GUI prompts are configured.
+
 - `execsql inspect` keeps distinct DuckDB foreign keys separate when constraint names collide.
 
 - Python `run()` retains the original failure before errors from an `ON ERROR_HALT` script, with each error's own source line and SQL.

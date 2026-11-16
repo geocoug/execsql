@@ -104,6 +104,8 @@ configured/explicit decoding, including `utf-8-sig` when needed for a UTF-8 BOM.
 The command and Python API read the same tool configuration as `format`/`lint`:
 system, user and working-directory files, then `--config`, including local config
 chains. The data file's directory is not an additional configuration search root.
+Missing, non-file or unreadable explicit configuration paths fail before reading
+the data. Configuration errors omit rejected values and raw input lines.
 Startup SQL/includes are never executed. JSON and Python reports include `config_files` and a
 whitelist of effective import/inference settings, including header handling,
 Boolean/decimal rules, string normalization, integer threshold, dialect scan

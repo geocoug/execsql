@@ -2,13 +2,14 @@
 
 import json
 import sqlite3
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from typer.testing import CliRunner
 
-from execsql import inspect_schema
+from execsql import inspect_schema, inspect_file
 from execsql.cli import app
 from execsql.config import ConfigData
 from execsql import schema as discovery
@@ -217,3 +218,109 @@ def test_borrowed_connection_does_not_load_or_apply_configuration(monkeypatch):
         connect.assert_not_called()
     finally:
         db.close()
+
+
+@pytest.mark.parametrize("scope", [["database"], ["schema", "main"], ["table", "samples"], ["file", "input.csv"]])
+@pytest.mark.parametrize("config_kind", ["missing", "directory", "unreadable"])
+def test_explicit_invalid_config_fails_before_connection(tmp_path, monkeypatch, scope, config_kind):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "input.csv").write_text("v\n2\n")
+    config = tmp_path / "config.conf"
+    if config_kind == "directory":
+        config.mkdir()
+    elif config_kind == "unreadable":
+        config.write_text("")
+        original_open = Path.open
+
+        def open_file(path, *args, **kwargs):
+            if path == config:
+                raise PermissionError("synthetic-private-value")
+            return original_open(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "open", open_file)
+    connect = MagicMock(side_effect=AssertionError("must validate config first"))
+    monkeypatch.setattr("execsql.api._connect_from_dsn", connect)
+    args = ["inspect", *scope, "--config", str(config), "--output-format", "json"]
+    if scope[0] != "file":
+        args += ["--dsn", "sqlite:///:memory:"]
+    result = CliRunner().invoke(app, args)
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.stdout)["error"]["code"] == "configuration_error"
+    assert result.stderr == ""
+    assert "synthetic-private-value" not in result.output
+    connect.assert_not_called()
+    report = inspect_schema(dsn="sqlite:///:memory:", config_file=config)
+    assert report["error"]["code"] == "configuration_error"
+    connect.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "content",
+    ["[email]\nprivate-marker-without-value\n", "[connect]\nuse_keyring=private-marker\n"],
+)
+def test_file_configuration_errors_never_echo_private_values(tmp_path, content):
+    source = tmp_path / "input.csv"
+    source.write_text("v\n2\n")
+    conf = tmp_path / "private.conf"
+    conf.write_text(content)
+    report = inspect_file(source, config_file=conf)
+    assert report["error"]["code"] == "configuration_error"
+    assert "private-marker" not in json.dumps(report)
+    for output_format in ("text", "json"):
+        result = CliRunner().invoke(
+            app,
+            ["inspect", "file", str(source), "--config", str(conf), "--output-format", output_format],
+        )
+        assert result.exit_code == 1
+        assert "private-marker" not in result.output
+        assert "configuration" in result.output.lower()
+
+
+@pytest.mark.parametrize("level", [1, 2, 3])
+@pytest.mark.parametrize("failure", [None, RuntimeError("connect failed"), KeyboardInterrupt()])
+@pytest.mark.parametrize("existing_backend", [False, True])
+def test_repeated_owned_auth_ignores_gui_settings_and_preserves_host(
+    tmp_path,
+    monkeypatch,
+    level,
+    failure,
+    existing_backend,
+):
+    import execsql.state as state
+    from execsql.utils import gui, auth
+
+    config = tmp_path / "inspection.conf"
+    config.write_text(f"[connect]\nuse_keyring=No\n[interface]\ngui_level={level}\n")
+    monkeypatch.setattr("sys.stdin", SimpleNamespace(isatty=lambda: True))
+    terminal = MagicMock(return_value="synthetic-password")
+    monkeypatch.setattr(auth.getpass, "getpass", terminal)
+    backend = MagicMock() if existing_backend else None
+    monkeypatch.setattr(gui, "_active_backend", backend)
+    initialize = MagicMock(side_effect=AssertionError("must not initialize GUI"))
+    monkeypatch.setattr(gui, "enable_gui", initialize)
+    original = state.get_context()
+
+    def connect(*args, **kwargs):
+        assert state.conf.gui_level == 0
+        assert auth.get_password("PostgreSQL", "db", "user", server_name="host") == "synthetic-password"
+        if failure is not None:
+            raise failure
+        db = MagicMock()
+        db.type.dbms_id = "SQLite"
+        return db
+
+    monkeypatch.setattr("execsql.api._connect_from_dsn", connect)
+    monkeypatch.setitem(discovery._READERS, "SQLite", lambda *args: [])
+    for _ in range(2):
+        if isinstance(failure, KeyboardInterrupt):
+            with pytest.raises(KeyboardInterrupt):
+                inspect_schema(dsn="postgresql://user@host/db", config_file=config, prompt_password=True)
+        else:
+            report = inspect_schema(dsn="postgresql://user@host/db", config_file=config, prompt_password=True)
+            assert report["success"] is (failure is None), report
+        assert state.get_context() is original
+        assert gui._active_backend is backend
+    initialize.assert_not_called()
+    if backend is not None:
+        assert backend.mock_calls == []
+    assert terminal.call_count == 2

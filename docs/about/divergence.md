@@ -274,6 +274,9 @@ New options in `execsql.conf`:
     Python `config_file=`. Omitting the DSN uses configured connection defaults;
     an explicit DSN replaces the target and user while retaining connection
     controls such as encoding, certificate handling and keyring preferences.
+    Missing or unreadable explicit configuration is refused; inspection diagnostics
+    omit private configuration values. Catalog authentication remains terminal-only
+    even when GUI prompts are configured.
     Startup scripts and database creation are never executed. All inspection
     commands offer independent `--show-settings` and `--show-config` text flags;
     JSON/Python always include nonsecret settings and loaded configuration paths.
