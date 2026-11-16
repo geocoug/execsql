@@ -179,7 +179,9 @@ In a multi-user environment, where more than one person may run a script, and ea
 
 ## Password Storage and the OS Keyring
 
-When installed with the `auth` extra (`uv tool install "execsql2[auth]"`), *execsql* uses the [keyring](https://pypi.org/project/keyring/) package to store database passwords in your OS credential store (macOS Keychain, Windows Credential Manager, or a SecretService-compatible backend on Linux). After a successful interactive prompt, the password is saved automatically and reused on later runs — so you typically see a password prompt only once per `db_type / server / database / username` combination.
+When installed with the `auth` extra (`uv tool install "execsql2[auth]"`), *execsql* uses the [keyring](https://pypi.org/project/keyring/) package to store database passwords in your OS credential store (macOS Keychain, Windows Credential Manager, or a SecretService-compatible backend on Linux). A password entered at the interactive prompt is saved only after authentication succeeds and reused on later runs for the same database type, server, port, database, and username.
+
+On a headless or shared Linux server, install `auth-plaintext` or `auth-encrypted` in execsql's Python environment and explicitly select the backend. Follow [Plaintext keyring on a shared Linux server](../reference/security.md#plaintext-keyring-setup) for per-user setup, file permissions, verification, and scheduled jobs. Each person needs their own Unix account for separate credential access. The guide also explains how to select the encrypted backend.
 
 If a stored password is later rejected by the server (e.g. it was rotated), *execsql* clears the stale entry and re-prompts; the new password replaces the old one in the keyring.
 
@@ -190,7 +192,7 @@ To opt out, install without the extra, or set `use_keyring=No` in `[connect]`:
 use_keyring=No
 ```
 
-To remove a stored password, open your OS credential manager (Keychain Access on macOS, Credential Manager on Windows, Seahorse / KWallet on Linux) and delete the entry under the service name pattern `execsql/<db_type>/<server>/<database>`.
+To remove a stored password from a native credential store, open your OS credential manager (Keychain Access on macOS, Credential Manager on Windows, Seahorse / KWallet on Linux). For a file backend, use `python -m keyring del SERVICE USERNAME` in execsql's Python environment. The [credential handling reference](../reference/security.md#keyring_setup) lists the service-name patterns, including the server port.
 
 ## SQL Server with Windows Authentication
 
