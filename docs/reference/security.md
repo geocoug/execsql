@@ -74,11 +74,81 @@ When the server rejects a stored password (it was changed), execsql deletes the 
 
 To disable keyring integration, set `use_keyring = No` in the `[connect]` section of `execsql.conf`.
 
-macOS, Windows, and desktop Linux (with GNOME Keyring or KWallet running) use the OS-native credential store automatically. On headless Linux, install `execsql2[auth-encrypted]` for an encrypted on-disk backend (master password prompted once per session) or `execsql2[auth-plaintext]` for a no-prompt plaintext backend (see [Usage Notes](../guides/usage.md#password-storage-and-the-os-keyring) for backend selection and setup).
+macOS, Windows, and desktop Linux (with GNOME Keyring or KWallet running) use the OS-native credential store automatically. On headless Linux, the file backends require `execsql2[auth-encrypted]` or `execsql2[auth-plaintext]` and explicit backend selection. Installing an extra makes its backends available; it does not select one.
+
+#### Plaintext keyring on a shared Linux server { #plaintext-keyring-setup }
+
+Each person performs this setup under their own Unix account. A shared execsql installation can use separate per-user password files. People sharing one Unix login also share access to that account's passwords.
+
+Before changing an existing installation, run `type -a execsql` to find the command your shell uses, including any alias or function. `uv tool list` lists tools managed by your current uv setup; an absent `execsql2` entry does not mean execsql is missing. It may be installed through pipx, in a virtual environment, or as a shared system installation. Use the installation you already run when adding dependencies or diagnosing keyring support.
+
+1. **Install plaintext support in the Python environment running execsql.** For a personal installation using PostgreSQL:
+
+    ```sh
+    uv tool install "execsql2[postgres,auth-plaintext]"
+    ```
+
+    With pipx, use `pipx install --force "execsql2[postgres,auth-plaintext]"`. Retain all existing database and feature extras when changing an installation. For a shared installation, ask its administrator to add `keyring` and `keyrings.alt` to that same Python environment. Installing them into an unrelated environment will not enable keyring support in execsql.
+
+1. **Select the backend for your account.** Create or edit `~/.config/python_keyring/keyringrc.cfg`, merging this section with any existing configuration:
+
+    ```ini
+    [backend]
+    default-keyring=keyrings.alt.file.PlaintextKeyring
+    ```
+
+    Create the parent directory first if needed: `mkdir -p ~/.config/python_keyring`. This is Python keyring's configuration, separate from `execsql.conf`. It affects other applications using Python keyring under your account, too.
+
+    For selection limited to one command, omit the config-file change and prefix the command with `PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring`. This environment variable overrides the config file; an exported value also affects child processes. See the [keyring configuration reference](https://keyring.readthedocs.io/en/latest/#configuring).
+
+1. **Restrict access to your password-storage directory:**
+
+    ```sh
+    mkdir -p ~/.local/share/python_keyring
+    chmod 700 ~/.local/share/python_keyring
+    ```
+
+    These are the default Linux paths. If set, `XDG_CONFIG_HOME` replaces `~/.config` for keyring configuration, and `XDG_DATA_HOME` replaces `~/.local/share` for password storage. Use those locations in the commands above. Keep these directories in your own account's storage, outside shared project directories.
+
+1. **Enable password lookup and prompting in execsql.** Both settings default to `Yes`. If they were disabled, merge these settings into `[connect]` in `~/.config/execsql.conf`:
+
+    ```ini
+    [connect]
+    use_keyring=Yes
+    password_prompt=Yes
+    ```
+
+    The execsql user configuration remains `~/.config/execsql.conf`; the keyring XDG overrides above do not relocate it. Script-directory, working-directory, or explicitly supplied execsql configuration can override these settings. Do not use `--no-passwd`: it disables both prompting and keyring lookup.
+
+1. **Connect interactively once, then verify reuse.** Substitute your connection details and an existing SQL script:
+
+    ```sh
+    execsql run --dsn 'postgresql://alice@dbhost:5432/mydb' script.sql
+    ```
+
+    Enter the database password at the hidden prompt. execsql saves it only after authentication succeeds. The plaintext backend has no separate unlock password; execsql's warning about cleartext storage is expected. Restrict the created file:
+
+    ```sh
+    chmod 600 ~/.local/share/python_keyring/keyring_pass.cfg
+    ```
+
+    Run the same command again; it should reuse the saved password without prompting. Passwords are keyed by database type, server, port, database, and username, so use the same connection details when checking reuse.
+
+For scheduled jobs, run as the same Unix account with the same home directory and XDG paths. A job using the environment-variable selection must also receive `PYTHON_KEYRING_BACKEND`; cron does not normally load your interactive shell configuration. Using `keyringrc.cfg` avoids relying on a shell export.
+
+If reuse fails, check that `execsql` resolves to the intended installation, that its environment contains both `keyring` and `keyrings.alt`, and that no configuration disables keyring lookup. For a personal Linux installation managed by uv, inspect the keyring paths without retrieving a password:
+
+```sh
+"$(uv tool dir)/execsql2/bin/python" -m keyring diagnose
+```
+
+For other installation methods, run `python -m keyring diagnose` using the Python interpreter from execsql's environment. Do not use `keyring get` or print the password file to diagnose setup: both expose credentials.
+
+For encrypted file storage instead, install `auth-encrypted` and select `keyrings.alt.file.EncryptedKeyring` in the same `[backend]` setting. It uses a separate password file and asks for a master password when unlocking; it does not encrypt or migrate an existing plaintext password file.
 
 !!! warning "Plaintext keyring backend"
 
-    `keyrings.alt.file.PlaintextKeyring` stores passwords without encryption at `~/.local/share/python_keyring/keyring_pass.cfg`. Only acceptable when the filesystem is already secured (encrypted disk, single-user host, `chmod 600` on the file). Prefer the encrypted backend when possible. execsql prints a warning when it saves a password into this backend (once per run); the encrypted backend does not trigger it. To keep passwords out of every keyring on a machine, set `use_keyring = No` in `[connect]`: execsql then prompts each time.
+    `keyrings.alt.file.PlaintextKeyring` stores recoverable passwords without encryption. Directory mode `700` and file mode `600` restrict ordinary users' access; they do not protect passwords from administrators or anyone controlling your account. Disk encryption protects data at rest, not from users who can read the file on a running server. Prefer an encrypted backend when possible. execsql warns about plaintext storage when saving a password (once per run). To opt out of keyring storage and lookup in execsql, set `use_keyring = No` in `[connect]`.
 
 ### `enc_password` in execsql.conf
 
