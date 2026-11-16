@@ -51,7 +51,8 @@ def test_file_command_all_formats(tmp_path, monkeypatch, kind, output_format):
 
 @pytest.mark.parametrize("show_settings,show_config", [(False, False), (True, False), (False, True), (True, True)])
 @pytest.mark.parametrize("listing", [False, True])
-def test_text_metadata_sections_are_independent_opt_ins(tmp_path, show_settings, show_config, listing):
+def test_text_metadata_sections_are_independent_opt_ins(tmp_path, monkeypatch, show_settings, show_config, listing):
+    monkeypatch.setattr("execsql.cli.inspection._console.width", 60)
     path = make_file(tmp_path, "xlsx" if listing else "csv")
     config = tmp_path / "[bold]example.conf"
     config.write_text("[input]\nboolean_int=No\n")
@@ -60,12 +61,12 @@ def test_text_metadata_sections_are_independent_opt_ins(tmp_path, show_settings,
         args.append("--show-settings")
     if show_config:
         args.append("--show-config")
-    result = CliRunner().invoke(app, args, env={"COLUMNS": "200"})
+    result = CliRunner().invoke(app, args)
     assert result.exit_code == 0, result.output
     assert ("Import settings:" in result.stdout) is show_settings
     assert ("boolean_int=False" in result.stdout) is show_settings
     assert ("Configuration files:" in result.stdout) is show_config
-    assert (str(config) in result.stdout) is show_config
+    assert (str(config) in "".join(result.stdout.splitlines())) is show_config
     assert ("Worksheets:" in result.stdout) is listing
 
 
