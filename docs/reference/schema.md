@@ -314,7 +314,11 @@ Failure leaves `tables: []` and returns an error such as:
 {"code": "metadata_error", "message": "Schema discovery metadata failed."}
 ```
 
-Codes are `configuration_error`, `connection_error`, `metadata_error`, `close_error` and
+Missing or import-broken driver modules return `dependency_error` with a fixed
+installation hint, without printing from the Python API. JSON emits only the
+structured report; text emits one diagnostic. Raw import exceptions are not echoed.
+
+Codes are `configuration_error`, `dependency_error`, `connection_error`, `metadata_error`, `close_error` and
 `unsupported_adapter`. A failure before connecting has `adapter` and `dialect`
 set to `null` and `capabilities: {}`. Real query failures are never converted into
 successful empty results or unsupported capabilities.

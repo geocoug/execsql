@@ -43,6 +43,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- Database inspection returns a silent `dependency_error` with an installation hint for unavailable or broken drivers; CLI diagnostics are printed once.
+
 - Database connections close when initial setup fails or is interrupted.
 
 - `execsql inspect` rejects missing or unreadable explicit configuration files.

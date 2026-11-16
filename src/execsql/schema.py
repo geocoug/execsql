@@ -15,6 +15,18 @@ from execsql.db.base import Database
 
 __all__ = ["inspect_schema"]
 
+_DRIVERS: dict[str, tuple[tuple[str, ...], str | None]] = {
+    "l": (("sqlite3",), None),
+    "k": (("duckdb",), "duckdb"),
+    "p": (("psycopg",), "postgres"),
+    "m": (("pymysql",), "mysql"),
+    "s": (("pyodbc",), "mssql"),
+    "o": (("oracledb",), "oracle"),
+    "f": (("firebird.driver",), "firebird"),
+    "d": (("pyodbc",), "odbc"),
+    "a": (("win32com.client", "pyodbc"), "odbc"),
+}
+
 
 def _rows(db: Database, sql: str, params: list[Any] | None = None) -> list[Any]:
     """Run fixed catalog SQL with bound values and close its cursor."""
@@ -618,6 +630,8 @@ def inspect_schema(
                     if params["password"] is not None:
                         conf.passwd_prompt = False
                 result["settings"] = _inspection_settings(conf)
+                phase = "dependency"
+                _check_inspection_driver(conf.db_type or "")
                 phase = "connection"
                 if dsn is None:
                     db = _connect_initial_db(conf)
@@ -651,7 +665,7 @@ def inspect_schema(
             result["tables"] = sorted(tables, key=lambda t: (t["catalog"] or "", t["schema"] or "", t["name"]))
             result["success"] = True
         except (Exception, ScriptExit) as exc:
-            result["error"] = _inspection_error(phase, exc, dsn)
+            result["error"] = _inspection_error(phase, exc, dsn, ctx.conf.db_type)
         finally:
             if connection is None and db is not None:
                 try:
@@ -694,11 +708,29 @@ def _inspection_settings(conf: Any) -> dict[str, Any]:
     return settings
 
 
-def _inspection_error(phase: str, exc: BaseException, dsn: str | None) -> dict[str, str]:
+def _check_inspection_driver(db_type: str) -> None:
+    """Fail before entering adapters that print fatal missing-driver errors."""
+    import importlib
+
+    for module in _DRIVERS[db_type][0]:
+        importlib.import_module(module)
+
+
+def _inspection_error(phase: str, exc: BaseException, dsn: str | None, db_type: str | None = None) -> dict[str, str]:
     """Classify common connection problems without echoing secret-bearing errors."""
     message = f"Schema discovery {phase} failed."
     if phase == "configuration":
         message = "Cannot load inspection configuration or connection defaults; check --config and [connect], or supply --dsn."
+    elif phase == "dependency":
+        from execsql.utils.errors import install_hint
+
+        extra = _DRIVERS.get(db_type or "", ((), None))[1]
+        if extra is None:
+            message = "Python SQLite support is unavailable; use a Python installation with sqlite3."
+        else:
+            message = "Database driver is unavailable or cannot be imported. " + install_hint(extra)
+            if db_type == "a":
+                message = "MS Access also requires Windows, pywin32 and an Access database engine. " + message
     if phase == "connection" and dsn is not None:
         from execsql.cli.dsn import _parse_connection_string
         from execsql.utils.auth import is_login_failure

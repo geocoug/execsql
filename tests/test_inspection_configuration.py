@@ -60,6 +60,7 @@ def test_every_scope_uses_config_and_independent_display_flags(project, monkeypa
 
 
 def test_explicit_url_replaces_configured_target_without_merging_identity(project, tmp_path, monkeypatch):
+    monkeypatch.setattr(discovery, "_check_inspection_driver", lambda kind: None)
     _, conf = project
     conf.write_text("[connect]\ndb_type=p\nserver=config-host\ndb=config-db\nusername=config-user\nport=9999\n")
     db = tmp_path / "explicit.sqlite"
@@ -130,6 +131,7 @@ def test_invalid_or_missing_defaults_return_safe_configuration_errors(tmp_path, 
 
 @pytest.mark.parametrize("query,expected", [("", True), ("?trust_server_certificate=no", False)])
 def test_url_certificate_override_and_configured_encoding(tmp_path, monkeypatch, query, expected):
+    monkeypatch.setattr(discovery, "_check_inspection_driver", lambda kind: None)
     import execsql.state as state
 
     conf = tmp_path / "project.conf"
@@ -154,6 +156,7 @@ def test_url_certificate_override_and_configured_encoding(tmp_path, monkeypatch,
 @pytest.mark.parametrize("prompt_request", [True, False, None])
 @pytest.mark.parametrize("terminal", [True, False])
 def test_prompt_precedence_and_noninteractive_safety(tmp_path, monkeypatch, configured, prompt_request, terminal):
+    monkeypatch.setattr(discovery, "_check_inspection_driver", lambda kind: None)
     conf = tmp_path / "project.conf"
     conf.write_text(f"[connect]\npassword_prompt={'Yes' if configured else 'No'}\n")
     monkeypatch.setattr("sys.stdin", SimpleNamespace(isatty=lambda: terminal))
@@ -185,6 +188,7 @@ def test_prompt_precedence_and_noninteractive_safety(tmp_path, monkeypatch, conf
     ],
 )
 def test_configured_connection_dispatches_every_adapter(tmp_path, monkeypatch, kind, factory_name):
+    monkeypatch.setattr(discovery, "_check_inspection_driver", lambda kind: None)
     conf = tmp_path / "project.conf"
     conf.write_text(
         f"[connect]\ndb_type={kind}\nserver=host\ndb=project\ndb_file=project.db\nusername=user\n"

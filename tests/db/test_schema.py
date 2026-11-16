@@ -180,6 +180,8 @@ def test_owned_connection_closes_on_success_failure_and_interrupt(sqlite_db, mon
 
 
 def test_connection_errors_are_structured_and_secret_free(monkeypatch, capsys):
+    monkeypatch.setattr(discovery, "_check_inspection_driver", lambda kind: None)
+
     def fail(*args, **kwargs):
         assert kwargs["prompt_password"] is False
         raise ValueError("postgresql://user:private-secret@host/db")

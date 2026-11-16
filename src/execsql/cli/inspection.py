@@ -126,6 +126,8 @@ def print_inspection_error(result: dict[str, Any], dsn: str | None) -> None:
     """Explain failures without printing credential-bearing URLs or driver text."""
     error = result["error"]
     _err_console.print(_literal(f"Error: {error['message']}"), style="bold red")
+    if error["code"] == "dependency_error":
+        return
     hints = {
         "configuration_error": "Check execsql.conf [connect] or pass --dsn URL; --config FILE selects an additional configuration file.",
         "metadata_error": "Check catalog permissions and the adapter's schema-discovery support.",

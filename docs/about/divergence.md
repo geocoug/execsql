@@ -291,6 +291,8 @@ New options in `execsql.conf`:
     has no schema/table filters; `table --schema` qualifies its object name.
     The redundant database filters were removed before the inspection interface's
     first release. Python's exact-name filters remain available.
+    Missing or broken inspection drivers return a structured dependency error and
+    installation hint without adapter side output.
     DuckDB foreign keys retain distinct relationships even when their generated
     constraint names collide.
     PostgreSQL default discovery excludes all reserved `pg_*` namespaces,

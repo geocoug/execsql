@@ -318,6 +318,8 @@ def test_forced_password_prompt_rejects_redirected_input_and_conflicting_flags(s
 
 @pytest.mark.parametrize("scope", [["database"], ["schema", "main"], ["table", "samples"]])
 def test_error_output_never_echoes_credentials(monkeypatch, scope):
+    monkeypatch.setattr("execsql.schema._check_inspection_driver", lambda kind: None)
+
     def fail(*args, **kwargs):
         raise RuntimeError("password authentication failed: password=not-public postgresql://user:not-public@host/db")
 
