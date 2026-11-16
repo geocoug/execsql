@@ -46,8 +46,8 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
             overview = Table(box=box.SIMPLE, show_edge=False)
             for title in (
                 "Namespace" if database["namespace_kind"] == "attached_database" else "Schema",
-                "Tables",
-                "Views",
+                "Visible tables",
+                "Visible views",
             ):
                 overview.add_column(title, overflow="fold")
             for namespace in namespaces:
@@ -57,10 +57,8 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
                     str(namespace["view_count"]),
                 )
             _console.print(overview)
-            _console.print("Counts cover tables/views visible to this connection.")
             if not namespaces:
                 _console.print("No visible schemas or namespaces.")
-            _console.print("Use execsql inspect schema NAME --dsn URL to inspect its objects.")
             return
         if namespaces is None:
             _console.print("Schema enumeration unavailable; showing visible objects.")
@@ -87,7 +85,7 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
             _literal("unavailable" if foreign is None else len(foreign)),
         )
     _console.print(overview)
-    _console.print(f"{len(tables)} object(s). Use execsql inspect table NAME --dsn URL [--schema SCHEMA] for details.")
+    _console.print(f"{len(tables)} object(s).")
 
 
 def _print_table(item: dict[str, Any]) -> None:

@@ -27,6 +27,8 @@ ______________________________________________________________________
 
 ### Changed
 
+- `execsql inspect database` and `schema` omit navigation footers; database count headings identify visible tables and views.
+
 - `execsql inspect database|schema|table` and Python `inspect_schema()` honor connection configuration; omit `--dsn`/`dsn=` to use configured targets, or select a file with `--config`/`config_file=`. Text configuration details are opt-in with `--show-settings` and `--show-config`; JSON and Python include both.
 
 - `execsql inspect file` hides import settings and configuration files in text output by default; use `--show-settings` and `--show-config` to display them. JSON and Python reports retain both.

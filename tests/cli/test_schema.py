@@ -85,7 +85,7 @@ def test_schema_summary_and_json_match_existing_filter(tmp_path, flag):
     assert text.exit_code == 0, text.output
     assert "main.samples" in text.stdout and "main.sample_ids" in text.stdout
     assert "2 object(s)" in text.stdout and "Primary key" in text.stdout
-    assert "execsql inspect table NAME" in text.stdout
+    assert "Use execsql inspect" not in text.stdout
     machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
     assert machine.exit_code == 0, machine.output
     assert json.loads(machine.stdout) == inspect_schema(dsn=dsn, schema="main")
@@ -154,7 +154,7 @@ def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_pa
     assert overview.exit_code == 0, overview.output
     assert "Object" in overview.stdout and "Columns" in overview.stdout
     assert "main.samples" in overview.stdout and "main.sample_ids" in overview.stdout
-    assert "3 object(s)" in overview.stdout and "execsql inspect table NAME" in overview.stdout
+    assert "3 object(s)" in overview.stdout and "Use execsql inspect" not in overview.stdout
     assert "schema_version" not in overview.stdout
     details = CliRunner().invoke(app, ["inspect", "table", "samples", *connection])
     assert details.exit_code == 0, details.output
@@ -184,9 +184,9 @@ def test_database_overview_and_json_retain_existing_metadata(tmp_path):
     text = CliRunner().invoke(app, args)
     assert text.exit_code == 0, text.output
     assert "Database: project.sqlite" in text.stdout and "Engine: SQLite" in text.stdout
-    assert "Namespace" in text.stdout and "Tables" in text.stdout and "Views" in text.stdout
-    assert "main" in text.stdout and "visible to this connection" in text.stdout
-    assert "execsql inspect schema NAME" in text.stdout
+    assert "Namespace" in text.stdout and "Visible tables" in text.stdout and "Visible views" in text.stdout
+    assert "main" in text.stdout and "Counts cover" not in text.stdout
+    assert "Use execsql inspect" not in text.stdout
     machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
     assert machine.exit_code == 0, machine.output
     result = json.loads(machine.stdout)

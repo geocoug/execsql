@@ -11,7 +11,8 @@ execsql inspect file results.csv
 
 `database` connects to the selected database and prints its identity, engine and
 schema/namespace inventory by default, with visible table/view counts. Namespaces
-with no visible objects are included. Schema-less databases show objects directly;
+with no visible objects are included. Count headings say `Visible tables` and
+`Visible views`; permissions and the adapter's default scope determine visibility. Schema-less databases show objects directly;
 unavailable namespace enumeration is labeled explicitly.
 `schema NAME` lists matching tables/views, column counts and key summaries.
 `table NAME` shows ordered columns, catalog types, nullability, primary keys

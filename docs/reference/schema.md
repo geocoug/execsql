@@ -17,7 +17,10 @@ database identity, engine and a schema/namespace overview with visible table/vie
 counts. Empty namespaces appear too. Schema-less databases show their objects
 directly. `inspect schema NAME` lists matching tables/views, column counts and key
 summaries; table inspection shows ordered columns and relationships.
-Missing metadata is labeled unavailable or unknown.
+Database count headings are `Visible tables` and `Visible views`; counts cover
+objects exposed to the connection within the adapter's default scope. Schema
+summaries end with the object total. Navigation examples are in help and this
+reference. Missing metadata is labeled unavailable or unknown.
 
 Each command owns one level of inspection. `inspect database` has no schema/table
 filters. Use `inspect schema NAME` for that schema's objects, or

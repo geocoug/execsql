@@ -290,6 +290,8 @@ New options in `execsql.conf`:
     databases retain a flat object list. Python `include_database=True` requests
     the same additive JSON fields. Each CLI command owns one level: `database`
     has no schema/table filters; `table --schema` qualifies its object name.
+    Routine catalog output omits navigation footers and labels visible counts
+    directly in the headings.
     The redundant database filters were removed before the inspection interface's
     first release. Python's exact-name filters remain available.
     Missing or broken inspection drivers return a structured dependency error and
