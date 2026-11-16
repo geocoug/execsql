@@ -64,6 +64,40 @@ def test_live_catalog_composite_keys_and_views(dbms, tmp_path):
         db.close()
 
 
+@pytest.mark.parametrize("composite", [False, True])
+def test_duckdb_distinct_foreign_keys_with_colliding_names(composite):
+    pytest.importorskip("duckdb")
+    from execsql.db.duckdb import DuckDBDatabase
+
+    db = DuckDBDatabase(":memory:")
+    try:
+        declaration = "a INT, b INT, PRIMARY KEY(b,a)" if composite else "a INT PRIMARY KEY"
+        source, target = ("x,y", "b,a") if composite else ("x", "a")
+        for parent in ("p1", "p2"):
+            db.conn.execute(f"CREATE TABLE {parent}({declaration})")
+        db.conn.execute(
+            f"CREATE TABLE ch(x INT,y INT, FOREIGN KEY({source}) REFERENCES p1({target}), "
+            f"FOREIGN KEY({source}) REFERENCES p2({target}))",
+        )
+        # Same object names in an attached catalog must not enrich this table.
+        db.conn.execute("ATTACH ':memory:' AS other")
+        db.conn.execute("USE other")
+        db.conn.execute(f"CREATE TABLE p1({declaration})")
+        db.conn.execute(f"CREATE TABLE ch(x INT,y INT, FOREIGN KEY({source}) REFERENCES p1({target}))")
+        db.conn.execute("USE memory")
+        report = inspect_schema(connection=db, table="ch")
+        assert report["success"], report
+        links = report["tables"][0]["foreign_keys"]
+        assert len(links) == 2
+        assert {link["referenced_table"] for link in links} == {"p1", "p2"}
+        for link in links:
+            assert link["columns"] == source.split(",")
+            assert link["referenced_columns"] == target.split(",")
+            assert link["referenced_schema"] == "main"
+    finally:
+        db.close()
+
+
 @pytest.fixture
 def sqlite_db():
     db = SQLiteDatabase(":memory:")
@@ -210,6 +244,7 @@ def test_all_adapter_catalog_contracts_and_bound_filters(dialect):
     db.type.dbms_id = dialect
     db.paramstr = "%s" if dialect in ("MySQL", "PostgreSQL") else "?"
     cursor = db._cursor.return_value.__enter__.return_value
+    cursor.description = [("referenced_table",)] if dialect == "DuckDB" else []
     namespace = None if dialect in ("Firebird", "Access", "DSN") else "project"
     name = "sample's"
     if dialect in ("Access", "DSN"):
@@ -241,6 +276,9 @@ def test_all_adapter_catalog_contracts_and_bound_filters(dialect):
     assert item["primary_key"] == (["id"] if keys else None)
     assert item["foreign_keys"] == ([] if keys else None)
     for call in cursor.execute.call_args_list:
+        if len(call.args) == 1:
+            assert dialect == "DuckDB" and call.args[0] == "SELECT * FROM duckdb_constraints() LIMIT 0"
+            continue
         sql, params = call.args
         assert name not in sql  # Never paste even a quote-bearing name into SQL.
         assert name in params

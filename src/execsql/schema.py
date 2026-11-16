@@ -200,12 +200,45 @@ def _information_schema(db: Database, schema: str | None, table: str | None) -> 
             pk_sql = pk_sql.replace("WHERE ", "WHERE c.table_catalog = current_database() AND ", 1)
         item["columns"] = [_column(c, int(p), t, n == "YES") for c, p, t, n in _rows(db, column_sql, values)]
         item["primary_key"] = [r[0] for r in _rows(db, pk_sql, values)]
-        fk_sql = {"MySQL": _MYSQL_FK, "SQL Server": _MSSQL_FK, "PostgreSQL": _PG_FK}.get(dialect, _INFO_FK)
         if dialect == "DuckDB":
-            fk_sql += " AND k.table_catalog = current_database()"
-        item["foreign_keys"] = _foreign_keys(_rows(db, fk_sql, values))
+            item["foreign_keys"] = _duckdb_foreign_keys(db, namespace, name)
+        else:
+            fk_sql = {"MySQL": _MYSQL_FK, "SQL Server": _MSSQL_FK, "PostgreSQL": _PG_FK}.get(dialect, _INFO_FK)
+            item["foreign_keys"] = _foreign_keys(_rows(db, fk_sql, values))
         tables.append(item)
     return tables
+
+
+def _duckdb_foreign_keys(db: Database, schema: str, table: str) -> list[dict[str, Any]]:
+    """Read one native row per constraint; DuckDB constraint names can collide."""
+    with db._cursor() as cursor:
+        cursor.execute("SELECT * FROM duckdb_constraints() LIMIT 0")
+        fields = {column[0] for column in cursor.description}
+    if "referenced_table" in fields:
+        sql = """SELECT constraint_name, constraint_column_names, schema_name,
+referenced_table, referenced_column_names FROM duckdb_constraints()
+WHERE database_name = current_database() AND schema_name = ? AND table_name = ?
+AND constraint_type = 'FOREIGN KEY' ORDER BY constraint_index"""
+    else:
+        # DuckDB 1.0 identifies the referenced unique key by its constraint index.
+        sql = """SELECT NULL, f.constraint_column_names, p.schema_name,
+p.table_name, p.constraint_column_names FROM duckdb_constraints() f
+LEFT JOIN (SELECT DISTINCT database_name, constraint_index, schema_name, table_name,
+constraint_column_names FROM duckdb_constraints() WHERE constraint_type IN ('PRIMARY KEY', 'UNIQUE')) p
+ON f.database_name = p.database_name AND f.constraint_index = p.constraint_index
+WHERE f.database_name = current_database() AND f.schema_name = ? AND f.table_name = ?
+AND f.constraint_type = 'FOREIGN KEY' ORDER BY f.constraint_index"""
+    return [
+        {
+            "name": name,
+            "columns": columns,
+            "referenced_catalog": None,
+            "referenced_schema": namespace,
+            "referenced_table": target,
+            "referenced_columns": referenced,
+        }
+        for name, columns, namespace, target, referenced in _rows(db, sql, [schema, table])
+    ]
 
 
 _ORACLE_TABLES = """SELECT owner, table_name, 'table' FROM all_tables

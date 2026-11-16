@@ -167,6 +167,10 @@ Without a schema filter, scope follows the adapter:
 | Firebird          | User tables and views; schema is `null`. A schema filter returns no matches.                                                                            |
 | Access / ODBC DSN | Objects visible through the driver's ODBC catalog APIs. Each table includes its reported catalog, to distinguish identical names in different catalogs. |
 
+DuckDB foreign keys are read from native constraint records, so identical generated
+constraint names do not merge distinct relationships. Older DuckDB versions that
+do not expose constraint names report `name: null`.
+
 Only matching tables/views are included in the detailed results. ODBC drivers
 without search-pattern escaping may enumerate additional catalog candidates to
 match literal wildcard characters exactly.
