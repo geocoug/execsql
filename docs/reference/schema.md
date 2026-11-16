@@ -329,14 +329,43 @@ All three CLI commands are exercised through real URL connections, in both text
 and JSON modes, for SQLite, DuckDB, PostgreSQL, MySQL, MariaDB and SQL Server.
 Server-backed cases run in integration CI; unavailable optional local servers
 are skipped. Oracle and Firebird inspection currently has catalog-row mock tests,
-not live CLI/server coverage. Access and generic ODBC inspection is available
-through Python `connection=` only: the CLI URL parser has no schemes for those
-adapters, and their inspection tests use mocked catalog rows.
+not live CLI/server coverage. Access and generic ODBC have no CLI URL schemes;
+use configured connections through the CLI or Python `config_file=`, or pass an
+existing Python `connection=`. Their catalog and configured-dispatch coverage is
+mocked; this does not establish native driver availability on every platform.
+
+For Access, save this as `access.conf`:
+
+```ini
+[connect]
+db_type=a
+db_file=project.accdb
+```
+
+For a registered ODBC data source, save this as `odbc.conf`:
+
+```ini
+[connect]
+db_type=d
+db=MyDataSource
+```
+
+```sh
+execsql inspect database --config access.conf
+execsql inspect table samples --config odbc.conf
+```
+
+Access requires Windows, pywin32, pyodbc and an appropriate Access database engine;
+generic ODBC requires pyodbc and a registered driver/data source. An optional
+`username` and the usual prompting/keyring controls apply to ODBC; Access uses
+`access_username`. See [database requirements](../getting-started/requirements.md)
+for platform and driver prerequisites. These examples omit `--dsn` so the
+configured adapter and target are used.
 
 | Adapter         | Tables, views, columns and types             | Primary / foreign keys                                 | Verification                        |
 | --------------- | -------------------------------------------- | ------------------------------------------------------ | ----------------------------------- |
 | SQLite          | Native catalog and `table_xinfo`             | Native PRAGMAs; composite and implicit referenced keys | Live tests                          |
-| DuckDB          | Current database's information schema        | Information schema                                     | Live tests                          |
+| DuckDB          | Current database's information schema        | Native constraint records                              | Live tests                          |
 | PostgreSQL      | Information schema                           | `pg_catalog`, including for SELECT-only roles          | Live tests in integration CI        |
 | MySQL / MariaDB | Current database's information schema        | Information schema                                     | Live tests in integration CI        |
 | SQL Server      | Information schema                           | Information schema / `sys` catalogs                    | Live tests in integration CI        |
