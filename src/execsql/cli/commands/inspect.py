@@ -158,6 +158,7 @@ def _inspect(
             table=table,
             prompt_password=allow_prompt,
             include_database=database_overview,
+            include_details=not (database_overview and output_format is OutputFormat.text),
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc

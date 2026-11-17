@@ -46,16 +46,11 @@ def _column(name: str, position: int, data_type: str | None, nullable: bool | No
     return {"name": name, "ordinal_position": position, "data_type": data_type, "nullable": nullable}
 
 
-def _table(schema: str | None, name: str, kind: str) -> dict[str, Any]:
-    return {
-        "catalog": None,
-        "schema": schema,
-        "name": name,
-        "kind": kind,
-        "columns": [],
-        "primary_key": [],
-        "foreign_keys": [],
-    }
+def _table(schema: str | None, name: str, kind: str, *, include_details: bool = True) -> dict[str, Any]:
+    item: dict[str, Any] = {"catalog": None, "schema": schema, "name": name, "kind": kind}
+    if include_details:
+        item.update(columns=[], primary_key=[], foreign_keys=[])
+    return item
 
 
 def _foreign_keys(rows: list[Any]) -> list[dict[str, Any]]:
@@ -76,7 +71,7 @@ def _foreign_keys(rows: list[Any]) -> list[dict[str, Any]]:
     return list(groups.values())
 
 
-def _sqlite(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _sqlite(db: Database, schema: str | None, table: str | None, include_details: bool = True) -> list[dict[str, Any]]:
     tables = []
     for _, namespace, _ in _rows(db, "PRAGMA database_list"):
         if schema is not None and schema != namespace:
@@ -90,7 +85,10 @@ def _sqlite(db: Database, schema: str | None, table: str | None) -> list[dict[st
         for name, kind in _rows(db, sql, params):
             if name.startswith("sqlite_") or (table is not None and name != table):
                 continue
-            item = _table(namespace, name, kind)
+            item = _table(namespace, name, kind, include_details=include_details)
+            tables.append(item)
+            if not include_details:
+                continue
             # PRAGMA arguments are identifiers, quoted separately from the schema.
             columns = _rows(db, f"PRAGMA {quoted}.table_xinfo({db.quote_identifier(name)})")
             item["columns"] = [
@@ -112,7 +110,6 @@ def _sqlite(db: Database, schema: str | None, table: str | None) -> list[dict[st
                     target_column = pk[ordinal] if ordinal < len(pk) else None
                 normalized.append((key, ordinal, column, namespace, target_table, target_column))
             item["foreign_keys"] = _foreign_keys(normalized)
-            tables.append(item)
     return tables
 
 
@@ -183,7 +180,12 @@ def _default_schema_clause(dialect: str, column: str) -> str:
     return clause
 
 
-def _information_schema(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _information_schema(
+    db: Database,
+    schema: str | None,
+    table: str | None,
+    include_details: bool = True,
+) -> list[dict[str, Any]]:
     dialect = db.type.dbms_id
     clauses, params = [], []
     if dialect in ("PostgreSQL", "DuckDB"):
@@ -202,7 +204,10 @@ def _information_schema(db: Database, schema: str | None, table: str | None) -> 
     for namespace, name, kind in _rows(db, _INFO_TABLES + " WHERE " + " AND ".join(clauses), params):
         if not _matches(namespace, name, schema, table):
             continue
-        item = _table(namespace, name, "view" if "VIEW" in kind.upper() else "table")
+        item = _table(namespace, name, "view" if "VIEW" in kind.upper() else "table", include_details=include_details)
+        tables.append(item)
+        if not include_details:
+            continue
         values = [namespace, name]
         column_sql = _INFO_COLUMNS
         pk_sql = {"PostgreSQL": _PG_PK, "MySQL": _MYSQL_PK}.get(dialect, _INFO_PK)
@@ -217,7 +222,6 @@ def _information_schema(db: Database, schema: str | None, table: str | None) -> 
         else:
             fk_sql = {"MySQL": _MYSQL_FK, "SQL Server": _MSSQL_FK, "PostgreSQL": _PG_FK}.get(dialect, _INFO_FK)
             item["foreign_keys"] = _foreign_keys(_rows(db, fk_sql, values))
-        tables.append(item)
     return tables
 
 
@@ -268,7 +272,7 @@ AND p.position = k.position
 WHERE c.constraint_type = 'R' AND c.owner = ? AND c.table_name = ?"""
 
 
-def _oracle(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _oracle(db: Database, schema: str | None, table: str | None, include_details: bool = True) -> list[dict[str, Any]]:
     sql = "SELECT owner, table_name, kind FROM (" + _ORACLE_TABLES.replace("'table'", "'table' kind") + ")"
     clauses = ["owner = ?" if schema is not None else "owner = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')"]
     params = [schema] if schema is not None else []
@@ -279,12 +283,14 @@ def _oracle(db: Database, schema: str | None, table: str | None) -> list[dict[st
     for namespace, name, kind in _rows(db, sql + " WHERE " + " AND ".join(clauses), params):
         if not _matches(namespace, name, schema, table):
             continue
-        item = _table(namespace, name, kind)
+        item = _table(namespace, name, kind, include_details=include_details)
+        tables.append(item)
+        if not include_details:
+            continue
         values = [namespace, name]
         item["columns"] = [_column(c, int(p), t, n == "Y") for c, p, t, n in _rows(db, _ORACLE_COLUMNS, values)]
         item["primary_key"] = [r[0] for r in _rows(db, _ORACLE_PK, values)]
         item["foreign_keys"] = _foreign_keys(_rows(db, _ORACLE_FK, values))
-        tables.append(item)
     return tables
 
 
@@ -308,7 +314,12 @@ AND ps.RDB$FIELD_POSITION = s.RDB$FIELD_POSITION
 WHERE c.RDB$RELATION_NAME = ?"""
 
 
-def _firebird(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _firebird(
+    db: Database,
+    schema: str | None,
+    table: str | None,
+    include_details: bool = True,
+) -> list[dict[str, Any]]:
     if schema is not None:  # No schema namespace exists in Firebird.
         return []
     sql = _FIREBIRD_TABLES + (" AND RDB$RELATION_NAME = ?" if table is not None else "")
@@ -317,7 +328,10 @@ def _firebird(db: Database, schema: str | None, table: str | None) -> list[dict[
         name = raw_name.rstrip()
         if table is not None and name != table:
             continue
-        item = _table(None, name, "view" if view is not None else "table")
+        item = _table(None, name, "view" if view is not None else "table", include_details=include_details)
+        tables.append(item)
+        if not include_details:
+            continue
         item["columns"] = [
             _column(
                 c.rstrip(),
@@ -335,7 +349,6 @@ def _firebird(db: Database, schema: str | None, table: str | None) -> list[dict[
             for k, p, c, t, r in _rows(db, _FIREBIRD_FK, [name])
         ]
         item["foreign_keys"] = _foreign_keys(links)
-        tables.append(item)
     return tables
 
 
@@ -360,7 +373,7 @@ def _literal_pattern(name: str | None, escape: str) -> str | None:
     return "".join(escape + c if c in escape + "%_" else c for c in name)
 
 
-def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _odbc(db: Database, schema: str | None, table: str | None, include_details: bool = True) -> list[dict[str, Any]]:
     from execsql.db.access import AccessDatabase
 
     if isinstance(db, AccessDatabase):
@@ -388,8 +401,16 @@ def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str,
             namespace, name, kind = row[1], row[2], row[3]
             if not _matches(namespace, name, schema, table):
                 continue
-            item = _table(namespace, name, "view" if "VIEW" in kind.upper() else "table")
+            item = _table(
+                namespace,
+                name,
+                "view" if "VIEW" in kind.upper() else "table",
+                include_details=include_details,
+            )
             item["catalog"] = row[0]
+            tables.append(item)
+            if not include_details:
+                continue
             # Pattern-based catalog methods may return extra objects. Filter the
             # returned identities exactly before accepting any of their metadata.
             cols = list(
@@ -428,7 +449,6 @@ def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str,
                 assert fk is not None
                 for link in item["foreign_keys"]:
                     link["referenced_catalog"] = next(c[0] for c in fk if c[11] == link["name"])
-            tables.append(item)
     return tables
 
 
@@ -551,6 +571,7 @@ def inspect_schema(
     table: str | None = None,
     prompt_password: bool | None = False,
     include_database: bool = False,
+    include_details: bool = True,
 ) -> dict[str, Any]:
     """Return JSON-compatible metadata; see the schema discovery reference.
 
@@ -565,7 +586,10 @@ def inspect_schema(
     URL callers enabling it must provide an interactive terminal.
     None for *prompt_password* follows configuration on an interactive terminal;
     True/False explicitly allow/forbid prompting. *include_database* adds identity
-    and namespace counts to unfiltered inspection.
+    and namespace counts to unfiltered inspection. With *include_database=True*,
+    *include_details=False* returns object identities and namespace counts without
+    querying columns or keys; those fields and their capability flags are omitted.
+    Detailed discovery remains the default, including for JSON database overviews.
     """
     from execsql.api import _connect_from_dsn, _LibraryConfig
     from execsql.exceptions import ScriptExit
@@ -585,6 +609,8 @@ def inspect_schema(
             raise ValueError(f"{name} must be a nonempty name without NUL characters.")
     if include_database and (schema is not None or table is not None):
         raise ValueError("Database overview requires unfiltered inspection.")
+    if not include_details and not include_database:
+        raise ValueError("Inventory-only inspection requires include_database=True.")
     result: dict[str, Any] = {
         "schema_version": 1,
         "success": False,
@@ -651,13 +677,16 @@ def inspect_schema(
                 }
                 return result
             keys = dialect not in ("Access", "DSN")
-            result["capabilities"] = {"tables": True, "columns": True, "primary_key": keys, "foreign_keys": keys}
-            tables = _READERS[dialect](db, schema, table)
-            if dialect in ("Access", "DSN"):
-                for field in ("primary_key", "foreign_keys"):
-                    result["capabilities"][field] = all(t[field] is not None for t in tables) if tables else None
-            for item in tables:
-                item["columns"].sort(key=lambda c: c["ordinal_position"])
+            result["capabilities"] = {"tables": True}
+            if include_details:
+                result["capabilities"].update(columns=True, primary_key=keys, foreign_keys=keys)
+            tables = _READERS[dialect](db, schema, table, include_details)
+            if include_details:
+                if dialect in ("Access", "DSN"):
+                    for field in ("primary_key", "foreign_keys"):
+                        result["capabilities"][field] = all(t[field] is not None for t in tables) if tables else None
+                for item in tables:
+                    item["columns"].sort(key=lambda c: c["ordinal_position"])
             if include_database:
                 identity, namespaces = _database_overview(db, tables)
                 result.update(database=identity, schemas=namespaces)

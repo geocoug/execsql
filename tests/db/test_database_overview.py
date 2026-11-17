@@ -12,6 +12,100 @@ from execsql.db.sqlite import SQLiteDatabase
 from tests.live_db import open_backend
 
 
+def test_inventory_counts_dangling_view_without_reading_details():
+    db = SQLiteDatabase(":memory:")
+    try:
+        db.conn.executescript("CREATE TABLE samples(value INT); CREATE VIEW broken AS SELECT * FROM missing;")
+        db.conn.execute("INSERT INTO samples VALUES (7)")
+        queries = []
+        db.conn.set_trace_callback(queries.append)
+        result = inspect_schema(connection=db, include_database=True, include_details=False)
+        assert result["success"], result
+        assert result["schemas"] == [{"name": "main", "table_count": 1, "view_count": 1}]
+        assert result["tables"] == [
+            {"catalog": None, "schema": "main", "name": "broken", "kind": "view"},
+            {"catalog": None, "schema": "main", "name": "samples", "kind": "table"},
+        ]
+        assert result["capabilities"] == {"tables": True, "schemas": True}
+        assert not any("table_xinfo" in sql or "foreign_key_list" in sql for sql in queries)
+        assert db.conn.in_transaction
+        assert db.conn.execute("SELECT * FROM samples").fetchall() == [(7,)]
+        for selection in ({"include_database": True}, {"table": "broken"}):
+            details = inspect_schema(connection=db, **selection)
+            assert not details["success"]
+            assert details["error"]["code"] == "metadata_error"
+        assert inspect_schema(connection=db, table="samples")["success"]
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("count", [1, 25])
+def test_sqlite_inventory_query_count_is_independent_of_object_count(count):
+    db = SQLiteDatabase(":memory:")
+    try:
+        for number in range(count):
+            db.conn.execute(f"CREATE TABLE t{number}(id INT PRIMARY KEY)")
+        queries = []
+        db.conn.set_trace_callback(queries.append)
+        result = inspect_schema(connection=db, include_database=True, include_details=False)
+        assert result["success"], result
+        assert len(result["tables"]) == count
+        assert len(queries) == 3
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("count", [1, 25])
+@pytest.mark.parametrize(
+    "dialect",
+    ["PostgreSQL", "DuckDB", "SQL Server", "MySQL", "Oracle", "Firebird", "Access", "DSN"],
+)
+def test_inventory_skips_detail_queries_for_every_adapter(dialect, count):
+    db = MagicMock()
+    db.type.dbms_id = dialect
+    db.paramstr = "%s" if dialect in ("PostgreSQL", "MySQL") else "?"
+    cursor = db._cursor.return_value.__enter__.return_value
+    names = [f"t{number:02}" for number in range(count)]
+    namespace = None if dialect in ("Access", "DSN", "Firebird") else "public"
+    if dialect in ("Access", "DSN"):
+        db.conn.getinfo.side_effect = lambda code: {14: "\\", 16: "project", 17: "Engine", 91: 0}[code]
+        cursor.tables.return_value = [("catalog", namespace, name, "TABLE") for name in names]
+    else:
+        objects = (
+            [(name + "  ", None) for name in names]
+            if dialect == "Firebird"
+            else [(namespace, name, "table") for name in names]
+        )
+        identity = [("project", "public")] if dialect == "Oracle" else [("project",)]
+        batches = [objects, identity]
+        if dialect in ("PostgreSQL", "DuckDB", "SQL Server"):
+            batches.append([("public",)])
+        cursor.fetchall.side_effect = batches
+    for method in ("columns", "primaryKeys", "foreignKeys"):
+        getattr(cursor, method).side_effect = AssertionError("Inventory must not request object details")
+    result = inspect_schema(connection=db, include_database=True, include_details=False)
+    assert result["success"], result
+    assert [item["name"] for item in result["tables"]] == names
+    assert all(set(item) == {"catalog", "schema", "name", "kind"} for item in result["tables"])
+    if dialect in ("Access", "DSN"):
+        cursor.tables.assert_called_once_with(table=None, schema=None, tableType="TABLE,VIEW")
+        cursor.execute.assert_not_called()
+    else:
+        expected = 3 if dialect in ("PostgreSQL", "DuckDB", "SQL Server") else 2
+        assert cursor.execute.call_count == expected
+        for call in cursor.execute.call_args_list:
+            sql = call.args[0].lower()
+            assert all(term not in sql for term in ("columns", "constraints", "key_column", "relation_fields"))
+    db.commit.assert_not_called()
+    db.rollback.assert_not_called()
+    db.close.assert_not_called()
+
+
+def test_inventory_only_requires_database_overview():
+    with pytest.raises(ValueError, match="include_database"):
+        inspect_schema(dsn="sqlite:///:memory:", include_details=False)
+
+
 def test_attached_namespaces_include_empty_and_count_only_visible_objects():
     db = SQLiteDatabase(":memory:")
     try:
@@ -52,7 +146,14 @@ def test_live_identity_and_counts_preserve_existing_table_results(dbms, tmp_path
     try:
         original = inspect_schema(connection=db)
         overview = inspect_schema(connection=db, include_database=True)
+        inventory = inspect_schema(connection=db, include_database=True, include_details=False)
         assert original["success"] and overview["success"], overview
+        assert inventory["success"], inventory
+        assert inventory["database"] == overview["database"]
+        assert inventory["schemas"] == overview["schemas"]
+        assert inventory["tables"] == [
+            {key: item[key] for key in ("catalog", "schema", "name", "kind")} for item in original["tables"]
+        ]
         assert overview["tables"] == original["tables"]
         assert overview["database"]["name"]
         assert overview["database"]["engine"] == db.type.dbms_id
@@ -191,7 +292,8 @@ def test_unsupported_odbc_identity_is_explicit_and_never_uses_connection_string(
 
 @pytest.mark.parametrize("failure", [RuntimeError("credential-secret"), KeyboardInterrupt(), SystemExit(143)])
 @pytest.mark.parametrize("owned", [True, False])
-def test_overview_failure_and_interrupt_preserve_connection_ownership(monkeypatch, failure, owned):
+@pytest.mark.parametrize("include_details", [True, False])
+def test_overview_failure_and_interrupt_preserve_connection_ownership(monkeypatch, failure, owned, include_details):
     db = SQLiteDatabase(":memory:")
     db.conn.execute("CREATE TABLE pending(v INT)")
     db.conn.execute("INSERT INTO pending VALUES (7)")
@@ -200,13 +302,13 @@ def test_overview_failure_and_interrupt_preserve_connection_ownership(monkeypatc
     try:
         kwargs = {"dsn": "sqlite:///:memory:"} if owned else {"connection": db}
         if isinstance(failure, RuntimeError):
-            result = inspect_schema(**kwargs, include_database=True)
+            result = inspect_schema(**kwargs, include_database=True, include_details=include_details)
             assert not result["success"] and result["error"]["code"] == "metadata_error"
             assert result["database"] is None and result["schemas"] is None and result["tables"] == []
             assert "credential-secret" not in json.dumps(result)
         else:
             with pytest.raises(type(failure)):
-                inspect_schema(**kwargs, include_database=True)
+                inspect_schema(**kwargs, include_database=True, include_details=include_details)
         if owned:
             assert db.conn is None
         else:

@@ -31,6 +31,13 @@ The following connection options and catalog rules apply to database/schema/tabl
 inspection. File inspection has its own [options and reference](../files.md),
 including configuration, encoding, sampling and worksheet selection.
 
+Database text output reads only identity and object inventories: it does not query
+columns or keys. This lets the summary count a view even if its column metadata
+cannot be read. Databases without child schemas list object names and kinds.
+JSON output retains detailed table entries, so a column/key metadata failure
+still fails a JSON request. Schema and table inspection also retain their detailed
+metadata checks.
+
 `NAME` is required for `schema` and `table`. Names are exact and case-sensitive;
 a dot in a name is literal, so use `--schema public` separately from the table
 name. Without that filter, table inspection shows every exact match in the

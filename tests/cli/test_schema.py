@@ -1,6 +1,7 @@
 """Human-readable inspection and explicit JSON share the catalog contract."""
 
 import json
+import re
 import sqlite3
 
 import pytest
@@ -175,6 +176,23 @@ def test_empty_database_shows_main_namespace_with_zero_counts(tmp_path):
     assert "0" in result.stdout
 
 
+def test_database_text_counts_dangling_view_but_json_and_table_report_detail_failure(tmp_path):
+    path = tmp_path / "broken-view.sqlite"
+    with sqlite3.connect(path) as db:
+        db.executescript("CREATE TABLE samples(value INT); CREATE VIEW broken AS SELECT * FROM missing;")
+    args = ["inspect", "database", "--dsn", f"sqlite:///{path}"]
+    text = CliRunner().invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert "Database: broken-view.sqlite" in text.stdout
+    assert re.search(r"main\s+1\s+1", text.stdout)
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 1
+    assert json.loads(machine.stdout)["error"]["code"] == "metadata_error"
+    table = CliRunner().invoke(app, ["inspect", "table", "broken", *args[2:]])
+    assert table.exit_code == 1
+    assert "metadata" in table.stderr.lower()
+
+
 def test_database_overview_and_json_retain_existing_metadata(tmp_path):
     path = tmp_path / "project.sqlite"
     with sqlite3.connect(path) as db:
@@ -217,6 +235,8 @@ def test_database_without_namespace_inventory_retains_object_overview(monkeypatc
     assert result.exit_code == 0, result.output
     assert "Database: project" in result.stdout and "Engine: Driver engine" in result.stdout
     assert "samples" in result.stdout and "1 object(s)" in result.stdout
+    assert "Columns" not in result.stdout and "Primary key" not in result.stdout
+    assert "Foreign keys" not in result.stdout
     assert ("Schema enumeration unavailable" in result.stdout) is (kind == "unknown")
 
 

@@ -286,7 +286,8 @@ All inspection commands hide settings and configuration files by default;
 Python callers can use `execsql.inspect_schema()` with a connection URL or an
 existing execsql adapter, or with configured defaults and optional `config_file=`.
 Add `include_database=True` for unfiltered database
-identity and namespace counts. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
+identity and namespace counts; also set `include_details=False` to skip column/key
+queries, as the database text summary does. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
 for the versioned JSON contract and adapter coverage.
 
 Inspect an importable file before loading it:

@@ -1,4 +1,4 @@
-"""Human-readable database inspection, using the same metadata as JSON callers."""
+"""Human-readable rendering for database and file inspection."""
 
 from __future__ import annotations
 
@@ -73,9 +73,13 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
             _print_table(item)
         return
     overview = Table(box=box.SIMPLE, show_edge=False)
-    for title in ("Object", "Kind", "Columns", "Primary key", "Foreign keys"):
+    titles = ("Object", "Kind") if database_overview else ("Object", "Kind", "Columns", "Primary key", "Foreign keys")
+    for title in titles:
         overview.add_column(title, overflow="fold")
     for item in tables:
+        if database_overview:
+            overview.add_row(_literal(_name(item)), _literal(item["kind"]))
+            continue
         foreign = item["foreign_keys"]
         overview.add_row(
             _literal(_name(item)),

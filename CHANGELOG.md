@@ -13,6 +13,8 @@ ______________________________________________________________________
 
 ### Added
 
+- Python `inspect_schema(include_database=True, include_details=False)` returns database identity, namespace counts and object names without querying columns or keys.
+
 - `execsql inspect file PATH` and Python `inspect_file()` report import formats, columns and inferred types without a database; support full scans, explicit samples, worksheet selection, configuration and text/JSON output for all built-in import formats.
 
 - Python `inspect_schema(include_database=True)` and `execsql inspect database --output-format json` include database identity and visible namespace counts, including namespaces with no visible tables/views.
@@ -44,6 +46,8 @@ ______________________________________________________________________
 - **Nested substitution variables** expand faster in scripts with many defined variables.
 
 ### Fixed
+
+- `execsql inspect database` text summaries work when a visible view's column metadata is broken; schema-less databases list object names and kinds without column/key details.
 
 - `execsql inspect file` reports the actual reader encoding in effective settings, including explicit overrides and BOM detection.
 

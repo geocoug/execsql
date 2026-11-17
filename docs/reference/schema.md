@@ -14,8 +14,10 @@ commands accept `--config FILE`, `--show-settings` and `--show-config`.
 
 The CLI prints readable text by default. `inspect database` shows
 database identity, engine and a schema/namespace overview with visible table/view
-counts. Empty namespaces appear too. Schema-less databases show their objects
-directly. `inspect schema NAME` lists matching tables/views, column counts and key
+counts. Empty namespaces appear too. Schema-less databases show object names and
+kinds directly. Database text summaries read object inventories without querying
+columns or keys, so a view with broken column metadata does not prevent the
+overview. `inspect schema NAME` lists matching tables/views, column counts and key
 summaries; table inspection shows ordered columns and relationships.
 Database count headings are `Visible tables` and `Visible views`; counts cover
 objects exposed to the connection within the adapter's default scope. Schema
@@ -66,7 +68,8 @@ the CLI's shared output contract. Invalid Python arguments raise `ValueError`;
 operational failures return `success: false`. Keyboard interrupts and process exits
 propagate after owned-connection cleanup.
 
-To request the same database overview metadata as the database CLI:
+To request database identity and namespace counts alongside detailed table metadata
+(the same result as `inspect database --output-format json`):
 
 ```python
 metadata = inspect_schema(dsn="sqlite:///project.sqlite", include_database=True)
@@ -78,6 +81,27 @@ print(metadata["schemas"])
 `schema=` or `table=` raises `ValueError`. Its default is `False`, preserving
 existing Python results and catalog queries. The CLI enables it only for
 `inspect database`.
+
+For the inventory-only behavior used by the database CLI's text output:
+
+```python
+metadata = inspect_schema(
+    dsn="sqlite:///project.sqlite",
+    include_database=True,
+    include_details=False,
+)
+```
+
+`include_details` defaults to `True`. Setting it to `False` requires
+`include_database=True` and returns only `catalog`, `schema`, `name` and `kind`
+for each entry in `tables`. It omits the `columns`, `primary_key` and `foreign_keys`
+fields and their capability entries because those details were not requested.
+The mode reads neither column nor key metadata; inventory query counts do not grow
+with object count on adapters with set-based object catalogs. SQLite enumerates
+objects once per attached database. Detailed discovery remains the default for
+Python and CLI JSON output. An unreadable column/key catalog can therefore fail a
+detailed JSON or schema/table request even when the database text summary succeeds.
+Real inventory, identity or namespace query failures still fail the overview.
 
 A connection opened from a URL or configuration belongs to this call and is closed afterward.
 Existing database files are required; inspection never requests database creation.
@@ -230,8 +254,8 @@ The envelope has `schema_version: 1`. Consumers must check this field and
 their meaning or type requires a new contract version, independent of the package
 version. This initial interface produces only contract version **1**.
 
-Database overviews add optional fields without changing the existing `tables`
-array or contract version:
+By default, database overviews add optional fields without changing the existing
+detailed `tables` array or contract version:
 
 - `database`: `name`, `engine` (strings or `null` when unavailable), and
     `namespace_kind` (`schema`, `attached_database`, `none` or `unknown`).
@@ -245,6 +269,10 @@ array or contract version:
 The fields are omitted when the overview is not requested. Failed overview
 requests return `database: null` and `schemas: null`; always check `success`
 before using metadata.
+
+The explicit Python `include_details=False` mode returns inventory entries instead
+of detailed table entries, as described above. CLI JSON always keeps detailed
+entries; changing the text summary does not change the JSON contract.
 
 For a `samples` table referencing `locations.id`, an abbreviated result is:
 

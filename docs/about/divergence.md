@@ -288,7 +288,12 @@ New options in `execsql.conf`:
     `inspect database` adds database identity and a namespace/count
     overview, including namespaces with no visible tables/views; schema-less
     databases retain a flat object list. Python `include_database=True` requests
-    the same additive JSON fields. Each CLI command owns one level: `database`
+    the same additive JSON fields. Database text summaries query only object
+    identities and counts, so broken column/key metadata does not block them;
+    flat lists show object names and kinds. Python callers can explicitly request
+    this mode with `include_database=True, include_details=False`. Default Python
+    and CLI JSON results retain detailed table metadata and its failure semantics.
+    Each CLI command owns one level: `database`
     has no schema/table filters; `table --schema` qualifies its object name.
     Routine catalog output omits navigation footers and labels visible counts
     directly in the headings.
