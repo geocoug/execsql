@@ -79,7 +79,7 @@ credential-bearing URLs are not echoed.
 | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `--dsn URL`, `--connection-string URL` | Optional connection URL; omit to use `[connect]` defaults. Include the user for password prompting. |
 | `--config FILE`                        | Additional configuration file; connection controls apply even with a DSN.                           |
-| `--show-settings`                      | Include nonsecret connection controls in text output; hidden by default.                            |
+| `--show-settings`                      | Include applicable nonsecret connection policies with readable labels; hidden by default.           |
 | `--show-config`                        | Include loaded configuration files in text output; hidden by default.                               |
 | `--schema NAME`                        | Optional exact, case-sensitive schema name for `table`; `schema` takes it positionally.             |
 | `--output-format text\|json`           | Readable text (default) or versioned JSON.                                                          |
@@ -89,6 +89,15 @@ credential-bearing URLs are not echoed.
 See [schema discovery](../schema.md) for the JSON contract, examples, errors,
 connection ownership and adapter coverage. Run `execsql inspect --help` to list
 available inspection commands, or `execsql inspect table --help` for a command's arguments and options.
+
+Catalog settings omit password/keyring controls for SQLite and DuckDB. Other
+adapters show whether prompting is allowed, with keyring permission shown only
+when prompting is allowed. Explicit connection encoding appears only for MySQL
+and Firebird; certificate trust appears only for SQL Server. Inspection emits no
+support-tier notices and omits that control from text. JSON/Python retain the
+existing configuration snapshot, including controls that may not apply to the
+chosen adapter; see [settings semantics](../schema.md#connection-settings)
+for details.
 
 The display flags also apply to `inspect file`, where settings describe import
 and inference controls. JSON and Python always retain `settings` and

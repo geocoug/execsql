@@ -47,6 +47,8 @@ ______________________________________________________________________
 
 ### Fixed
 
+- `execsql inspect database|schema|table --show-settings` uses readable labels and database names, omitting inapplicable password, keyring, encoding and tier-notice controls.
+
 - `execsql inspect database` text summaries work when a visible view's column metadata is broken; schema-less databases list object names and kinds without column/key details.
 
 - `execsql inspect file` reports the actual reader encoding in effective settings, including explicit overrides and BOM detection.

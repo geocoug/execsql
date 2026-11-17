@@ -723,7 +723,7 @@ def _validate_inspection_connection(conf: Any) -> None:
 
 
 def _inspection_settings(conf: Any) -> dict[str, Any]:
-    """Whitelist nonsecret controls; never copy URLs, identities or credentials."""
+    """Retain the nonsecret configuration snapshot; text filters applicability."""
     settings = {
         "db_type": conf.db_type,
         "password_prompt": conf.passwd_prompt,

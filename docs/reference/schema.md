@@ -126,9 +126,14 @@ Without a DSN, `[connect]` supplies the database type and target, username and
 port. File adapters require `db_file`; ODBC requires `db`; other adapters require
 `server` and `db`. An explicit DSN determines the entire target and identity:
 omitted URL fields use the URL/adapter defaults, never the configured host,
-database, username or port. Connection controls still apply: `[encoding] database`,
-`[connect] use_keyring` and `trust_server_certificate`, and
-`[interface] support_tier_notice`. A SQL Server URL's
+database, username or port. Connection controls apply where the adapter uses them:
+`[connect] use_keyring` governs the permitted password/keyring flow,
+`[encoding] database` supplies the connection character set for MySQL and Firebird,
+and `trust_server_certificate` applies to SQL Server. Other adapters accept the
+encoding configuration for script operations or derive encoding from the driver;
+their inspection catalog queries do not apply that configured encoding.
+Inspection does not emit support-tier notices, so `[interface] support_tier_notice`
+does not affect it. A SQL Server URL's
 `?trust_server_certificate=yes|no` overrides the configured certificate setting.
 Import, export and script-execution settings do not affect catalog discovery.
 
@@ -149,13 +154,44 @@ lets applications use their own credential delivery. Returned errors use fixed,
 secret-free messages rather than echoing URLs or driver exception text. Diagnose a
 connection problem using the driver separately when more detail is required.
 
-Text hides configuration details by default. `--show-settings` displays a
-whitelist of nonsecret connection controls (`db_type`, effective `password_prompt`,
-`use_keyring`, `support_tier_notice`, and applicable `database_encoding` and
-`trust_server_certificate`); `--show-config` displays loaded configuration files.
-The flags work independently and affect only text presentation. JSON and Python
-always include `settings` and `config_files`; neither contains a DSN, username,
-password or unrelated configuration values. Borrowed `connection=` calls load no
+### Connection settings
+
+Text hides configuration details by default. `--show-settings` displays applicable,
+nonsecret connection policies with readable labels:
+
+| Label                      | When shown                                                                  |
+| -------------------------- | --------------------------------------------------------------------------- |
+| Database type              | Every configured/URL connection, using a name such as SQLite or PostgreSQL. |
+| Password prompting allowed | Adapters with password authentication; omitted for SQLite and DuckDB.       |
+| Keyring allowed            | Password-capable adapters when password prompting is allowed.               |
+| Connection encoding        | MySQL and Firebird, when an explicit encoding is configured.                |
+| Trust server certificate   | SQL Server only.                                                            |
+
+Allowed password/keyring policies do not mean a prompt occurred or a stored
+credential was found; the adapter may use supplied or driver credentials.
+Tier-notice controls are omitted because inspection does not emit those notices.
+For example, `execsql inspect database --dsn sqlite:///:memory: --show-settings`
+ends with:
+
+```text
+Inspection settings:
+  Database type: SQLite
+```
+
+`--show-config` displays loaded configuration files independently of settings.
+These flags affect only text presentation. JSON and Python always include
+`settings` and `config_files`; neither contains a DSN, username, password or
+unrelated configuration values. For compatibility, machine `settings` retains
+the existing configuration snapshot: `db_type`, effective prompt permission in
+`password_prompt`, `use_keyring`, `support_tier_notice`, `database_encoding`
+(except SQLite/DuckDB), and SQL Server's `trust_server_certificate`. Presence in
+this snapshot does not establish applicability: for example, SQLite's keyring and
+tier-notice values do not affect inspection. The `db_type` codes are `l` (SQLite),
+`k` (DuckDB), `p` (PostgreSQL), `m` (MySQL/MariaDB), `s` (SQL Server), `o` (Oracle),
+`f` (Firebird), `a` (Access) and `d` (ODBC DSN). Use `adapter` and `dialect` for
+readable machine metadata.
+
+Borrowed `connection=` calls load no
 configuration and return empty settings/file lists; they reject `config_file=`
 and `dsn=` because connection setup belongs to the caller.
 

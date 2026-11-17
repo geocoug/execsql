@@ -4,7 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -57,6 +57,99 @@ def test_every_scope_uses_config_and_independent_display_flags(project, monkeypa
     assert report["settings"]["db_type"] == "l"
     assert report["settings"]["password_prompt"] is False
     assert any(t["name"] == "samples" for t in report["tables"])
+
+
+@pytest.mark.parametrize("scope", [["database"], ["schema", "main"], ["table", "samples"]])
+def test_sqlite_text_settings_show_only_readable_applicable_controls(project, scope):
+    _, conf = project
+    args = ["inspect", *scope, "--config", str(conf), "--show-settings"]
+    result = CliRunner().invoke(app, args)
+    assert result.exit_code == 0, result.output
+    settings = result.stdout.split("Inspection settings:", 1)[1]
+    assert settings.strip() == "Database type: SQLite"
+    assert "password" not in settings.lower() and "keyring" not in settings.lower()
+    assert "tier" not in settings.lower()
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 0, machine.output
+    assert json.loads(machine.stdout)["settings"] == {
+        "db_type": "l",
+        "password_prompt": False,
+        "use_keyring": True,
+        "support_tier_notice": True,
+    }
+
+
+@pytest.mark.parametrize(
+    "code,adapter,label",
+    [
+        ("l", "SQLite", "SQLite"),
+        ("k", "DuckDB", "DuckDB"),
+        ("p", "PostgreSQL", "PostgreSQL"),
+        ("m", "MySQL", "MySQL"),
+        ("s", "SQL Server", "SQL Server"),
+        ("o", "Oracle", "Oracle"),
+        ("f", "Firebird", "Firebird"),
+        ("a", "Access", "MS Access"),
+        ("d", "DSN", "ODBC DSN"),
+    ],
+)
+@pytest.mark.parametrize("allow_prompt", [True, False])
+@pytest.mark.parametrize("keyring", [True, False])
+def test_catalog_text_settings_are_applicable_and_machine_settings_stay_compatible(
+    tmp_path,
+    monkeypatch,
+    code,
+    adapter,
+    label,
+    allow_prompt,
+    keyring,
+):
+    conf = tmp_path / "connection.conf"
+    conf.write_text(
+        f"[connect]\ndb_type={code}\nserver=private-host\ndb=private-db\nusername=private-user\n"
+        "access_username=private-user\ndb_file=private.file\n"
+        f"password_prompt={'Yes' if allow_prompt else 'No'}\nuse_keyring={'Yes' if keyring else 'No'}\n"
+        "trust_server_certificate=Yes\n[encoding]\ndatabase=latin1\n[interface]\nsupport_tier_notice=Yes\n",
+    )
+    db = MagicMock()
+    db.type.dbms_id = adapter
+    monkeypatch.setattr(discovery, "_check_inspection_driver", lambda code: None)
+    monkeypatch.setattr("execsql.cli.run._connect_initial_db", lambda conf: db)
+    monkeypatch.setitem(discovery._READERS, adapter, lambda *args: [])
+    monkeypatch.setattr("execsql.cli.commands.inspect._terminal_available", lambda: True)
+    inspect = discovery.inspect_schema
+
+    def inspect_with_terminal(**kwargs):
+        with patch("sys.stdin.isatty", return_value=True):
+            return inspect(**kwargs)
+
+    monkeypatch.setattr(discovery, "inspect_schema", inspect_with_terminal)
+    args = ["inspect", "schema", "main", "--config", str(conf), "--show-settings"]
+    text = CliRunner().invoke(app, args)
+    assert text.exit_code == 0, text.output
+    section = text.stdout.split("Inspection settings:", 1)[1]
+    assert f"Database type: {label}" in section
+    password_backend = code not in ("l", "k")
+    assert ("Password prompting allowed:" in section) is password_backend
+    if password_backend:
+        assert f"Password prompting allowed: {'Yes' if allow_prompt else 'No'}" in section
+    assert ("Keyring allowed:" in section) is (password_backend and allow_prompt)
+    if password_backend and allow_prompt:
+        assert f"Keyring allowed: {'Yes' if keyring else 'No'}" in section
+    assert ("Connection encoding: latin1" in section) is (code in ("m", "f"))
+    assert ("Trust server certificate: Yes" in section) is (code == "s")
+    assert all(term not in text.stdout for term in ("private-", "support_tier_notice", "best-effort", "db_type="))
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 0, machine.output
+    settings = json.loads(machine.stdout)["settings"]
+    assert settings["db_type"] == code
+    # JSON mode disables automatic prompting but retains the existing keys.
+    assert settings["password_prompt"] is False
+    assert settings["use_keyring"] is keyring and settings["support_tier_notice"] is True
+    assert ("database_encoding" in settings) is password_backend
+    if password_backend:
+        assert settings["database_encoding"] == "latin1"
+    assert ("trust_server_certificate" in settings) is (code == "s")
 
 
 def test_explicit_url_replaces_configured_target_without_merging_identity(project, tmp_path, monkeypatch):

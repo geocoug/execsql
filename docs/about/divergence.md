@@ -297,6 +297,12 @@ New options in `execsql.conf`:
     has no schema/table filters; `table --schema` qualifies its object name.
     Routine catalog output omits navigation footers and labels visible counts
     directly in the headings.
+    Opt-in catalog settings use readable names and show only applicable policies:
+    password/keyring controls are omitted for SQLite/DuckDB, connection encoding
+    is shown only for MySQL/Firebird, and certificate trust only for SQL Server.
+    Inspection emits no tier notices and omits that inert control from text.
+    JSON/Python settings retain the configuration snapshot for compatibility;
+    a configured value there is not proof that the adapter used it.
     The redundant database filters were removed before the inspection interface's
     first release. Python's exact-name filters remain available.
     Missing or broken inspection drivers return a structured dependency error and

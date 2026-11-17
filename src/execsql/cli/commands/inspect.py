@@ -38,7 +38,7 @@ _InspectionDsnOpt = Annotated[
         help="Database connection URL; omit to use [connect] configuration defaults.",
     ),
 ]
-_ShowSettingsOpt = Annotated[bool, typer.Option("--show-settings", help="Include effective settings in text output.")]
+_ShowSettingsOpt = Annotated[bool, typer.Option("--show-settings", help="Include applicable settings in text output.")]
 _ShowConfigOpt = Annotated[
     bool,
     typer.Option("--show-config", help="Include loaded configuration files in text output."),

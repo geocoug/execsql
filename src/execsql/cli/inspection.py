@@ -230,6 +230,26 @@ def print_file_inspection(
     )
 
 
+def _catalog_settings(result: dict[str, Any]) -> dict[str, str]:
+    """Present applicable connection policies without claiming they were exercised."""
+    settings = result["settings"]
+    if not settings:
+        return {}
+    adapter = result["adapter"]
+    shown = {"Database type": {"Access": "MS Access", "DSN": "ODBC DSN"}.get(adapter, adapter)}
+    if adapter not in ("SQLite", "DuckDB"):
+        prompt = settings["password_prompt"]
+        shown["Password prompting allowed"] = "Yes" if prompt else "No"
+        if prompt:
+            shown["Keyring allowed"] = "Yes" if settings["use_keyring"] else "No"
+    # Only these adapters use the configured encoding when opening a connection.
+    if adapter in ("MySQL", "Firebird") and settings.get("database_encoding") is not None:
+        shown["Connection encoding"] = settings["database_encoding"]
+    if adapter == "SQL Server":
+        shown["Trust server certificate"] = "Yes" if settings["trust_server_certificate"] else "No"
+    return shown
+
+
 def print_inspection_context(
     result: dict[str, Any],
     *,
@@ -243,6 +263,12 @@ def print_inspection_context(
             _literal("Configuration files: " + (", ".join(result["config_files"]) or "none (built-in defaults)")),
         )
     if show_settings:
+        if "adapter" in result:
+            settings = _catalog_settings(result)
+            _console.print(_literal(settings_label + (":" if settings else ": none")))
+            for name, value in settings.items():
+                _console.print(_literal(f"  {name}: {value}"))
+            return
         _console.print(
             _literal(
                 settings_label + ": " + ", ".join(f"{name}={value}" for name, value in result["settings"].items()),

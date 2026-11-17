@@ -229,7 +229,7 @@ adapter support.
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `--dsn URL`, `--connection-string URL` | Connection target and identity; omit to use `[connect]` defaults. Explicit URL fields/defaults replace the configured target. |
 | `--config FILE`                        | Read additional configuration after system, user and working-directory files. Connection controls apply even with a DSN.      |
-| `--show-settings`                      | Include nonsecret connection controls in text output; hidden by default.                                                      |
+| `--show-settings`                      | Include applicable nonsecret connection policies with readable labels; hidden by default.                                     |
 | `--show-config`                        | Include loaded configuration files in text output; hidden by default.                                                         |
 
 JSON and Python include `settings` and `config_files` regardless of display flags.
