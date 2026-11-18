@@ -69,8 +69,9 @@ class PostgresDatabase(Database):
         self.new_db = new_db
         self.paramstr = "%s"
         self.connect_timeout = connect_timeout
-        self.open_db()
-        self.password = None  # Clear cleartext password after successful connection
+        with self._initial_connection():
+            self.open_db()
+            self.password = None  # Clear cleartext password after successful connection
 
     def __repr__(self) -> str:
         return (

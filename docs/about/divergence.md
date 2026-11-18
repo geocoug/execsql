@@ -259,7 +259,8 @@ New options in `execsql.conf`:
     selected sheet. Text and JSON share format, columns and inference. Text shows
     effective import settings and configuration files only with `--show-settings`
     and `--show-config`; JSON and Python always retain both. See
-    [file inspection](../reference/files.md).
+    [file inspection](../reference/files.md). Reported effective encoding follows
+    the actual reader, including overrides and BOM detection.
 
 - CLI `execsql inspect` and Python `execsql.inspect_schema()` inspect database
     structure without running scripts or fetching application
@@ -270,15 +271,55 @@ New options in `execsql.conf`:
     automatic only for text-mode CLI inspection on an interactive terminal;
     `--no-passwd` disables it and `--prompt-password` permits it with JSON.
     `--dsn` and `--connection-string` are interchangeable, as for `execsql run`.
+    Owned connections read normal tool configuration and accept `--config` /
+    Python `config_file=`. Omitting the DSN uses configured connection defaults;
+    an explicit DSN replaces the target and user while retaining connection
+    controls such as encoding, certificate handling and keyring preferences.
+    Missing or unreadable explicit configuration is refused; inspection diagnostics
+    omit private configuration values. Catalog authentication remains terminal-only
+    even when GUI prompts are configured.
+    Startup scripts and database creation are never executed. All inspection
+    commands offer independent `--show-settings` and `--show-config` text flags;
+    JSON/Python always include nonsecret settings and loaded configuration paths.
+    Borrowed adapters do not load or apply configuration. Initial adapter setup
+    closes acquired connections on failure or interruption.
     `execsql inspect schema NAME` and `execsql inspect table NAME [--schema NAME]`
     provide object-specific forms with the same output contract and password policy.
     `inspect database` adds database identity and a namespace/count
     overview, including namespaces with no visible tables/views; schema-less
     databases retain a flat object list. Python `include_database=True` requests
-    the same additive JSON fields. Each CLI command owns one level: `database`
+    the same additive JSON fields. Database text summaries query only object
+    identities and counts, so broken column/key metadata does not block them;
+    flat lists show object names and kinds. Python callers can explicitly request
+    this mode with `include_database=True, include_details=False`. Default Python
+    and CLI JSON results retain detailed table metadata and its failure semantics.
+    Each CLI command owns one level: `database`
     has no schema/table filters; `table --schema` qualifies its object name.
+    Routine catalog output omits navigation footers and labels visible counts
+    directly in the headings.
+    Opt-in catalog settings use readable names and show only applicable policies:
+    password/keyring controls are omitted for SQLite/DuckDB, connection encoding
+    is shown only for MySQL/Firebird, and certificate trust only for SQL Server.
+    Inspection emits no tier notices and omits that inert control from text.
+    JSON/Python settings retain the configuration snapshot for compatibility;
+    a configured value there is not proof that the adapter used it.
+    File/table inspection supports SQL-only output. Files reuse IMPORT inference
+    and observed nullability with explicit target dialect/name, preserving identifier
+    folding with escaped SQL names. Table SQL retrieves native definitions for
+    SQLite, DuckDB and MySQL/MariaDB and assembles PostgreSQL 14+ catalog definitions
+    on the existing connection. Unsupported adapters/features fail without partial
+    SQL. PostgreSQL literal-format settings and MySQL/MariaDB session time zones
+    accompany CREATE output; lossy PostgreSQL float formatting, PostgreSQL temporary
+    tables and all MySQL SYSTEM session time zones are refused explicitly.
+    No generated statement is executed; external dependency objects are not
+    scripted. Python calls can request an optional sql field; default metadata is
+    unchanged. See the file/schema references for options and fidelity limits.
     The redundant database filters were removed before the inspection interface's
     first release. Python's exact-name filters remain available.
+    Missing or broken inspection drivers return a structured dependency error and
+    installation hint without adapter side output.
+    DuckDB foreign keys retain distinct relationships even when their generated
+    constraint names collide.
     PostgreSQL default discovery excludes all reserved `pg_*` namespaces,
     including temporary and TOAST schemas. Explicit schema inspection still works.
 

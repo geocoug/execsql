@@ -246,7 +246,13 @@ class _LibraryConfig:
 # ---------------------------------------------------------------------------
 
 
-def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool = True) -> Any:
+def _connect_from_dsn(
+    dsn: str,
+    new_db: bool = False,
+    *,
+    prompt_password: bool = True,
+    encoding: str | None = None,
+) -> Any:
     """Create a database connection from a DSN URL string.
 
     Returns a :class:`~execsql.db.base.Database` subclass instance.
@@ -265,6 +271,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool =
         db_SqlServer,
     )
 
+    encoding_options: dict[str, Any] = {"encoding": encoding} if encoding is not None else {}
     params = _parse_connection_string(dsn)
     db_type = params["db_type"]
     server = params["server"]
@@ -277,10 +284,10 @@ def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool =
     if db_type == "l":
         file = db_file or ":memory:"
         # In-memory databases are always "new"
-        return db_SQLite(file, new_db=new_db or file == ":memory:")
+        return db_SQLite(file, new_db=new_db or file == ":memory:", **encoding_options)
     elif db_type == "k":
         file = db_file or ":memory:"
-        return db_DuckDB(file, new_db=new_db or file == ":memory:")
+        return db_DuckDB(file, new_db=new_db or file == ":memory:", **encoding_options)
     elif db_type == "p":
         return db_Postgres(
             server or "localhost",
@@ -288,6 +295,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool =
             user=user,
             pw_needed=prompt_password,
             password=password,
+            **encoding_options,
             port=port or 5432,
             new_db=new_db,
         )
@@ -298,6 +306,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool =
             user=user,
             pw_needed=prompt_password,
             password=password,
+            **encoding_options,
             port=port or 3306,
         )
     elif db_type == "s":
@@ -307,6 +316,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool =
             user=user,
             pw_needed=prompt_password,
             password=password,
+            **encoding_options,
             port=port,
             trust_server_certificate=params["trust_server_certificate"],
         )
@@ -317,6 +327,7 @@ def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool =
             user=user,
             pw_needed=prompt_password,
             password=password,
+            **encoding_options,
             port=port or 1521,
         )
     elif db_type == "f":
@@ -326,12 +337,13 @@ def _connect_from_dsn(dsn: str, new_db: bool = False, *, prompt_password: bool =
             user=user,
             pw_needed=prompt_password,
             password=password,
+            **encoding_options,
             port=port or 3050,
         )
     elif db_type == "a":
-        return db_Access(db_file)
+        return db_Access(db_file, **encoding_options)
     elif db_type == "d":
-        return db_Dsn(db_name, user=user, password=password)
+        return db_Dsn(db_name, user=user, password=password, **encoding_options)
     else:
         raise ValueError(f"Unsupported database type: {db_type!r}")
 

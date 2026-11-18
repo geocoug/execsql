@@ -168,6 +168,20 @@ class Database(ABC):
         """Open the underlying database connection."""
         ...
 
+    @contextlib.contextmanager
+    def _initial_connection(self) -> Iterator[None]:
+        """Release acquired resources if initial connection setup cannot finish."""
+        try:
+            yield
+        except BaseException:
+            try:
+                self.close()
+            except BaseException:
+                pass  # Preserve the setup failure or interruption.
+            finally:
+                self.conn = None
+            raise
+
     def cursor(self):
         """Return a new cursor, opening the connection first if it has not been opened yet."""
         if self.conn is None:

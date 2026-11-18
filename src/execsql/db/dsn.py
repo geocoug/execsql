@@ -65,8 +65,9 @@ class DsnDatabase(Database):
         self.password = password
         self.encoding = encoding
         self.paramstr = "?"
-        self.open_db()
-        self.password = None  # Clear cleartext password after successful connection
+        with self._initial_connection():
+            self.open_db()
+            self.password = None  # Clear cleartext password after successful connection
 
     def __repr__(self) -> str:
         return f"DsnDatabase({self.db_name!r}, {self.user!r}, {self.need_passwd!r}, {self.port!r}, {self.encoding!r})"

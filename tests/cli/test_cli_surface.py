@@ -161,6 +161,9 @@ class TestSurface:
         inspection = group.commands["inspect"]
         assert list(inspection.list_commands(None)) == ["database", "schema", "table", "file"]
         common = {
+            "--config",
+            "--show-settings",
+            "--show-config",
             "--dsn --connection-string",
             "--output-format",
             "--prompt-password",
@@ -187,6 +190,9 @@ class TestSurface:
             "--show-settings",
             "--show-config",
             "--output-format",
+            "--dialect",
+            "--table-name",
+            "--schema",
         }
         assert _options(command, hidden=True) == set()
         assert [p.metavar for p in command.params if p.param_type_name == "argument"] == ["PATH"]

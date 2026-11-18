@@ -94,11 +94,12 @@ class AccessDatabase(Database):
         self.last_dao_time = 0.0
         self.temp_query_names: list[str] = []
         self.autocommit = True
-        # Create the DAO connection
-        self.open_dao()
-        # Create the ODBC connection
-        self.open_db()
-        self.password = None  # Clear cleartext password after successful connection
+        with self._initial_connection():
+            # Create the DAO connection
+            self.open_dao()
+            # Create the ODBC connection
+            self.open_db()
+            self.password = None  # Clear cleartext password after successful connection
 
     def __repr__(self) -> str:
         return f"AccessDatabase({self.db_name}, {self.encoding})"

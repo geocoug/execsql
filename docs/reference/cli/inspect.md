@@ -11,7 +11,8 @@ execsql inspect file results.csv
 
 `database` connects to the selected database and prints its identity, engine and
 schema/namespace inventory by default, with visible table/view counts. Namespaces
-with no visible objects are included. Schema-less databases show objects directly;
+with no visible objects are included. Count headings say `Visible tables` and
+`Visible views`; permissions and the adapter's default scope determine visibility. Schema-less databases show objects directly;
 unavailable namespace enumeration is labeled explicitly.
 `schema NAME` lists matching tables/views, column counts and key summaries.
 `table NAME` shows ordered columns, catalog types, nullability, primary keys
@@ -30,6 +31,13 @@ The following connection options and catalog rules apply to database/schema/tabl
 inspection. File inspection has its own [options and reference](../files.md),
 including configuration, encoding, sampling and worksheet selection.
 
+Database text output reads only identity and object inventories: it does not query
+columns or keys. This lets the summary count a view even if its column metadata
+cannot be read. Databases without child schemas list object names and kinds.
+JSON output retains detailed table entries, so a column/key metadata failure
+still fails a JSON request. Schema and table inspection also retain their detailed
+metadata checks.
+
 `NAME` is required for `schema` and `table`. Names are exact and case-sensitive;
 a dot in a name is literal, so use `--schema public` separately from the table
 name. Without that filter, table inspection shows every exact match in the
@@ -43,7 +51,19 @@ For automation, request the shared versioned JSON contract explicitly:
 execsql inspect database --dsn sqlite:///project.sqlite --output-format json > schema.json
 ```
 
+File and table inspection also accept `--output-format sql` for copyable CREATE
+statements. File SQL requires `--dialect` and `--table-name`; optional `--schema`
+is the destination namespace. Table SQL uses the source dialect and requires one
+matching object. SQL rejects configuration display flags and file samples, and
+never executes the output. See [file SQL](../files.md#sql-output) and
+[table SQL](../schema.md#sql-output) for supported adapters, fidelity and examples.
+
 `--dsn` and `--connection-string` are interchangeable, as they are for `execsql run`.
+Omit the URL to use `[connect]` configuration defaults. `--config FILE` reads
+an additional configuration file after the normal system/user/working-directory
+search and local chains. An explicit URL determines the target and identity;
+connection controls such as encoding, certificate handling and keyring preferences
+still apply. Inspection never creates a database or executes startup scripts.
 
 For a server requiring a password, include the user but omit the password:
 
@@ -51,27 +71,44 @@ For a server requiring a password, include the user but omit the password:
 execsql inspect schema public --dsn postgresql://analyst@localhost/project
 ```
 
-Text mode on an interactive terminal can prompt for that user's password using
-hidden input. Passwords are not stored in the keyring. Use `--no-passwd` for
+Text mode on an interactive terminal follows the configured `password_prompt`
+preference for the connection's user, with hidden input and configured keyring
+lookup/storage. Use `--no-passwd` to disable prompting and keyring use for
 OS/driver authentication. JSON mode and redirected stdin never prompt automatically;
-`--prompt-password` explicitly allows prompting for JSON output when stdin is a
+`--prompt-password` explicitly allows prompting for JSON/SQL output when stdin is a
 terminal. The two password flags cannot be combined.
 
 Failures exit with status 1. Text mode puts errors and diagnostic hints on stderr;
 JSON mode returns the API's structured error on stdout. Driver exception text and
 credential-bearing URLs are not echoed.
 
-| Option                                 | Meaning                                                                                 |
-| -------------------------------------- | --------------------------------------------------------------------------------------- |
-| `--dsn URL`, `--connection-string URL` | Required connection URL. Include the user for password prompting.                       |
-| `--schema NAME`                        | Optional exact, case-sensitive schema name for `table`; `schema` takes it positionally. |
-| `--output-format text\|json`           | Readable text (default) or versioned JSON.                                              |
-| `-w`, `--no-passwd`                    | Disable password prompting; use supplied or driver credentials.                         |
-| `--prompt-password`                    | Allow a hidden password prompt for a URL user on a terminal, including in JSON mode.    |
+| Option                                 | Meaning                                                                                             |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `--dsn URL`, `--connection-string URL` | Optional connection URL; omit to use `[connect]` defaults. Include the user for password prompting. |
+| `--config FILE`                        | Additional configuration file; connection controls apply even with a DSN.                           |
+| `--show-settings`                      | Include applicable nonsecret connection policies with readable labels; hidden by default.           |
+| `--show-config`                        | Include loaded configuration files in text output; hidden by default.                               |
+| `--schema NAME`                        | Optional exact, case-sensitive schema name for `table`; `schema` takes it positionally.             |
+| `--output-format text\|json\|sql`      | Readable text (default), versioned JSON, or SQL (table/file only).                                  |
+| `-w`, `--no-passwd`                    | Disable password prompting; use supplied or driver credentials.                                     |
+| `--prompt-password`                    | Override the configured prompt preference on a terminal, including in JSON mode.                    |
 
 See [schema discovery](../schema.md) for the JSON contract, examples, errors,
 connection ownership and adapter coverage. Run `execsql inspect --help` to list
 available inspection commands, or `execsql inspect table --help` for a command's arguments and options.
+
+Catalog settings omit password/keyring controls for SQLite and DuckDB. Other
+adapters show whether prompting is allowed, with keyring permission shown only
+when prompting is allowed. Explicit connection encoding appears only for MySQL
+and Firebird; certificate trust appears only for SQL Server. Inspection emits no
+support-tier notices and omits that control from text. JSON/Python retain the
+existing configuration snapshot, including controls that may not apply to the
+chosen adapter; see [settings semantics](../schema.md#connection-settings)
+for details.
+
+The display flags also apply to `inspect file`, where settings describe import
+and inference controls. JSON and Python always retain `settings` and
+`config_files`, independently of these text flags.
 
 `inspect` is a reserved command name. A script named exactly `inspect`, with no
 extension, runs with `execsql run inspect`.

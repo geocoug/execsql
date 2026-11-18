@@ -14,6 +14,17 @@ from execsql.db.sqlite import SQLiteDatabase
 from tests.live_db import open_backend
 
 
+@pytest.fixture(autouse=True)
+def isolated_configuration(monkeypatch):
+    from execsql.config import ConfigData
+
+    monkeypatch.setattr(
+        ConfigData,
+        "_search_paths",
+        classmethod(lambda cls, script_path, config_file, start_dir=None: [str(config_file)] if config_file else []),
+    )
+
+
 @pytest.mark.parametrize("dbms", ["sqlite", "duckdb", "postgres", "mysql", "mariadb", "sqlserver"])
 def test_live_catalog_composite_keys_and_views(dbms, tmp_path):
     db = open_backend(dbms, tmp_path)
@@ -50,6 +61,40 @@ def test_live_catalog_composite_keys_and_views(dbms, tmp_path):
                 db.commit()
             except Exception:
                 db.rollback()
+        db.close()
+
+
+@pytest.mark.parametrize("composite", [False, True])
+def test_duckdb_distinct_foreign_keys_with_colliding_names(composite):
+    pytest.importorskip("duckdb")
+    from execsql.db.duckdb import DuckDBDatabase
+
+    db = DuckDBDatabase(":memory:")
+    try:
+        declaration = "a INT, b INT, PRIMARY KEY(b,a)" if composite else "a INT PRIMARY KEY"
+        source, target = ("x,y", "b,a") if composite else ("x", "a")
+        for parent in ("p1", "p2"):
+            db.conn.execute(f"CREATE TABLE {parent}({declaration})")
+        db.conn.execute(
+            f"CREATE TABLE ch(x INT,y INT, FOREIGN KEY({source}) REFERENCES p1({target}), "
+            f"FOREIGN KEY({source}) REFERENCES p2({target}))",
+        )
+        # Same object names in an attached catalog must not enrich this table.
+        db.conn.execute("ATTACH ':memory:' AS other")
+        db.conn.execute("USE other")
+        db.conn.execute(f"CREATE TABLE p1({declaration})")
+        db.conn.execute(f"CREATE TABLE ch(x INT,y INT, FOREIGN KEY({source}) REFERENCES p1({target}))")
+        db.conn.execute("USE memory")
+        report = inspect_schema(connection=db, table="ch")
+        assert report["success"], report
+        links = report["tables"][0]["foreign_keys"]
+        assert len(links) == 2
+        assert {link["referenced_table"] for link in links} == {"p1", "p2"}
+        for link in links:
+            assert link["columns"] == source.split(",")
+            assert link["referenced_columns"] == target.split(",")
+            assert link["referenced_schema"] == "main"
+    finally:
         db.close()
 
 
@@ -135,14 +180,16 @@ def test_owned_connection_closes_on_success_failure_and_interrupt(sqlite_db, mon
 
 
 def test_connection_errors_are_structured_and_secret_free(monkeypatch, capsys):
+    monkeypatch.setattr(discovery, "_check_inspection_driver", lambda kind: None)
+
     def fail(*args, **kwargs):
         assert kwargs["prompt_password"] is False
-        raise ValueError("postgresql://user:password@host/db")
+        raise ValueError("postgresql://user:private-secret@host/db")
 
     monkeypatch.setattr("execsql.api._connect_from_dsn", fail)
-    result = inspect_schema(dsn="postgresql://user:password@host/db")
+    result = inspect_schema(dsn="postgresql://user:private-secret@host/db")
     assert result["error"]["code"] == "connection_error"
-    assert "password" not in json.dumps(result)
+    assert "secret" not in json.dumps(result)
     assert capsys.readouterr() == ("", "")
 
 
@@ -161,8 +208,10 @@ def test_close_failure_is_reported(sqlite_db, monkeypatch, include_database):
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {},
         {"dsn": "x", "connection": object()},
+        {"connection": object(), "config_file": "execsql.conf"},
+        {"config_file": ""},
+        {"config_file": "a\x00b"},
         {"dsn": "x", "schema": ""},
         {"dsn": "x", "table": "a\x00b"},
         {"dsn": "x", "table": 1},
@@ -197,6 +246,7 @@ def test_all_adapter_catalog_contracts_and_bound_filters(dialect):
     db.type.dbms_id = dialect
     db.paramstr = "%s" if dialect in ("MySQL", "PostgreSQL") else "?"
     cursor = db._cursor.return_value.__enter__.return_value
+    cursor.description = [("referenced_table",)] if dialect == "DuckDB" else []
     namespace = None if dialect in ("Firebird", "Access", "DSN") else "project"
     name = "sample's"
     if dialect in ("Access", "DSN"):
@@ -228,6 +278,9 @@ def test_all_adapter_catalog_contracts_and_bound_filters(dialect):
     assert item["primary_key"] == (["id"] if keys else None)
     assert item["foreign_keys"] == ([] if keys else None)
     for call in cursor.execute.call_args_list:
+        if len(call.args) == 1:
+            assert dialect == "DuckDB" and call.args[0] == "SELECT * FROM duckdb_constraints() LIMIT 0"
+            continue
         sql, params = call.args
         assert name not in sql  # Never paste even a quote-bearing name into SQL.
         assert name in params

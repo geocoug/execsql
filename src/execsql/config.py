@@ -35,6 +35,17 @@ __all__ = [
 ]
 
 
+def check_explicit_config_file(config_file: str | Path | None) -> None:
+    """Refuse an explicitly requested inspection config that cannot be read."""
+    if config_file is None:
+        return
+    path = Path(config_file)
+    if not path.is_file():
+        raise ConfigError("Explicit configuration must be an existing readable regular file.")
+    with path.open("rb"):
+        pass
+
+
 class _VariablePool(Protocol):
     def substitute(self, strval: str) -> tuple[str, int]: ...
     def var_name_ok(self, varname: str) -> bool: ...

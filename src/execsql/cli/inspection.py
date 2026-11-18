@@ -1,4 +1,4 @@
-"""Human-readable database inspection, using the same metadata as JSON callers."""
+"""Human-readable rendering for database and file inspection."""
 
 from __future__ import annotations
 
@@ -46,8 +46,8 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
             overview = Table(box=box.SIMPLE, show_edge=False)
             for title in (
                 "Namespace" if database["namespace_kind"] == "attached_database" else "Schema",
-                "Tables",
-                "Views",
+                "Visible tables",
+                "Visible views",
             ):
                 overview.add_column(title, overflow="fold")
             for namespace in namespaces:
@@ -57,10 +57,8 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
                     str(namespace["view_count"]),
                 )
             _console.print(overview)
-            _console.print("Counts cover tables/views visible to this connection.")
             if not namespaces:
                 _console.print("No visible schemas or namespaces.")
-            _console.print("Use execsql inspect schema NAME --dsn URL to inspect its objects.")
             return
         if namespaces is None:
             _console.print("Schema enumeration unavailable; showing visible objects.")
@@ -75,9 +73,13 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
             _print_table(item)
         return
     overview = Table(box=box.SIMPLE, show_edge=False)
-    for title in ("Object", "Kind", "Columns", "Primary key", "Foreign keys"):
+    titles = ("Object", "Kind") if database_overview else ("Object", "Kind", "Columns", "Primary key", "Foreign keys")
+    for title in titles:
         overview.add_column(title, overflow="fold")
     for item in tables:
+        if database_overview:
+            overview.add_row(_literal(_name(item)), _literal(item["kind"]))
+            continue
         foreign = item["foreign_keys"]
         overview.add_row(
             _literal(_name(item)),
@@ -87,7 +89,7 @@ def print_inspection(result: dict[str, Any], *, detailed: bool, database_overvie
             _literal("unavailable" if foreign is None else len(foreign)),
         )
     _console.print(overview)
-    _console.print(f"{len(tables)} object(s). Use execsql inspect table NAME --dsn URL [--schema SCHEMA] for details.")
+    _console.print(f"{len(tables)} object(s).")
 
 
 def _print_table(item: dict[str, Any]) -> None:
@@ -122,18 +124,25 @@ def _print_table(item: dict[str, Any]) -> None:
             _console.print(_literal(f"  ({source}) -> {_name(key, referenced=True)} ({target}){constraint}"))
 
 
-def print_inspection_error(result: dict[str, Any], dsn: str) -> None:
+def print_inspection_error(result: dict[str, Any], dsn: str | None) -> None:
     """Explain failures without printing credential-bearing URLs or driver text."""
     error = result["error"]
     _err_console.print(_literal(f"Error: {error['message']}"), style="bold red")
+    if error["code"] == "dependency_error":
+        return
     hints = {
+        "configuration_error": "Check execsql.conf [connect] or pass --dsn URL; --config FILE selects an additional configuration file.",
         "metadata_error": "Check catalog permissions and the adapter's schema-discovery support.",
         "unsupported_adapter": "Use a supported database adapter; see the schema-discovery reference.",
         "close_error": "The connection could not be closed. Check the database server and driver.",
     }
     hint = hints.get(error["code"])
     if hint is None:
-        hint = _connection_hint(dsn)
+        hint = (
+            _connection_hint(dsn)
+            if dsn is not None
+            else "Check the configured database target, driver and credentials; inspection never creates a database."
+        )
     _err_console.print(_literal(hint))
 
 
@@ -213,11 +222,55 @@ def print_file_inspection(
                 values.append(_literal(column["source_type"] or "unavailable"))
             columns.add_row(*values)
         _console.print(columns)
+    print_inspection_context(
+        result,
+        show_settings=show_settings,
+        show_config=show_config,
+        settings_label="Import settings",
+    )
+
+
+def _catalog_settings(result: dict[str, Any]) -> dict[str, str]:
+    """Present applicable connection policies without claiming they were exercised."""
+    settings = result["settings"]
+    if not settings:
+        return {}
+    adapter = result["adapter"]
+    shown = {"Database type": {"Access": "MS Access", "DSN": "ODBC DSN"}.get(adapter, adapter)}
+    if adapter not in ("SQLite", "DuckDB"):
+        prompt = settings["password_prompt"]
+        shown["Password prompting allowed"] = "Yes" if prompt else "No"
+        if prompt:
+            shown["Keyring allowed"] = "Yes" if settings["use_keyring"] else "No"
+    # Only these adapters use the configured encoding when opening a connection.
+    if adapter in ("MySQL", "Firebird") and settings.get("database_encoding") is not None:
+        shown["Connection encoding"] = settings["database_encoding"]
+    if adapter == "SQL Server":
+        shown["Trust server certificate"] = "Yes" if settings["trust_server_certificate"] else "No"
+    return shown
+
+
+def print_inspection_context(
+    result: dict[str, Any],
+    *,
+    show_settings: bool,
+    show_config: bool,
+    settings_label: str = "Inspection settings",
+) -> None:
+    """Render opt-in configuration provenance for any inspection scope."""
     if show_config:
         _console.print(
             _literal("Configuration files: " + (", ".join(result["config_files"]) or "none (built-in defaults)")),
         )
     if show_settings:
+        if "adapter" in result:
+            settings = _catalog_settings(result)
+            _console.print(_literal(settings_label + (":" if settings else ": none")))
+            for name, value in settings.items():
+                _console.print(_literal(f"  {name}: {value}"))
+            return
         _console.print(
-            _literal("Import settings: " + ", ".join(f"{name}={value}" for name, value in result["settings"].items())),
+            _literal(
+                settings_label + ": " + ", ".join(f"{name}={value}" for name, value in result["settings"].items()),
+            ),
         )

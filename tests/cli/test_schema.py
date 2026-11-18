@@ -1,6 +1,7 @@
 """Human-readable inspection and explicit JSON share the catalog contract."""
 
 import json
+import re
 import sqlite3
 
 import pytest
@@ -8,6 +9,17 @@ from typer.testing import CliRunner
 
 from execsql import inspect_schema
 from execsql.cli import app
+
+
+@pytest.fixture(autouse=True)
+def isolated_configuration(monkeypatch):
+    from execsql.config import ConfigData
+
+    monkeypatch.setattr(
+        ConfigData,
+        "_search_paths",
+        classmethod(lambda cls, script_path, config_file, start_dir=None: [str(config_file)] if config_file else []),
+    )
 
 
 @pytest.mark.parametrize("flag", ["--dsn", "--connection-string"])
@@ -74,7 +86,7 @@ def test_schema_summary_and_json_match_existing_filter(tmp_path, flag):
     assert text.exit_code == 0, text.output
     assert "main.samples" in text.stdout and "main.sample_ids" in text.stdout
     assert "2 object(s)" in text.stdout and "Primary key" in text.stdout
-    assert "execsql inspect table NAME" in text.stdout
+    assert "Use execsql inspect" not in text.stdout
     machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
     assert machine.exit_code == 0, machine.output
     assert json.loads(machine.stdout) == inspect_schema(dsn=dsn, schema="main")
@@ -106,8 +118,8 @@ def test_table_inspection_uses_literal_names_and_shows_details(tmp_path, kind):
 
 
 @pytest.mark.parametrize("command", ["schema", "table"])
-@pytest.mark.parametrize("arguments", [[], ["--dsn", "sqlite:///:memory:"], ["samples"]])
-def test_object_inspection_requires_name_and_connection(command, arguments):
+@pytest.mark.parametrize("arguments", [[], ["--dsn", "sqlite:///:memory:"]])
+def test_object_inspection_requires_name(command, arguments):
     result = CliRunner().invoke(app, ["inspect", command, *arguments])
     assert result.exit_code == 2
 
@@ -143,7 +155,7 @@ def test_default_output_is_a_readable_overview_and_selected_table_details(tmp_pa
     assert overview.exit_code == 0, overview.output
     assert "Object" in overview.stdout and "Columns" in overview.stdout
     assert "main.samples" in overview.stdout and "main.sample_ids" in overview.stdout
-    assert "3 object(s)" in overview.stdout and "execsql inspect table NAME" in overview.stdout
+    assert "3 object(s)" in overview.stdout and "Use execsql inspect" not in overview.stdout
     assert "schema_version" not in overview.stdout
     details = CliRunner().invoke(app, ["inspect", "table", "samples", *connection])
     assert details.exit_code == 0, details.output
@@ -164,6 +176,23 @@ def test_empty_database_shows_main_namespace_with_zero_counts(tmp_path):
     assert "0" in result.stdout
 
 
+def test_database_text_counts_dangling_view_but_json_and_table_report_detail_failure(tmp_path):
+    path = tmp_path / "broken-view.sqlite"
+    with sqlite3.connect(path) as db:
+        db.executescript("CREATE TABLE samples(value INT); CREATE VIEW broken AS SELECT * FROM missing;")
+    args = ["inspect", "database", "--dsn", f"sqlite:///{path}"]
+    text = CliRunner().invoke(app, args)
+    assert text.exit_code == 0, text.output
+    assert "Database: broken-view.sqlite" in text.stdout
+    assert re.search(r"main\s+1\s+1", text.stdout)
+    machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
+    assert machine.exit_code == 1
+    assert json.loads(machine.stdout)["error"]["code"] == "metadata_error"
+    table = CliRunner().invoke(app, ["inspect", "table", "broken", *args[2:]])
+    assert table.exit_code == 1
+    assert "metadata" in table.stderr.lower()
+
+
 def test_database_overview_and_json_retain_existing_metadata(tmp_path):
     path = tmp_path / "project.sqlite"
     with sqlite3.connect(path) as db:
@@ -173,9 +202,9 @@ def test_database_overview_and_json_retain_existing_metadata(tmp_path):
     text = CliRunner().invoke(app, args)
     assert text.exit_code == 0, text.output
     assert "Database: project.sqlite" in text.stdout and "Engine: SQLite" in text.stdout
-    assert "Namespace" in text.stdout and "Tables" in text.stdout and "Views" in text.stdout
-    assert "main" in text.stdout and "visible to this connection" in text.stdout
-    assert "execsql inspect schema NAME" in text.stdout
+    assert "Namespace" in text.stdout and "Visible tables" in text.stdout and "Visible views" in text.stdout
+    assert "main" in text.stdout and "Counts cover" not in text.stdout
+    assert "Use execsql inspect" not in text.stdout
     machine = CliRunner().invoke(app, [*args, "--output-format", "json"])
     assert machine.exit_code == 0, machine.output
     result = json.loads(machine.stdout)
@@ -206,6 +235,8 @@ def test_database_without_namespace_inventory_retains_object_overview(monkeypatc
     assert result.exit_code == 0, result.output
     assert "Database: project" in result.stdout and "Engine: Driver engine" in result.stdout
     assert "samples" in result.stdout and "1 object(s)" in result.stdout
+    assert "Columns" not in result.stdout and "Primary key" not in result.stdout
+    assert "Foreign keys" not in result.stdout
     assert ("Schema enumeration unavailable" in result.stdout) is (kind == "unknown")
 
 
@@ -285,7 +316,7 @@ def test_password_policy_keeps_json_and_redirected_input_noninteractive(monkeypa
     inspect = MagicMock(return_value={"success": True, "dialect": "SQLite", "tables": []})
     monkeypatch.setattr(discovery, "inspect_schema", inspect)
     for terminal, options, expected in [
-        (True, [], True),
+        (True, [], None),
         (False, [], False),
         (True, ["--no-passwd"], False),
         (True, ["--output-format", "json"], False),
@@ -307,6 +338,8 @@ def test_forced_password_prompt_rejects_redirected_input_and_conflicting_flags(s
 
 @pytest.mark.parametrize("scope", [["database"], ["schema", "main"], ["table", "samples"]])
 def test_error_output_never_echoes_credentials(monkeypatch, scope):
+    monkeypatch.setattr("execsql.schema._check_inspection_driver", lambda kind: None)
+
     def fail(*args, **kwargs):
         raise RuntimeError("password authentication failed: password=not-public postgresql://user:not-public@host/db")
 

@@ -115,9 +115,9 @@ execsql format [--check | -i] [--indent N] FILE_OR_DIR...
 execsql lint   [OPTIONS] FILE_OR_DIR...
 execsql config [SQL_SCRIPT] [--init] [--config FILE]
 execsql list   metacommands|encodings|plugins|keywords
-execsql inspect database --dsn URL
-execsql inspect schema NAME --dsn URL
-execsql inspect table NAME --dsn URL [--schema NAME]
+execsql inspect database [--dsn URL] [--config FILE]
+execsql inspect schema NAME [--dsn URL] [--config FILE]
+execsql inspect table NAME [--dsn URL] [--config FILE] [--schema NAME]
 execsql inspect file PATH [--sheet NAME] [--sample-rows N]
 execsql init   [DIR] [--script NAME] [--no-script] [--no-config] [--no-pre-commit]
 execsql lsp    [--check] [--log-level LEVEL] [--log-file PATH]
@@ -278,11 +278,31 @@ PostgreSQL's reserved `pg_*` schemas are hidden by default; an explicitly named
 schema remains inspectable.
 Use `--output-format json` for automation. Text mode on a terminal can prompt
 for a URL user's password; `--no-passwd` uses supplied or driver credentials.
+Omit `--dsn` to use configured connection defaults; `--config FILE` selects an
+additional configuration file. An explicit DSN determines the target and user.
+All inspection commands hide settings and configuration files by default;
+`--show-settings` and `--show-config` display them independently.
 
 Python callers can use `execsql.inspect_schema()` with a connection URL or an
-existing execsql adapter. Add `include_database=True` for unfiltered database
-identity and namespace counts. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
+existing execsql adapter, or with configured defaults and optional `config_file=`.
+Add `include_database=True` for unfiltered database
+identity and namespace counts; also set `include_details=False` to skip column/key
+queries, as the database text summary does. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
 for the versioned JSON contract and adapter coverage.
+
+Copy CREATE statements with SQL output:
+
+```sh
+execsql inspect file samples.csv --output-format sql --dialect postgres --table-name samples
+execsql inspect table samples --schema public --dsn postgresql://localhost/project --output-format sql
+```
+
+File SQL follows IMPORT's inferred types, observed nullability and identifier
+folding; it requires a full scan. Table SQL supports SQLite, DuckDB,
+MySQL/MariaDB and PostgreSQL 14+, with explicit errors for unsupported features.
+See [file SQL](https://execsql2.readthedocs.io/en/stable/reference/files/#sql-output)
+and [table SQL](https://execsql2.readthedocs.io/en/stable/reference/schema/#sql-output)
+for scope and examples.
 
 Inspect an importable file before loading it:
 

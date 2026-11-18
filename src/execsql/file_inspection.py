@@ -12,6 +12,7 @@ from typing import Any, cast
 from collections.abc import Iterable
 
 from execsql.exceptions import ErrInfo, ScriptExit
+from execsql.config import check_explicit_config_file
 from execsql.models import DataTable
 from execsql.state import RuntimeContext, active_context
 
@@ -102,7 +103,7 @@ def _scan(
     *,
     materialized: bool,
     stored: list[str] | None = None,
-) -> None:
+) -> DataTable:
     total = len(rows) if isinstance(rows, list) else None
     if sample_rows is None:
         table = DataTable(headers, rows)
@@ -120,6 +121,7 @@ def _scan(
         "total_rows": table.inputrows if complete else total,
         "source_materialized": materialized,
     }
+    return table
 
 
 def _workbook_names(filename: str, kind: str, encoding: str | None) -> list[str]:
@@ -162,7 +164,7 @@ def _read(
     delimiter: str | None,
     quote: str | None,
     skip_rows: int,
-) -> None:
+) -> DataTable | None:
     from execsql.importers.base import prepare_import_data
 
     enc = encoding or conf.import_encoding
@@ -187,16 +189,15 @@ def _read(
             )
             with closing(source.reader()) as rows:
                 headers = source._colhdrs(rows)
-                _scan(result, headers, rows, sample_rows, materialized=False)
+                return _scan(result, headers, rows, sample_rows, materialized=False)
         finally:
             source.close()
-        return
     stored = None
     if kind in _WORKBOOK:
         names = _workbook_names(filename, kind, encoding)
         result["worksheets"] = names
         if sheet is None:
-            return
+            return None
         if sheet.isdecimal() and 1 <= int(sheet) <= len(names):
             result["sheet"] = names[int(sheet) - 1]
         if kind == "ods":
@@ -226,7 +227,7 @@ def _read(
     # Spreadsheet readers already perform their first header pass; IMPORT's
     # shared loader performs another. Keep both passes, including empty sheets.
     headers, data = prepare_import_data(headers, data)
-    _scan(result, headers, data, sample_rows, materialized=True, stored=stored)
+    return _scan(result, headers, data, sample_rows, materialized=True, stored=stored)
 
 
 def inspect_file(
@@ -240,16 +241,37 @@ def inspect_file(
     quote: str | None = None,
     skip_rows: int = 0,
     config_file: str | Path | None = None,
+    dialect: str | None = None,
+    table_name: str | None = None,
+    schema: str | None = None,
 ) -> dict[str, Any]:
     """Inspect an importable local file without connecting, loading or writing.
 
     Full scans use IMPORT's inference and configuration. Samples are provisional;
     eager readers can still materialize the full source. Workbooks without a sheet
-    selector list worksheets without inferring columns. See the file reference.
+    selector list worksheets without inferring columns. Supplying *dialect* and
+    *table_name* adds a CREATE statement in ``sql``, using IMPORT's inference and
+    observed nullability. Optional *schema* names its destination namespace.
+    SQL generation requires a full scan and an explicit workbook sheet.
+    No destination connection is opened. See the file reference.
     """
     from execsql.api import _LibraryConfig
     from execsql.cli.run import _tool_config
     from execsql.utils.spreadsheet import INPUT_LIMIT_DEFAULTS
+    from execsql.ddl import DdlError, SqlDialect, file_sql
+
+    sql_requested = any(value is not None for value in (dialect, table_name, schema))
+    if sql_requested:
+        if not isinstance(dialect, str) or dialect not in {item.value for item in SqlDialect}:
+            raise ValueError("SQL output requires an explicit supported dialect.")
+        if not isinstance(table_name, str) or not table_name or "\x00" in table_name:
+            raise ValueError("SQL output requires a nonempty table_name without NUL characters.")
+        if schema is not None and (not isinstance(schema, str) or not schema or "\x00" in schema):
+            raise ValueError("schema must be a nonempty name without NUL characters.")
+        if schema is not None and dialect in ("access", "firebird"):
+            raise ValueError("The selected dialect has no schema namespace; omit schema.")
+        if sample_rows is not None:
+            raise ValueError("SQL output requires a full scan; omit sample_rows.")
 
     if not isinstance(file, (str, Path)):
         raise ValueError("file must be a local path.")
@@ -311,6 +333,8 @@ def inspect_file(
         "error": None,
     }
     ctx = RuntimeContext()
+    if sql_requested:
+        result["sql"] = None
     ctx.conf = cast(Any, _LibraryConfig())
     phase = "file"
     with active_context(ctx):
@@ -321,8 +345,7 @@ def inspect_file(
                 result["error"] = {"code": "unsupported_format", "message": "Unknown file extension; supply --format."}
                 return result
             phase = "configuration"
-            if config_file is not None and not Path(config_file).is_file():
-                raise FileNotFoundError("Configuration file does not exist.")
+            check_explicit_config_file(config_file)
             conf = _tool_config(str(config_file) if config_file is not None else None)
             ctx.conf = conf
             result["settings"] = {name: getattr(conf, name) for name in (*_SETTINGS, *INPUT_LIMIT_DEFAULTS)}
@@ -338,21 +361,33 @@ def inspect_file(
             for dependency in dependencies:
                 importlib.import_module(dependency)
             phase = "read"
-            _read(result, filename, kind, conf, sheet, sample_rows, encoding, delimiter, quote, skip_rows)
+            table = _read(result, filename, kind, conf, sheet, sample_rows, encoding, delimiter, quote, skip_rows)
+            if sql_requested:
+                phase = "sql"
+                if table is None:
+                    raise DdlError("sql_error", "SQL output for a workbook requires an explicit sheet.")
+                assert dialect is not None and table_name is not None
+                result["sql"] = file_sql(table, dialect, schema, table_name)
             result["success"] = True
         except (Exception, ScriptExit) as exc:
-            if phase == "dependency":
+            if isinstance(exc, DdlError):
+                message = exc.message
+            elif phase == "sql":
+                message = "Cannot generate SQL for the selected dialect and inferred column types."
+            elif phase == "configuration":
+                message = "Cannot load inspection configuration; check --config and execsql.conf settings."
+            elif phase == "dependency":
                 message = "Install execsql2[formats] with its working optional readers to inspect this format."
             elif isinstance(exc, ErrInfo):
                 message = exc.errmsg()
             elif isinstance(exc, ScriptExit):
                 message = "File reader halted."
             else:
-                message = (
-                    str(exc)
-                    if phase in ("file", "configuration")
-                    else "Cannot read file; check its format and parser settings."
-                )
+                message = str(exc) if phase == "file" else "Cannot read file; check its format and parser settings."
             result["columns"], result["scan"] = [], None
             result["error"] = {"code": f"{phase}_error", "message": message}
+            if sql_requested:
+                result["sql"] = None
+        if result["encoding"] is not None:
+            result["settings"]["import_encoding"] = result["encoding"]["name"]
     return result

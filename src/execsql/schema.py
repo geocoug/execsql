@@ -15,6 +15,18 @@ from execsql.db.base import Database
 
 __all__ = ["inspect_schema"]
 
+_DRIVERS: dict[str, tuple[tuple[str, ...], str | None]] = {
+    "l": (("sqlite3",), None),
+    "k": (("duckdb",), "duckdb"),
+    "p": (("psycopg",), "postgres"),
+    "m": (("pymysql",), "mysql"),
+    "s": (("pyodbc",), "mssql"),
+    "o": (("oracledb",), "oracle"),
+    "f": (("firebird.driver",), "firebird"),
+    "d": (("pyodbc",), "odbc"),
+    "a": (("win32com.client", "pyodbc"), "odbc"),
+}
+
 
 def _rows(db: Database, sql: str, params: list[Any] | None = None) -> list[Any]:
     """Run fixed catalog SQL with bound values and close its cursor."""
@@ -34,16 +46,11 @@ def _column(name: str, position: int, data_type: str | None, nullable: bool | No
     return {"name": name, "ordinal_position": position, "data_type": data_type, "nullable": nullable}
 
 
-def _table(schema: str | None, name: str, kind: str) -> dict[str, Any]:
-    return {
-        "catalog": None,
-        "schema": schema,
-        "name": name,
-        "kind": kind,
-        "columns": [],
-        "primary_key": [],
-        "foreign_keys": [],
-    }
+def _table(schema: str | None, name: str, kind: str, *, include_details: bool = True) -> dict[str, Any]:
+    item: dict[str, Any] = {"catalog": None, "schema": schema, "name": name, "kind": kind}
+    if include_details:
+        item.update(columns=[], primary_key=[], foreign_keys=[])
+    return item
 
 
 def _foreign_keys(rows: list[Any]) -> list[dict[str, Any]]:
@@ -64,7 +71,7 @@ def _foreign_keys(rows: list[Any]) -> list[dict[str, Any]]:
     return list(groups.values())
 
 
-def _sqlite(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _sqlite(db: Database, schema: str | None, table: str | None, include_details: bool = True) -> list[dict[str, Any]]:
     tables = []
     for _, namespace, _ in _rows(db, "PRAGMA database_list"):
         if schema is not None and schema != namespace:
@@ -78,7 +85,10 @@ def _sqlite(db: Database, schema: str | None, table: str | None) -> list[dict[st
         for name, kind in _rows(db, sql, params):
             if name.startswith("sqlite_") or (table is not None and name != table):
                 continue
-            item = _table(namespace, name, kind)
+            item = _table(namespace, name, kind, include_details=include_details)
+            tables.append(item)
+            if not include_details:
+                continue
             # PRAGMA arguments are identifiers, quoted separately from the schema.
             columns = _rows(db, f"PRAGMA {quoted}.table_xinfo({db.quote_identifier(name)})")
             item["columns"] = [
@@ -100,7 +110,6 @@ def _sqlite(db: Database, schema: str | None, table: str | None) -> list[dict[st
                     target_column = pk[ordinal] if ordinal < len(pk) else None
                 normalized.append((key, ordinal, column, namespace, target_table, target_column))
             item["foreign_keys"] = _foreign_keys(normalized)
-            tables.append(item)
     return tables
 
 
@@ -171,7 +180,12 @@ def _default_schema_clause(dialect: str, column: str) -> str:
     return clause
 
 
-def _information_schema(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _information_schema(
+    db: Database,
+    schema: str | None,
+    table: str | None,
+    include_details: bool = True,
+) -> list[dict[str, Any]]:
     dialect = db.type.dbms_id
     clauses, params = [], []
     if dialect in ("PostgreSQL", "DuckDB"):
@@ -190,7 +204,10 @@ def _information_schema(db: Database, schema: str | None, table: str | None) -> 
     for namespace, name, kind in _rows(db, _INFO_TABLES + " WHERE " + " AND ".join(clauses), params):
         if not _matches(namespace, name, schema, table):
             continue
-        item = _table(namespace, name, "view" if "VIEW" in kind.upper() else "table")
+        item = _table(namespace, name, "view" if "VIEW" in kind.upper() else "table", include_details=include_details)
+        tables.append(item)
+        if not include_details:
+            continue
         values = [namespace, name]
         column_sql = _INFO_COLUMNS
         pk_sql = {"PostgreSQL": _PG_PK, "MySQL": _MYSQL_PK}.get(dialect, _INFO_PK)
@@ -200,12 +217,44 @@ def _information_schema(db: Database, schema: str | None, table: str | None) -> 
             pk_sql = pk_sql.replace("WHERE ", "WHERE c.table_catalog = current_database() AND ", 1)
         item["columns"] = [_column(c, int(p), t, n == "YES") for c, p, t, n in _rows(db, column_sql, values)]
         item["primary_key"] = [r[0] for r in _rows(db, pk_sql, values)]
-        fk_sql = {"MySQL": _MYSQL_FK, "SQL Server": _MSSQL_FK, "PostgreSQL": _PG_FK}.get(dialect, _INFO_FK)
         if dialect == "DuckDB":
-            fk_sql += " AND k.table_catalog = current_database()"
-        item["foreign_keys"] = _foreign_keys(_rows(db, fk_sql, values))
-        tables.append(item)
+            item["foreign_keys"] = _duckdb_foreign_keys(db, namespace, name)
+        else:
+            fk_sql = {"MySQL": _MYSQL_FK, "SQL Server": _MSSQL_FK, "PostgreSQL": _PG_FK}.get(dialect, _INFO_FK)
+            item["foreign_keys"] = _foreign_keys(_rows(db, fk_sql, values))
     return tables
+
+
+def _duckdb_foreign_keys(db: Database, schema: str, table: str) -> list[dict[str, Any]]:
+    """Read one native row per constraint; DuckDB constraint names can collide."""
+    with db._cursor() as cursor:
+        cursor.execute("SELECT * FROM duckdb_constraints() LIMIT 0")
+        fields = {column[0] for column in cursor.description}
+    if "referenced_table" in fields:
+        sql = """SELECT constraint_name, constraint_column_names, schema_name,
+referenced_table, referenced_column_names FROM duckdb_constraints()
+WHERE database_name = current_database() AND schema_name = ? AND table_name = ?
+AND constraint_type = 'FOREIGN KEY' ORDER BY constraint_index"""
+    else:
+        # DuckDB 1.0 identifies the referenced unique key by its constraint index.
+        sql = """SELECT NULL, f.constraint_column_names, p.schema_name,
+p.table_name, p.constraint_column_names FROM duckdb_constraints() f
+LEFT JOIN (SELECT DISTINCT database_name, constraint_index, schema_name, table_name,
+constraint_column_names FROM duckdb_constraints() WHERE constraint_type IN ('PRIMARY KEY', 'UNIQUE')) p
+ON f.database_name = p.database_name AND f.constraint_index = p.constraint_index
+WHERE f.database_name = current_database() AND f.schema_name = ? AND f.table_name = ?
+AND f.constraint_type = 'FOREIGN KEY' ORDER BY f.constraint_index"""
+    return [
+        {
+            "name": name,
+            "columns": columns,
+            "referenced_catalog": None,
+            "referenced_schema": namespace,
+            "referenced_table": target,
+            "referenced_columns": referenced,
+        }
+        for name, columns, namespace, target, referenced in _rows(db, sql, [schema, table])
+    ]
 
 
 _ORACLE_TABLES = """SELECT owner, table_name, 'table' FROM all_tables
@@ -223,7 +272,7 @@ AND p.position = k.position
 WHERE c.constraint_type = 'R' AND c.owner = ? AND c.table_name = ?"""
 
 
-def _oracle(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _oracle(db: Database, schema: str | None, table: str | None, include_details: bool = True) -> list[dict[str, Any]]:
     sql = "SELECT owner, table_name, kind FROM (" + _ORACLE_TABLES.replace("'table'", "'table' kind") + ")"
     clauses = ["owner = ?" if schema is not None else "owner = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')"]
     params = [schema] if schema is not None else []
@@ -234,12 +283,14 @@ def _oracle(db: Database, schema: str | None, table: str | None) -> list[dict[st
     for namespace, name, kind in _rows(db, sql + " WHERE " + " AND ".join(clauses), params):
         if not _matches(namespace, name, schema, table):
             continue
-        item = _table(namespace, name, kind)
+        item = _table(namespace, name, kind, include_details=include_details)
+        tables.append(item)
+        if not include_details:
+            continue
         values = [namespace, name]
         item["columns"] = [_column(c, int(p), t, n == "Y") for c, p, t, n in _rows(db, _ORACLE_COLUMNS, values)]
         item["primary_key"] = [r[0] for r in _rows(db, _ORACLE_PK, values)]
         item["foreign_keys"] = _foreign_keys(_rows(db, _ORACLE_FK, values))
-        tables.append(item)
     return tables
 
 
@@ -263,7 +314,12 @@ AND ps.RDB$FIELD_POSITION = s.RDB$FIELD_POSITION
 WHERE c.RDB$RELATION_NAME = ?"""
 
 
-def _firebird(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _firebird(
+    db: Database,
+    schema: str | None,
+    table: str | None,
+    include_details: bool = True,
+) -> list[dict[str, Any]]:
     if schema is not None:  # No schema namespace exists in Firebird.
         return []
     sql = _FIREBIRD_TABLES + (" AND RDB$RELATION_NAME = ?" if table is not None else "")
@@ -272,7 +328,10 @@ def _firebird(db: Database, schema: str | None, table: str | None) -> list[dict[
         name = raw_name.rstrip()
         if table is not None and name != table:
             continue
-        item = _table(None, name, "view" if view is not None else "table")
+        item = _table(None, name, "view" if view is not None else "table", include_details=include_details)
+        tables.append(item)
+        if not include_details:
+            continue
         item["columns"] = [
             _column(
                 c.rstrip(),
@@ -290,7 +349,6 @@ def _firebird(db: Database, schema: str | None, table: str | None) -> list[dict[
             for k, p, c, t, r in _rows(db, _FIREBIRD_FK, [name])
         ]
         item["foreign_keys"] = _foreign_keys(links)
-        tables.append(item)
     return tables
 
 
@@ -315,7 +373,7 @@ def _literal_pattern(name: str | None, escape: str) -> str | None:
     return "".join(escape + c if c in escape + "%_" else c for c in name)
 
 
-def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str, Any]]:
+def _odbc(db: Database, schema: str | None, table: str | None, include_details: bool = True) -> list[dict[str, Any]]:
     from execsql.db.access import AccessDatabase
 
     if isinstance(db, AccessDatabase):
@@ -343,8 +401,16 @@ def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str,
             namespace, name, kind = row[1], row[2], row[3]
             if not _matches(namespace, name, schema, table):
                 continue
-            item = _table(namespace, name, "view" if "VIEW" in kind.upper() else "table")
+            item = _table(
+                namespace,
+                name,
+                "view" if "VIEW" in kind.upper() else "table",
+                include_details=include_details,
+            )
             item["catalog"] = row[0]
+            tables.append(item)
+            if not include_details:
+                continue
             # Pattern-based catalog methods may return extra objects. Filter the
             # returned identities exactly before accepting any of their metadata.
             cols = list(
@@ -383,7 +449,6 @@ def _odbc(db: Database, schema: str | None, table: str | None) -> list[dict[str,
                 assert fk is not None
                 for link in item["foreign_keys"]:
                     link["referenced_catalog"] = next(c[0] for c in fk if c[11] == link["name"])
-            tables.append(item)
     return tables
 
 
@@ -501,35 +566,57 @@ def inspect_schema(
     *,
     dsn: str | None = None,
     connection: Database | None = None,
+    config_file: str | Path | None = None,
     schema: str | None = None,
     table: str | None = None,
-    prompt_password: bool = False,
+    prompt_password: bool | None = False,
     include_database: bool = False,
+    include_details: bool = True,
+    include_sql: bool = False,
 ) -> dict[str, Any]:
     """Return JSON-compatible metadata; see the schema discovery reference.
 
-    Supply exactly one of *dsn* or an existing execsql adapter *connection*.
+    Supply *dsn*, an existing execsql adapter *connection*, or use configured
+    connection defaults. Owned connections read normal tool configuration plus
+    *config_file*. Borrowed connections do not load or apply configuration.
     Filters are exact, case-sensitive names, not SQL or wildcard expressions.
     Owned connections close on every exit; borrowed connections are never closed,
     committed or rolled back. Driver exceptions are deliberately not echoed, as
     their messages can contain credentials. KeyboardInterrupt/SystemExit propagate.
     Password prompting is disabled unless explicitly enabled with *prompt_password*;
     URL callers enabling it must provide an interactive terminal.
-    *include_database* adds identity and namespace counts to unfiltered inspection.
+    None for *prompt_password* follows configuration on an interactive terminal;
+    True/False explicitly allow/forbid prompting. *include_database* adds identity
+    and namespace counts to unfiltered inspection. With *include_database=True*,
+    *include_details=False* returns object identities and namespace counts without
+    querying columns or keys; those fields and their capability flags are omitted.
+    Detailed discovery remains the default, including for JSON database overviews.
+    *include_sql=True* adds the selected table/view's CREATE statement in ``sql``;
+    it requires a table filter and cannot be combined with *include_database*.
+    Set *include_details=False* to extract SQL without querying columns or keys.
     """
     from execsql.api import _connect_from_dsn, _LibraryConfig
     from execsql.exceptions import ScriptExit
     from execsql.state import RuntimeContext, active_context
 
-    if prompt_password and dsn is not None and (sys.stdin is None or not sys.stdin.isatty()):
+    terminal = sys.stdin is not None and sys.stdin.isatty()
+    if prompt_password and connection is None and not terminal:
         raise ValueError("Password prompting requires an interactive terminal.")
-    if (dsn is None) == (connection is None):
-        raise ValueError("Provide exactly one of 'dsn' or 'connection'.")
+    if connection is not None and (dsn is not None or config_file is not None):
+        raise ValueError("A supplied connection cannot be combined with 'dsn' or 'config_file'.")
+    if config_file is not None and (
+        not isinstance(config_file, (str, Path)) or not str(config_file) or "\x00" in str(config_file)
+    ):
+        raise ValueError("config_file must be a nonempty path without NUL characters.")
     for name, value in (("schema", schema), ("table", table)):
         if value is not None and (not isinstance(value, str) or not value or "\x00" in value):
             raise ValueError(f"{name} must be a nonempty name without NUL characters.")
     if include_database and (schema is not None or table is not None):
         raise ValueError("Database overview requires unfiltered inspection.")
+    if include_sql and (table is None or include_database):
+        raise ValueError("SQL output requires a table name and cannot include_database.")
+    if not include_details and not (include_database or include_sql):
+        raise ValueError("Inventory-only inspection requires include_database=True or include_sql=True.")
     result: dict[str, Any] = {
         "schema_version": 1,
         "success": False,
@@ -538,18 +625,62 @@ def inspect_schema(
         "capabilities": {},
         "tables": [],
         "error": None,
+        "settings": {},
+        "config_files": [],
     }
     if include_database:
         result.update(database=None, schemas=None)
+    if include_sql:
+        result["sql"] = None
     ctx = RuntimeContext()
     ctx.conf = cast(Any, _LibraryConfig())
-    phase = "connection"
+    phase = "configuration"
     db = connection
     with active_context(ctx):
         try:
             if db is None:
-                assert dsn is not None
-                db = _connect_from_dsn(dsn, prompt_password=prompt_password)
+                from execsql.cli.run import _tool_config, _connect_initial_db
+                from execsql.cli.dsn import _parse_connection_string
+                from execsql.config import check_explicit_config_file
+
+                check_explicit_config_file(config_file)
+                conf = _tool_config(str(config_file) if config_file is not None else None)
+                ctx.conf = conf
+                result["config_files"] = list(conf.files_read)
+                # Discovery must never inherit the run-only database-creation flag.
+                conf.new_db = False
+                conf.gui_level = 0
+                conf.passwd_prompt = bool(
+                    terminal and (conf.passwd_prompt if prompt_password is None else prompt_password),
+                )
+                if dsn is None:
+                    _validate_inspection_connection(conf)
+                else:
+                    phase = "connection"
+                    params = _parse_connection_string(dsn)
+                    conf.db_type = params["db_type"]
+                    if params["trust_server_certificate"] is not None:
+                        conf.trust_server_certificate = params["trust_server_certificate"]
+                    if params["password"] is not None:
+                        conf.passwd_prompt = False
+                result["settings"] = _inspection_settings(conf)
+                if include_sql and conf.db_type not in ("l", "k", "p", "m"):
+                    from execsql.ddl import DdlError
+
+                    raise DdlError(
+                        "unsupported_sql",
+                        "SQL output supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL tables/views.",
+                    )
+                phase = "dependency"
+                _check_inspection_driver(conf.db_type or "")
+                phase = "connection"
+                if dsn is None:
+                    db = _connect_initial_db(conf)
+                else:
+                    encoding_options: dict[str, Any] = (
+                        {"encoding": conf.db_encoding} if conf.db_encoding is not None else {}
+                    )
+                    db = _connect_from_dsn(dsn, prompt_password=conf.passwd_prompt, **encoding_options)
             phase = "metadata"
             dialect = db.type.dbms_id
             result["adapter"] = dialect
@@ -560,24 +691,41 @@ def inspect_schema(
                     "message": "Schema discovery is unavailable for this adapter.",
                 }
                 return result
+            if include_sql:
+                from execsql.ddl import DdlError, SUPPORTED_TABLE_SQL
+
+                if dialect not in SUPPORTED_TABLE_SQL:
+                    raise DdlError(
+                        "unsupported_sql",
+                        "SQL output supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL tables/views.",
+                    )
             keys = dialect not in ("Access", "DSN")
-            result["capabilities"] = {"tables": True, "columns": True, "primary_key": keys, "foreign_keys": keys}
-            tables = _READERS[dialect](db, schema, table)
-            if dialect in ("Access", "DSN"):
-                for field in ("primary_key", "foreign_keys"):
-                    result["capabilities"][field] = all(t[field] is not None for t in tables) if tables else None
-            for item in tables:
-                item["columns"].sort(key=lambda c: c["ordinal_position"])
+            result["capabilities"] = {"tables": True}
+            if include_details:
+                result["capabilities"].update(columns=True, primary_key=keys, foreign_keys=keys)
+            tables = _READERS[dialect](db, schema, table, include_details)
+            if include_details:
+                if dialect in ("Access", "DSN"):
+                    for field in ("primary_key", "foreign_keys"):
+                        result["capabilities"][field] = all(t[field] is not None for t in tables) if tables else None
+                for item in tables:
+                    item["columns"].sort(key=lambda c: c["ordinal_position"])
             if include_database:
                 identity, namespaces = _database_overview(db, tables)
                 result.update(database=identity, schemas=namespaces)
                 result["capabilities"]["schemas"] = namespaces is not None
+            if include_sql:
+                from execsql.ddl import table_sql
+
+                result["sql"] = table_sql(db, tables)
             result["tables"] = sorted(tables, key=lambda t: (t["catalog"] or "", t["schema"] or "", t["name"]))
             result["success"] = True
         except (Exception, ScriptExit) as exc:
-            result["error"] = _inspection_error(phase, exc, dsn)
+            result["error"] = _inspection_error(phase, exc, dsn, ctx.conf.db_type)
+            if include_sql:
+                result["sql"] = None
         finally:
-            if dsn is not None and db is not None:
+            if connection is None and db is not None:
                 try:
                     db.close()
                 except Exception:
@@ -585,13 +733,68 @@ def inspect_schema(
                     result["tables"] = []
                     if include_database:
                         result.update(database=None, schemas=None)
+                    if include_sql:
+                        result["sql"] = None
                     result["error"] = {"code": "close_error", "message": "Schema discovery connection cleanup failed."}
     return result
 
 
-def _inspection_error(phase: str, exc: BaseException, dsn: str | None) -> dict[str, str]:
+def _validate_inspection_connection(conf: Any) -> None:
+    """Reject incomplete config before the run connector's fatal-error paths."""
+    if conf.db_type in ("l", "k", "a"):
+        valid = bool(conf.db_file)
+    elif conf.db_type == "d":
+        valid = bool(conf.db)
+    elif conf.db_type in ("p", "m", "s", "o", "f"):
+        valid = bool(conf.server and conf.db)
+    else:
+        valid = False
+    if not valid:
+        raise ValueError("Incomplete connection configuration")
+
+
+def _inspection_settings(conf: Any) -> dict[str, Any]:
+    """Retain the nonsecret configuration snapshot; text filters applicability."""
+    settings = {
+        "db_type": conf.db_type,
+        "password_prompt": conf.passwd_prompt,
+        "use_keyring": conf.use_keyring,
+        "support_tier_notice": conf.support_tier_notice,
+    }
+    if conf.db_type not in ("l", "k"):
+        settings["database_encoding"] = conf.db_encoding
+    if conf.db_type == "s":
+        settings["trust_server_certificate"] = conf.trust_server_certificate
+    return settings
+
+
+def _check_inspection_driver(db_type: str) -> None:
+    """Fail before entering adapters that print fatal missing-driver errors."""
+    import importlib
+
+    for module in _DRIVERS[db_type][0]:
+        importlib.import_module(module)
+
+
+def _inspection_error(phase: str, exc: BaseException, dsn: str | None, db_type: str | None = None) -> dict[str, str]:
+    from execsql.ddl import DdlError
+
+    if isinstance(exc, DdlError):
+        return {"code": exc.code, "message": exc.message}
     """Classify common connection problems without echoing secret-bearing errors."""
     message = f"Schema discovery {phase} failed."
+    if phase == "configuration":
+        message = "Cannot load inspection configuration or connection defaults; check --config and [connect], or supply --dsn."
+    elif phase == "dependency":
+        from execsql.utils.errors import install_hint
+
+        extra = _DRIVERS.get(db_type or "", ((), None))[1]
+        if extra is None:
+            message = "Python SQLite support is unavailable; use a Python installation with sqlite3."
+        else:
+            message = "Database driver is unavailable or cannot be imported. " + install_hint(extra)
+            if db_type == "a":
+                message = "MS Access also requires Windows, pywin32 and an Access database engine. " + message
     if phase == "connection" and dsn is not None:
         from execsql.cli.dsn import _parse_connection_string
         from execsql.utils.auth import is_login_failure

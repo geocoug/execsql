@@ -13,6 +13,14 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql inspect file --output-format sql --dialect DIALECT --table-name NAME` produces CREATE TABLE SQL from IMPORT inference; optional `--schema` sets the destination namespace.
+
+- `execsql inspect table --output-format sql` produces CREATE definitions for SQLite, DuckDB, MySQL/MariaDB and PostgreSQL 14+ tables/views; unsupported adapters or features fail without partial SQL.
+
+- Python `inspect_file(dialect=..., table_name=...)` and `inspect_schema(include_sql=True, table=...)` include generated statements in an optional `sql` field.
+
+- Python `inspect_schema(include_database=True, include_details=False)` returns database identity, namespace counts and object names without querying columns or keys.
+
 - `execsql inspect file PATH` and Python `inspect_file()` report import formats, columns and inferred types without a database; support full scans, explicit samples, worksheet selection, configuration and text/JSON output for all built-in import formats.
 
 - Python `inspect_schema(include_database=True)` and `execsql inspect database --output-format json` include database identity and visible namespace counts, including namespaces with no visible tables/views.
@@ -27,6 +35,10 @@ ______________________________________________________________________
 
 ### Changed
 
+- `execsql inspect database` and `schema` omit navigation footers; database count headings identify visible tables and views.
+
+- `execsql inspect database|schema|table` and Python `inspect_schema()` honor connection configuration; omit `--dsn`/`dsn=` to use configured targets, or select a file with `--config`/`config_file=`. Text configuration details are opt-in with `--show-settings` and `--show-config`; JSON and Python include both.
+
 - `execsql inspect file` hides import settings and configuration files in text output by default; use `--show-settings` and `--show-config` to display them. JSON and Python reports retain both.
 
 - `execsql inspect database` prints database identity and a schema/namespace overview; use `inspect schema NAME` for objects or `inspect table NAME` for column/key details. Schema-less databases keep a flat object overview.
@@ -40,6 +52,28 @@ ______________________________________________________________________
 - **Nested substitution variables** expand faster in scripts with many defined variables.
 
 ### Fixed
+
+- `inspect table --output-format sql` preserves PostgreSQL literal settings and explicit MySQL/MariaDB timestamp time zones; SYSTEM time zones, unsupported session settings and PostgreSQL temporary tables fail explicitly.
+
+- `inspect file --output-format sql` rejects missing destination options before scanning and preserves Firebird's uppercase identifier folding.
+
+- `execsql inspect database|schema|table --show-settings` uses readable labels and database names, omitting inapplicable password, keyring, encoding and tier-notice controls.
+
+- `execsql inspect database` text summaries work when a visible view's column metadata is broken; schema-less databases list object names and kinds without column/key details.
+
+- `execsql inspect file` reports the actual reader encoding in effective settings, including explicit overrides and BOM detection.
+
+- Database inspection returns a silent `dependency_error` with an installation hint for unavailable or broken drivers; CLI diagnostics are printed once.
+
+- Database connections close when initial setup fails or is interrupted.
+
+- `execsql inspect` rejects missing or unreadable explicit configuration files.
+
+- `execsql inspect file` omits private configuration contents from error reports.
+
+- Database inspection uses terminal authentication even when GUI prompts are configured.
+
+- `execsql inspect` keeps distinct DuckDB foreign keys separate when constraint names collide.
 
 - Python `run()` retains the original failure before errors from an `ON ERROR_HALT` script, with each error's own source line and SQL.
 
