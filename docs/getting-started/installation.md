@@ -82,4 +82,4 @@ client library. These are listed in the [Requirements](requirements.md#requireme
 
 !!! tip "Keyring on headless Linux"
 
-    If you install the `auth` extra on a headless Linux server (no desktop environment), the keyring backend needs manual configuration. See [Keyring Platform Setup](../reference/security.md#keyring_setup) for instructions.
+    Installing `auth-plaintext` or `auth-encrypted` makes file backends available; you must also select a backend. See [Plaintext keyring on a shared Linux server](../reference/security.md#plaintext-keyring-setup) for installation, per-user backend selection, permissions, and verification. Install the extra in the same Python environment that runs execsql.
