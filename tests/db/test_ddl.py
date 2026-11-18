@@ -16,6 +16,13 @@ def isolated_configuration(monkeypatch):
     monkeypatch.setattr(ConfigData, "_search_paths", classmethod(lambda *args, **kwargs: []))
 
 
+def _open_backend(dbms, tmp_path):
+    db = open_backend(dbms, tmp_path)
+    if dbms in ("mysql", "mariadb"):
+        db.execute("SET SESSION time_zone = '+00:00'")
+    return db
+
+
 def _execute_sql(db, sql):
     # Session context emitted before the CREATE is separate from the opaque
     # native statement. Do not split semicolons inside defaults or expressions.
@@ -33,7 +40,7 @@ def _inspect(db, name, schema=None):
 
 @pytest.mark.parametrize("dbms", ["sqlite", "duckdb", "postgres", "mysql", "mariadb"])
 def test_native_table_and_view_round_trip(dbms, tmp_path):
-    db = open_backend(dbms, tmp_path)
+    db = _open_backend(dbms, tmp_path)
     parent, child, view = "ddl_parent", "ddl_child", "ddl_view"
     try:
         if dbms == "sqlite":
@@ -97,7 +104,7 @@ def test_native_table_and_view_round_trip(dbms, tmp_path):
     ],
 )
 def test_file_declarations_match_import_types_nullability_and_identifier_folding(dbms, dialect, tmp_path, monkeypatch):
-    db = open_backend(dbms, tmp_path)
+    db = _open_backend(dbms, tmp_path)
     path = tmp_path / "columns.csv"
     path.write_text("SampleID,Label Text,Price\n2,alpha,1.25\n3,,2.50\n")
     create = DataTable.create_table
@@ -132,7 +139,7 @@ def test_file_declarations_match_import_types_nullability_and_identifier_folding
 
 @pytest.mark.parametrize("dbms", ["mysql", "mariadb"])
 def test_mysql_view_creation_collation_and_client_encoding_are_preserved(dbms, tmp_path):
-    db = open_backend(dbms, tmp_path)
+    db = _open_backend(dbms, tmp_path)
     try:
         db.conn.set_character_set("latin1")
         db.execute("CREATE VIEW ddl_encoding_view AS SELECT 'é' AS label")
@@ -153,7 +160,7 @@ def test_mysql_view_creation_collation_and_client_encoding_are_preserved(dbms, t
 
 @pytest.mark.parametrize("dbms", ["mysql", "mariadb"])
 def test_mysql_timestamp_default_preserves_instant_across_destination_time_zones(dbms, tmp_path):
-    db = open_backend(dbms, tmp_path)
+    db = _open_backend(dbms, tmp_path)
     try:
         db.execute("SET SESSION time_zone = '+05:00'")
         db.execute("CREATE TABLE ddl_timestamp(value TIMESTAMP DEFAULT '2020-01-02 03:04:05')")
@@ -181,7 +188,7 @@ def test_mysql_timestamp_default_preserves_instant_across_destination_time_zones
 
 @pytest.mark.xdist_group("live-postgres")
 def test_postgres_literal_settings_preserve_default_values_without_changing_source(tmp_path):
-    db = open_backend("postgres", tmp_path)
+    db = _open_backend("postgres", tmp_path)
     try:
         db.conn.execute(r"""CREATE TABLE ddl_literals (
             day date DEFAULT DATE '2020-01-02',
@@ -224,7 +231,7 @@ def test_postgres_literal_settings_preserve_default_values_without_changing_sour
 @pytest.mark.xdist_group("live-postgres")
 @pytest.mark.parametrize("digits", [-3, 0])
 def test_postgres_lossy_float_output_is_refused(tmp_path, digits):
-    db = open_backend("postgres", tmp_path)
+    db = _open_backend("postgres", tmp_path)
     try:
         db.conn.execute("CREATE TABLE ddl_float(value float8 DEFAULT 1.23456789012345::float8)")
         db.conn.execute(f"SET extra_float_digits TO {digits}")
@@ -244,7 +251,7 @@ def test_postgres_lossy_float_output_is_refused(tmp_path, digits):
 def test_postgres_identity_generated_columns_constraints_and_search_path_round_trip(tmp_path):
     from psycopg.errors import CheckViolation
 
-    db = open_backend("postgres", tmp_path)
+    db = _open_backend("postgres", tmp_path)
     try:
         db.conn.execute("CREATE SCHEMA ddl_special")
         db.conn.execute("SET search_path TO ddl_special,public")
@@ -289,7 +296,7 @@ def test_postgres_identity_generated_columns_constraints_and_search_path_round_t
     ],
 )
 def test_postgres_unsupported_forms_fail_before_sql(creation, tmp_path):
-    db = open_backend("postgres", tmp_path)
+    db = _open_backend("postgres", tmp_path)
     try:
         db.conn.execute(creation)
         result = _inspect(db, "ddl_unsupported", "public")
@@ -303,7 +310,7 @@ def test_postgres_unsupported_forms_fail_before_sql(creation, tmp_path):
 
 @pytest.mark.xdist_group("live-postgres")
 def test_postgres_temporary_views_preserve_session_context(tmp_path):
-    db = open_backend("postgres", tmp_path)
+    db = _open_backend("postgres", tmp_path)
     try:
         db.conn.execute("CREATE TEMP TABLE \"temp's\"(id INT PRIMARY KEY, value text DEFAULT 'x')")
         namespace = db.conn.execute("SELECT pg_my_temp_schema()::regnamespace::text").fetchone()[0]
@@ -325,7 +332,7 @@ def test_postgres_temporary_views_preserve_session_context(tmp_path):
 @pytest.mark.xdist_group("live-postgres")
 @pytest.mark.parametrize("policy", ["PRESERVE ROWS", "DELETE ROWS", "DROP"])
 def test_postgres_temporary_table_sql_refuses_unknown_commit_policy(tmp_path, policy):
-    db = open_backend("postgres", tmp_path)
+    db = _open_backend("postgres", tmp_path)
     try:
         db.conn.execute(f"CREATE TEMP TABLE ddl_temporary(id INT) ON COMMIT {policy}")
         namespace = db.conn.execute("SELECT pg_my_temp_schema()::regnamespace::text").fetchone()[0]
@@ -350,7 +357,7 @@ def test_unsupported_adapters_never_query_metadata(adapter):
 
 
 def test_missing_and_ambiguous_sqlite_objects_are_not_successful_empty_sql(tmp_path):
-    db = open_backend("sqlite", tmp_path)
+    db = _open_backend("sqlite", tmp_path)
     try:
         db.conn.executescript(
             "ATTACH ':memory:' AS other; CREATE TABLE main.samples(x INT); CREATE TABLE other.samples(x INT);",
@@ -360,4 +367,26 @@ def test_missing_and_ambiguous_sqlite_objects_are_not_successful_empty_sql(tmp_p
         assert missing["error"]["code"] == "object_not_found" and missing["sql"] is None
         assert _inspect(db, "samples", "other")["success"]
     finally:
+        db.close()
+
+
+@pytest.mark.parametrize("dbms", ["mysql", "mariadb"])
+def test_mysql_system_zone_is_refused_without_changing_historical_timestamp_defaults(dbms, tmp_path):
+    db = open_backend(dbms, tmp_path)
+    try:
+        db.execute("SET SESSION time_zone = 'SYSTEM'")
+        db.execute("CREATE TABLE ddl_summer_default(ts TIMESTAMP DEFAULT '2020-07-02 03:04:05')")
+        db.execute("INSERT INTO ddl_summer_default VALUES ()")
+        with db._cursor() as cursor:
+            cursor.execute("SELECT UNIX_TIMESTAMP(ts) FROM ddl_summer_default")
+            before = cursor.fetchone()[0]
+        result = _inspect(db, "ddl_summer_default")
+        assert not result["success"] and result["error"]["code"] == "unsupported_sql_feature", result
+        assert result["sql"] is None and "SYSTEM" in result["error"]["message"]
+        with db._cursor() as cursor:
+            cursor.execute("SELECT @@time_zone, UNIX_TIMESTAMP(ts) FROM ddl_summer_default")
+            assert tuple(cursor.fetchone()) == ("SYSTEM", before)
+    finally:
+        db.execute("DROP TABLE IF EXISTS ddl_summer_default")
+        db.commit()
         db.close()

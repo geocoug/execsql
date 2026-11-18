@@ -310,7 +310,7 @@ New options in `execsql.conf`:
     on the existing connection. Unsupported adapters/features fail without partial
     SQL. PostgreSQL literal-format settings and MySQL/MariaDB session time zones
     accompany CREATE output; lossy PostgreSQL float formatting, PostgreSQL temporary
-    tables and ambiguous non-UTC MySQL SYSTEM time zones are refused explicitly.
+    tables and all MySQL SYSTEM session time zones are refused explicitly.
     No generated statement is executed; external dependency objects are not
     scripted. Python calls can request an optional sql field; default metadata is
     unchanged. See the file/schema references for options and fidelity limits.

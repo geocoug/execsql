@@ -124,23 +124,21 @@ def table_sql(db: Database, tables: list[dict[str, Any]]) -> str:
         )
         return _statement(rows[0][0] if rows else None)
     if dialect == "MySQL":
-        mode, collation, timezone, system_timezone = _rows(
+        mode, collation, timezone = _rows(
             db,
-            "SELECT @@sql_mode, @@collation_connection, @@time_zone, @@system_time_zone",
+            "SELECT @@sql_mode, @@collation_connection, @@time_zone",
         )[0]
         if set(mode.upper().split(",")) & {"NO_FIELD_OPTIONS", "NO_KEY_OPTIONS", "NO_TABLE_OPTIONS"}:
             raise DdlError("unsupported_sql_feature", "Current MySQL/MariaDB SQL mode omits definition details.")
         if not all(isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_,]*", value) for value in (mode, collation)):
             raise DdlError("sql_error", "The database returned invalid SQL session metadata.")
         if timezone == "SYSTEM":
-            # An abbreviation cannot recover historical daylight-saving rules,
-            # and SYSTEM on the destination may refer to a different zone.
-            if system_timezone not in ("UTC", "GMT"):
-                raise DdlError(
-                    "unsupported_sql_feature",
-                    "SQL output requires an explicit MySQL/MariaDB session time_zone or a UTC system time zone.",
-                )
-            timezone = "+00:00"
+            # Even UTC/GMT startup abbreviations cannot establish the system
+            # zone's historical rules (for example, London's summer BST).
+            raise DdlError(
+                "unsupported_sql_feature",
+                "SQL output requires an explicit MySQL/MariaDB session time_zone; SYSTEM is unsupported.",
+            )
         if not isinstance(timezone, str) or not re.fullmatch(r"[A-Za-z0-9_+:/-]+", timezone):
             raise DdlError("sql_error", "The database returned invalid SQL session metadata.")
         command = "VIEW" if kind == "view" else "TABLE"

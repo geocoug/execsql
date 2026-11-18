@@ -59,25 +59,26 @@ def test_firebird_file_sql_keeps_import_identifier_folding(tmp_path):
     assert '"SAMPLEID"' in report["sql"] and '"Label Text"' in report["sql"]
 
 
-@pytest.mark.parametrize("system_zone,expected", [("UTC", "+00:00"), ("GMT", "+00:00"), ("EST", None)])
-def test_mysql_system_time_zone_is_not_reinterpreted_on_destination(monkeypatch, system_zone, expected):
+@pytest.mark.parametrize("timezone", ["SYSTEM", "+05:00", "Europe/London"])
+def test_mysql_sql_requires_an_explicit_session_time_zone(monkeypatch, timezone):
     from execsql.ddl import DdlError, table_sql
 
     db = MagicMock()
     db.type.dbms_id = "MySQL"
     rows = MagicMock(
         side_effect=[
-            [("", "utf8mb4_general_ci", "SYSTEM", system_zone)],
+            [("", "utf8mb4_general_ci", timezone)],
             [("samples", "CREATE TABLE samples(id INT)")],
         ],
     )
     monkeypatch.setattr("execsql.schema._rows", rows)
     tables = [{"schema": "test", "name": "samples", "kind": "table"}]
-    if expected:
-        assert f"SET SESSION time_zone = '{expected}';" in table_sql(db, tables)
-    else:
+    if timezone == "SYSTEM":
         with pytest.raises(DdlError, match="explicit.*time_zone"):
             table_sql(db, tables)
+        assert rows.call_count == 1
+    else:
+        assert f"SET SESSION time_zone = '{timezone}';" in table_sql(db, tables)
 
 
 @pytest.mark.parametrize("destination", [[], ["--dialect", "sqlite"], ["--table-name", "samples"]])

@@ -436,10 +436,12 @@ PostgreSQL emits the source's effective `search_path`, `DateStyle`, `IntervalSty
 their meaning. SQL extraction requires `extra_float_digits > 0`; lower settings
 can already lose precision when PostgreSQL decompiles floating-point constants.
 MySQL/MariaDB emits its SQL mode, session time zone and the relevant connection
-collation (the stored creation collation for views). A `SYSTEM` time zone is
-supported only when the server reports UTC or GMT, emitted as `+00:00`; otherwise
-configure an explicit session `time_zone` before requesting SQL. An abbreviation
-alone cannot recover historical daylight-saving rules for timestamp defaults.
+collation (the stored creation collation for views). A `SYSTEM` session time zone
+is always refused, even if the server reports a UTC/GMT abbreviation: a startup
+abbreviation cannot establish historical daylight-saving rules for timestamp
+defaults. Configure an explicit named zone or numeric offset before requesting
+SQL. CLI connections inherit the server's global `time_zone`; Python callers can
+set `time_zone` on their borrowed connection before calling `inspect_schema()`.
 Destination client encoding stays under the destination driver's control. These SET statements
 are output, never executed on the source connection. They affect the destination
 session if you execute the script. PostgreSQL reads the definition through the

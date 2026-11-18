@@ -53,7 +53,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `inspect table --output-format sql` preserves PostgreSQL literal settings and MySQL/MariaDB timestamp time zones; unsupported session settings and PostgreSQL temporary tables fail explicitly.
+- `inspect table --output-format sql` preserves PostgreSQL literal settings and explicit MySQL/MariaDB timestamp time zones; SYSTEM time zones, unsupported session settings and PostgreSQL temporary tables fail explicitly.
 
 - `inspect file --output-format sql` rejects missing destination options before scanning and preserves Firebird's uppercase identifier folding.
 
