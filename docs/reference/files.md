@@ -139,7 +139,9 @@ CREATE TABLE.
 
 Identifiers are escaped for the chosen dialect, preserving IMPORT's existing
 unquoted-name folding: for example PostgreSQL's ASCII `SampleID` becomes
-`"sampleid"`, while a name containing spaces retains its quoted spelling. This
+`"sampleid"`, and Firebird/Oracle's becomes `"SAMPLEID"`, while a name containing
+spaces retains its quoted spelling. Missing destination options fail before the
+file is scanned. This
 changes SQL formatting, not the names/types/nullability IMPORT would create for
 valid identifiers. The existing import path and stored-value conversions are
 unchanged. Review observed lengths and numeric ranges before reusing the table

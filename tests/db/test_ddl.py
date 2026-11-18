@@ -151,6 +151,95 @@ def test_mysql_view_creation_collation_and_client_encoding_are_preserved(dbms, t
         db.close()
 
 
+@pytest.mark.parametrize("dbms", ["mysql", "mariadb"])
+def test_mysql_timestamp_default_preserves_instant_across_destination_time_zones(dbms, tmp_path):
+    db = open_backend(dbms, tmp_path)
+    try:
+        db.execute("SET SESSION time_zone = '+05:00'")
+        db.execute("CREATE TABLE ddl_timestamp(value TIMESTAMP DEFAULT '2020-01-02 03:04:05')")
+        result = _inspect(db, "ddl_timestamp")
+        assert result["success"], result
+        with db._cursor() as cursor:
+            cursor.execute("SELECT @@time_zone")
+            assert cursor.fetchone()[0] == "+05:00"
+        db.execute("INSERT INTO ddl_timestamp VALUES ()")
+        with db._cursor() as cursor:
+            cursor.execute("SELECT UNIX_TIMESTAMP(value) FROM ddl_timestamp")
+            before = cursor.fetchone()[0]
+        db.execute("DROP TABLE ddl_timestamp")
+        db.execute("SET SESSION time_zone = '+00:00'")
+        _execute_sql(db, result["sql"])
+        db.execute("INSERT INTO ddl_timestamp VALUES ()")
+        with db._cursor() as cursor:
+            cursor.execute("SELECT UNIX_TIMESTAMP(value) FROM ddl_timestamp")
+            assert cursor.fetchone()[0] == before
+    finally:
+        db.execute("DROP TABLE IF EXISTS ddl_timestamp")
+        db.commit()
+        db.close()
+
+
+@pytest.mark.xdist_group("live-postgres")
+def test_postgres_literal_settings_preserve_default_values_without_changing_source(tmp_path):
+    db = open_backend("postgres", tmp_path)
+    try:
+        db.conn.execute(r"""CREATE TABLE ddl_literals (
+            day date DEFAULT DATE '2020-01-02',
+            moment timestamp DEFAULT TIMESTAMP '2020-01-02 03:04:05',
+            instant timestamptz DEFAULT TIMESTAMPTZ '2020-01-02 03:04:05+05',
+            duration interval DEFAULT INTERVAL '-26 hours',
+            label text DEFAULT E'left\\right',
+            amount money DEFAULT 1234.56::money,
+            fraction float8 DEFAULT 1.23456789012345::float8
+        )""")
+        query = "INSERT INTO ddl_literals DEFAULT VALUES RETURNING day,moment,instant,duration,label,amount::numeric,fraction"
+        before = db.conn.execute(query, binary=True).fetchone()
+        source = {
+            "DateStyle": "SQL, DMY",
+            "IntervalStyle": "sql_standard",
+            "standard_conforming_strings": "off",
+            "lc_monetary": db.conn.execute("SHOW lc_monetary").fetchone()[0],
+            "TimeZone": "+05:00",
+            "backslash_quote": "off",
+            "extra_float_digits": "1",
+        }
+        for name, value in source.items():
+            db.conn.execute(f"SET {name} TO '{value}'")
+        settings_query = "SELECT name,setting FROM pg_settings WHERE lower(name) = ANY(%s) ORDER BY name"
+        names = [name.lower() for name in source]
+        original_settings = db.conn.execute(settings_query, [names]).fetchall()
+        result = _inspect(db, "ddl_literals", "public")
+        assert result["success"], result
+        assert db.conn.execute(settings_query, [names]).fetchall() == original_settings
+        db.conn.execute("DROP TABLE ddl_literals")
+        db.conn.execute("RESET ALL")
+        db.conn.execute("SET lc_monetary TO 'C'")
+        _execute_sql(db, result["sql"])
+        assert db.conn.execute(query, binary=True).fetchone() == before
+    finally:
+        db.rollback()
+        db.close()
+
+
+@pytest.mark.xdist_group("live-postgres")
+@pytest.mark.parametrize("digits", [-3, 0])
+def test_postgres_lossy_float_output_is_refused(tmp_path, digits):
+    db = open_backend("postgres", tmp_path)
+    try:
+        db.conn.execute("CREATE TABLE ddl_float(value float8 DEFAULT 1.23456789012345::float8)")
+        db.conn.execute(f"SET extra_float_digits TO {digits}")
+        result = _inspect(db, "ddl_float", "public")
+        assert not result["success"] and result["error"]["code"] == "unsupported_sql_feature", result
+        assert result["sql"] is None and "extra_float_digits" in result["error"]["message"]
+        assert db.conn.execute("SHOW extra_float_digits").fetchone()[0] == str(digits)
+        assert db.conn.execute("INSERT INTO ddl_float DEFAULT VALUES RETURNING value", binary=True).fetchone() == (
+            1.23456789012345,
+        )
+    finally:
+        db.rollback()
+        db.close()
+
+
 @pytest.mark.xdist_group("live-postgres")
 def test_postgres_identity_generated_columns_constraints_and_search_path_round_trip(tmp_path):
     from psycopg.errors import CheckViolation
@@ -213,16 +302,11 @@ def test_postgres_unsupported_forms_fail_before_sql(creation, tmp_path):
 
 
 @pytest.mark.xdist_group("live-postgres")
-def test_postgres_views_and_temporary_tables_preserve_session_context(tmp_path):
+def test_postgres_temporary_views_preserve_session_context(tmp_path):
     db = open_backend("postgres", tmp_path)
     try:
         db.conn.execute("CREATE TEMP TABLE \"temp's\"(id INT PRIMARY KEY, value text DEFAULT 'x')")
         namespace = db.conn.execute("SELECT pg_my_temp_schema()::regnamespace::text").fetchone()[0]
-        report = _inspect(db, "temp's", namespace)
-        assert report["success"], report
-        assert 'CREATE TEMP TABLE "temp\'s"' in report["sql"]
-        db.conn.execute('DROP TABLE "temp\'s"')
-        _execute_sql(db, report["sql"])
         db.conn.execute(
             'CREATE VIEW ddl_security_view ("Alias") WITH(security_barrier=true) AS SELECT id FROM "temp\'s"',
         )
@@ -232,6 +316,22 @@ def test_postgres_views_and_temporary_tables_preserve_session_context(tmp_path):
         assert "security_barrier=true" in view["sql"] and '"Alias"' in view["sql"]
         db.conn.execute("DROP VIEW ddl_security_view")
         _execute_sql(db, view["sql"])
+        assert db.conn.info.transaction_status.name == "INTRANS"
+    finally:
+        db.rollback()
+        db.close()
+
+
+@pytest.mark.xdist_group("live-postgres")
+@pytest.mark.parametrize("policy", ["PRESERVE ROWS", "DELETE ROWS", "DROP"])
+def test_postgres_temporary_table_sql_refuses_unknown_commit_policy(tmp_path, policy):
+    db = open_backend("postgres", tmp_path)
+    try:
+        db.conn.execute(f"CREATE TEMP TABLE ddl_temporary(id INT) ON COMMIT {policy}")
+        namespace = db.conn.execute("SELECT pg_my_temp_schema()::regnamespace::text").fetchone()[0]
+        result = _inspect(db, "ddl_temporary", namespace)
+        assert not result["success"] and result["error"]["code"] == "unsupported_sql_feature", result
+        assert "ON COMMIT" in result["error"]["message"] and result["sql"] is None
         assert db.conn.info.transaction_status.name == "INTRANS"
     finally:
         db.rollback()

@@ -50,6 +50,49 @@ def test_file_sql_quotes_identifiers_and_keeps_import_case_folding(tmp_path):
     assert '"sampleid"' in report["sql"] and '"select"' in report["sql"] and '"a""b"' in report["sql"]
 
 
+def test_firebird_file_sql_keeps_import_identifier_folding(tmp_path):
+    path = tmp_path / "input.csv"
+    path.write_text("SampleID,Label Text\n2,alpha\n")
+    report = inspect_file(path, dialect="firebird", table_name="Samples")
+    assert report["success"], report
+    assert 'CREATE TABLE "SAMPLES"' in report["sql"]
+    assert '"SAMPLEID"' in report["sql"] and '"Label Text"' in report["sql"]
+
+
+@pytest.mark.parametrize("system_zone,expected", [("UTC", "+00:00"), ("GMT", "+00:00"), ("EST", None)])
+def test_mysql_system_time_zone_is_not_reinterpreted_on_destination(monkeypatch, system_zone, expected):
+    from execsql.ddl import DdlError, table_sql
+
+    db = MagicMock()
+    db.type.dbms_id = "MySQL"
+    rows = MagicMock(
+        side_effect=[
+            [("", "utf8mb4_general_ci", "SYSTEM", system_zone)],
+            [("samples", "CREATE TABLE samples(id INT)")],
+        ],
+    )
+    monkeypatch.setattr("execsql.schema._rows", rows)
+    tables = [{"schema": "test", "name": "samples", "kind": "table"}]
+    if expected:
+        assert f"SET SESSION time_zone = '{expected}';" in table_sql(db, tables)
+    else:
+        with pytest.raises(DdlError, match="explicit.*time_zone"):
+            table_sql(db, tables)
+
+
+@pytest.mark.parametrize("destination", [[], ["--dialect", "sqlite"], ["--table-name", "samples"]])
+def test_cli_file_sql_requires_destination_before_scanning(tmp_path, monkeypatch, destination):
+    scan = MagicMock()
+    monkeypatch.setattr("execsql.file_inspection.inspect_file", scan)
+    path = tmp_path / "input.csv"
+    path.write_text("id\n1\n")
+    result = CliRunner().invoke(app, ["inspect", "file", str(path), "--output-format", "sql", *destination])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert "requires both --dialect and --table-name" in result.stderr
+    scan.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [

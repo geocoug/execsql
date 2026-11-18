@@ -57,7 +57,7 @@ class _FileDialect(DbType):
                 return self.source.quoted(dbms_object)
             if self.dbms_id == "PostgreSQL":
                 dbms_object = dbms_object.lower()
-            elif self.dbms_id == "Oracle":
+            elif self.dbms_id in ("Oracle", "Firebird"):
                 dbms_object = dbms_object.upper()
         return _quote(dbms_object, self.dbms_id)
 
@@ -124,10 +124,24 @@ def table_sql(db: Database, tables: list[dict[str, Any]]) -> str:
         )
         return _statement(rows[0][0] if rows else None)
     if dialect == "MySQL":
-        mode, collation = _rows(db, "SELECT @@sql_mode, @@collation_connection")[0]
+        mode, collation, timezone, system_timezone = _rows(
+            db,
+            "SELECT @@sql_mode, @@collation_connection, @@time_zone, @@system_time_zone",
+        )[0]
         if set(mode.upper().split(",")) & {"NO_FIELD_OPTIONS", "NO_KEY_OPTIONS", "NO_TABLE_OPTIONS"}:
             raise DdlError("unsupported_sql_feature", "Current MySQL/MariaDB SQL mode omits definition details.")
         if not all(isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_,]*", value) for value in (mode, collation)):
+            raise DdlError("sql_error", "The database returned invalid SQL session metadata.")
+        if timezone == "SYSTEM":
+            # An abbreviation cannot recover historical daylight-saving rules,
+            # and SYSTEM on the destination may refer to a different zone.
+            if system_timezone not in ("UTC", "GMT"):
+                raise DdlError(
+                    "unsupported_sql_feature",
+                    "SQL output requires an explicit MySQL/MariaDB session time_zone or a UTC system time zone.",
+                )
+            timezone = "+00:00"
+        if not isinstance(timezone, str) or not re.fullmatch(r"[A-Za-z0-9_+:/-]+", timezone):
             raise DdlError("sql_error", "The database returned invalid SQL session metadata.")
         command = "VIEW" if kind == "view" else "TABLE"
         rows = _rows(db, f"SHOW CREATE {command} {db.quote_identifier(namespace)}.{db.quote_identifier(name)}")
@@ -138,7 +152,10 @@ def table_sql(db: Database, tables: list[dict[str, Any]]) -> str:
             raise DdlError("sql_error", "The database returned invalid SQL session metadata.")
         # Leave client encoding to the destination driver. SET NAMES would change
         # the server's decoder without updating that driver's own text encoder.
-        return f"SET SESSION sql_mode = '{mode}';\nSET collation_connection = '{collation}';\n" + sql
+        return (
+            f"SET SESSION sql_mode = '{mode}';\nSET collation_connection = '{collation}';\n"
+            f"SET SESSION time_zone = '{timezone}';\n" + sql
+        )
     if dialect == "PostgreSQL":
         return _postgres_sql(db, namespace, name)
     raise DdlError("unsupported_sql", "SQL output supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL tables/views.")
@@ -164,7 +181,10 @@ COALESCE((SELECT jsonb_agg(to_jsonb(k) || jsonb_build_object(
     'definition', pg_catalog.pg_get_constraintdef(k.oid, false)) ORDER BY k.conname)
     FROM pg_catalog.pg_constraint k WHERE k.conrelid = c.oid), '[]'::jsonb),
 CASE WHEN c.relkind = 'v' THEN pg_catalog.pg_get_viewdef(c.oid, false) END,
-EXISTS(SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid OR i.inhparent = c.oid)
+EXISTS(SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid OR i.inhparent = c.oid),
+(SELECT jsonb_object_agg(setting, pg_catalog.current_setting(setting)) FROM unnest(ARRAY[
+    'DateStyle', 'IntervalStyle', 'standard_conforming_strings', 'lc_monetary',
+    'TimeZone', 'backslash_quote', 'extra_float_digits']) AS settings(setting))
 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 LEFT JOIN pg_catalog.pg_am am ON am.oid = c.relam
 WHERE n.nspname = ? AND c.relname = ?"""
@@ -178,7 +198,12 @@ def _postgres_sql(db: Database, namespace: str, name: str) -> str:
     rows = _rows(db, _PG_DEFINITION, [namespace, name])
     if len(rows) != 1:
         raise DdlError("sql_error", "The selected object changed during SQL inspection; retry the command.")
-    relation, namespace, access_method, search_path, columns, constraints, view, inherited = rows[0]
+    relation, namespace, access_method, search_path, columns, constraints, view, inherited, settings = rows[0]
+    if int(settings["extra_float_digits"]) <= 0:
+        raise DdlError(
+            "unsupported_sql_feature",
+            "PostgreSQL SQL output requires extra_float_digits greater than zero to preserve floating-point literals.",
+        )
     kind = relation["relkind"]
     if kind not in ("r", "v") or relation.get("relispartition") or int(relation["reloftype"]) or inherited:
         raise DdlError(
@@ -186,11 +211,21 @@ def _postgres_sql(db: Database, namespace: str, name: str) -> str:
             "PostgreSQL SQL output covers ordinary tables and views, not partitioned, inherited, typed, foreign or materialized objects.",
         )
     temporary = relation["relpersistence"] == "t"
+    if temporary and kind == "r":
+        raise DdlError(
+            "unsupported_sql_feature",
+            "PostgreSQL temporary-table ON COMMIT policy is unavailable through read-only catalog inspection.",
+        )
     qualified = db.quote_identifier(name) if temporary else db.quote_qualified_identifier(namespace, name)
     # Keep server-decompiled expressions resolved as in the source, without SET
     # on the inspected connection. Required dependency objects are not recreated.
     paths = ["pg_temp" if path.startswith("pg_temp_") else path for path in search_path]
     context = "SET search_path TO " + ", ".join(db.quote_identifier(path) for path in paths) + ";\n"
+    for setting, value in settings.items():
+        # E strings with doubled backslashes/quotes work regardless of the
+        # destination's standard_conforming_strings setting.
+        literal = value.replace("\\", "\\\\").replace("'", "''")
+        context += f"SET {setting} TO E'{literal}';\n"
     if kind == "v":
         view_options = []
         for option in relation["reloptions"] or []:

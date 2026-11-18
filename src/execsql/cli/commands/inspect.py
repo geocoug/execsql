@@ -257,6 +257,8 @@ def file_cmd(
     from execsql.cli.inspection import _literal
 
     sql_requested = output_format is SqlOutputFormat.sql
+    if sql_requested and (dialect is None or not table_name):
+        raise typer.BadParameter("SQL output requires both --dialect and --table-name.")
     if sql_requested and (show_settings or show_config or sample_rows is not None):
         raise typer.BadParameter("SQL output requires a full scan and cannot use --show-settings or --show-config.")
     if not sql_requested and any(value is not None for value in (dialect, table_name, schema)):

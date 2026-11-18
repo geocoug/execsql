@@ -53,6 +53,10 @@ ______________________________________________________________________
 
 ### Fixed
 
+- `inspect table --output-format sql` preserves PostgreSQL literal settings and MySQL/MariaDB timestamp time zones; unsupported session settings and PostgreSQL temporary tables fail explicitly.
+
+- `inspect file --output-format sql` rejects missing destination options before scanning and preserves Firebird's uppercase identifier folding.
+
 - `execsql inspect database|schema|table --show-settings` uses readable labels and database names, omitting inapplicable password, keyring, encoding and tier-notice controls.
 
 - `execsql inspect database` text summaries work when a visible view's column metadata is broken; schema-less databases list object names and kinds without column/key details.

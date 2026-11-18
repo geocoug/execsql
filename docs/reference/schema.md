@@ -415,7 +415,8 @@ prompts automatically; use `--prompt-password` on a terminal if needed.
 Oracle, SQL Server, Firebird, Access and generic ODBC SQL extraction are explicitly
 unsupported. Their normal text/JSON inspection remains available.
 
-PostgreSQL refuses partitioned tables/partitions, inheritance parents/children,
+PostgreSQL refuses temporary tables (their `ON COMMIT` policy is not exposed by
+read-only catalogs), partitioned tables/partitions, inheritance parents/children,
 typed/foreign/materialized objects, unvalidated constraints, custom table storage
 options/tablespaces/access methods, custom column storage/compression, row-security
 settings and nondefault replica identity. These cases return an explicit error;
@@ -429,10 +430,17 @@ are retained. Dependencies must already exist when executing the SQL. Native
 SQLite/DuckDB/MySQL output retains the engine's qualification choices, so execute
 it in the intended destination database/schema.
 
-PostgreSQL emits the source's effective `search_path` before CREATE so native
-type/expression references resolve in the same context. MySQL/MariaDB emits its
-SQL mode and the relevant connection collation (the stored creation collation for
-views). Destination client encoding stays under the destination driver's control. These SET statements
+PostgreSQL emits the source's effective `search_path`, `DateStyle`, `IntervalStyle`,
+`standard_conforming_strings`, `lc_monetary`, `TimeZone`, `backslash_quote` and
+`extra_float_digits` before CREATE so native references and literal values retain
+their meaning. SQL extraction requires `extra_float_digits > 0`; lower settings
+can already lose precision when PostgreSQL decompiles floating-point constants.
+MySQL/MariaDB emits its SQL mode, session time zone and the relevant connection
+collation (the stored creation collation for views). A `SYSTEM` time zone is
+supported only when the server reports UTC or GMT, emitted as `+00:00`; otherwise
+configure an explicit session `time_zone` before requesting SQL. An abbreviation
+alone cannot recover historical daylight-saving rules for timestamp defaults.
+Destination client encoding stays under the destination driver's control. These SET statements
 are output, never executed on the source connection. They affect the destination
 session if you execute the script. PostgreSQL reads the definition through the
 existing connection; no `pg_dump`, extra process or second login is required.
