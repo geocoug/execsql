@@ -13,6 +13,12 @@ ______________________________________________________________________
 
 ### Added
 
+- `execsql inspect file --output-format sql --dialect DIALECT --table-name NAME` produces CREATE TABLE SQL from IMPORT inference; optional `--schema` sets the destination namespace.
+
+- `execsql inspect table --output-format sql` produces CREATE definitions for SQLite, DuckDB, MySQL/MariaDB and PostgreSQL 14+ tables/views; unsupported adapters or features fail without partial SQL.
+
+- Python `inspect_file(dialect=..., table_name=...)` and `inspect_schema(include_sql=True, table=...)` include generated statements in an optional `sql` field.
+
 - Python `inspect_schema(include_database=True, include_details=False)` returns database identity, namespace counts and object names without querying columns or keys.
 
 - `execsql inspect file PATH` and Python `inspect_file()` report import formats, columns and inferred types without a database; support full scans, explicit samples, worksheet selection, configuration and text/JSON output for all built-in import formats.

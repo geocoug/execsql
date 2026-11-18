@@ -93,7 +93,7 @@ metadata = inspect_schema(
 ```
 
 `include_details` defaults to `True`. Setting it to `False` requires
-`include_database=True` and returns only `catalog`, `schema`, `name` and `kind`
+`include_database=True` (or the SQL extraction mode below) and returns only `catalog`, `schema`, `name` and `kind`
 for each entry in `tables`. It omits the `columns`, `primary_key` and `foreign_keys`
 fields and their capability entries because those details were not requested.
 The mode reads neither column nor key metadata; inventory query counts do not grow
@@ -389,6 +389,72 @@ Codes are `configuration_error`, `dependency_error`, `connection_error`, `metada
 `unsupported_adapter`. A failure before connecting has `adapter` and `dialect`
 set to `null` and `capabilities: {}`. Real query failures are never converted into
 successful empty results or unsupported capabilities.
+
+## SQL output
+
+Produce a CREATE statement for exactly one selected table or view:
+
+```sh
+execsql inspect table samples --schema public --dsn postgresql://analyst@host/project --output-format sql > samples.sql
+```
+
+SQL output is available only on `inspect table` and `inspect file`. Table SQL uses
+the source dialect; it does not translate to another DBMS. Zero matches or multiple
+unqualified matches fail; use `--schema` to select one identity. SQL stdout contains
+only complete SQL, with a final newline. Settings/config display flags are rejected.
+Errors go to stderr with a nonzero exit status and empty SQL stdout. SQL mode never
+prompts automatically; use `--prompt-password` on a terminal if needed.
+
+| Source adapter | Definition source and supported scope                                                                                                                                       |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SQLite         | Stored CREATE TABLE/VIEW text, including constraints, generated columns and table options.                                                                                  |
+| DuckDB         | Engine-produced CREATE statements from `duckdb_tables()` / `duckdb_views()`.                                                                                                |
+| MySQL/MariaDB  | SHOW CREATE TABLE/VIEW, preserving the engine's native definition. Modes that omit field/key/table details are refused.                                                     |
+| PostgreSQL 14+ | Ordinary tables and views, including full type declarations, array dimensions, collations, defaults, identity options, generated columns and native constraint definitions. |
+
+Oracle, SQL Server, Firebird, Access and generic ODBC SQL extraction are explicitly
+unsupported. Their normal text/JSON inspection remains available.
+
+PostgreSQL refuses partitioned tables/partitions, inheritance parents/children,
+typed/foreign/materialized objects, unvalidated constraints, custom table storage
+options/tablespaces/access methods, custom column storage/compression, row-security
+settings and nondefault replica identity. These cases return an explicit error;
+they never silently become ordinary CREATE TABLE statements.
+
+The scope is one object's CREATE definition, not a schema backup. Separate indexes,
+triggers, grants, comments, ownership, optimizer statistics, sequences, schemas,
+referenced tables/types/functions and other dependency objects are not scripted.
+Native definitions can contain inline indexes, definers and table options; those
+are retained. Dependencies must already exist when executing the SQL. Native
+SQLite/DuckDB/MySQL output retains the engine's qualification choices, so execute
+it in the intended destination database/schema.
+
+PostgreSQL emits the source's effective `search_path` before CREATE so native
+type/expression references resolve in the same context. MySQL/MariaDB emits its
+SQL mode and the relevant connection collation (the stored creation collation for
+views). Destination client encoding stays under the destination driver's control. These SET statements
+are output, never executed on the source connection. They affect the destination
+session if you execute the script. PostgreSQL reads the definition through the
+existing connection; no `pg_dump`, extra process or second login is required.
+
+Python callers can request SQL alongside metadata:
+
+```python
+result = inspect_schema(
+    connection=db, table="samples", schema="public",
+    include_sql=True, include_details=False,
+)
+if result["success"]:
+    print(result["sql"], end="")
+```
+
+`include_sql=True` requires `table=` and cannot combine with `include_database`.
+`include_details=False` avoids querying columns/keys during SQL extraction, allowing
+native definitions of views with broken dependencies to be retrieved. The optional
+`sql` field is a string on success and `null` on failure, including connection
+cleanup failures. It is absent by default; existing text/JSON/Python metadata
+contracts retain their defaults. SQL extraction never reads application rows,
+executes generated SQL, commits or rolls back a borrowed connection.
 
 ## Adapter support and verification
 

@@ -210,7 +210,7 @@ When `-t` is not specified, the default is SQLite (`l`).
 
 `execsql inspect database`, `inspect schema NAME` and `inspect table NAME` have
 their own options: optional `--dsn URL` (alias `--connection-string URL`), and
-`--output-format text|json` (text by default). `database` shows database
+`--output-format text|json` (text by default); `table` also accepts `sql`. `database` shows database
 identity and schema/namespace counts, including namespaces without visible objects;
 schema-less databases show objects directly. It has no `--schema` or `--table` filters.
 `inspect schema NAME` requires an exact, case-sensitive schema name and prints
@@ -221,8 +221,8 @@ schema with `inspect schema NAME` or `inspect table NAME --schema SCHEMA` to ins
 Names are separate components; a dot in a table name is literal.
 Text on a terminal
 follows the configured password-prompt preference for the connection's user. `-w` / `--no-passwd` disables it;
-`--prompt-password` explicitly allows it with JSON output on a terminal.
-Redirected stdin and JSON output never prompt automatically. See [schema discovery](../reference/schema.md) for the contract, scope and
+`--prompt-password` explicitly allows it with JSON/SQL output on a terminal.
+Redirected stdin and JSON/SQL output never prompt automatically. See [schema discovery](../reference/schema.md) for the contract, scope and
 adapter support.
 
 | Option                                 | Meaning                                                                                                                       |
@@ -240,23 +240,31 @@ Inspection never executes startup scripts or creates a database, even when
 and IMPORT-inferred types, or lists workbook sheets when `--sheet` is omitted.
 It has its own options:
 
-| Option                       | Meaning                                                                                               |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `--format FORMAT`            | Override the extension hint: csv, tsv, text, json, jsonl, xls, xlsx, ods, parquet, feather.           |
-| `--sheet NAME`               | Worksheet name or 1-based index to inspect.                                                           |
-| `--sample-rows N`            | Positive inference-row limit; default scans all rows. Some readers still materialize the full source. |
-| `--encoding NAME`            | Text or legacy XLS encoding override.                                                                 |
-| `--delimiter CHAR`           | Delimited-text override; one character or TAB/US/SPACE. Defaults quote to double quote.               |
-| `--quote CHAR`               | Quote character or `none`; requires `--delimiter`.                                                    |
-| `--skip-rows N`              | Non-negative lines/worksheet rows to skip before the header.                                          |
-| `--config FILE`              | Explicit import configuration in addition to normal tool config search.                               |
-| `--show-settings`            | Include effective import settings in text output; hidden by default.                                  |
-| `--show-config`              | Include loaded configuration files in text output; hidden by default.                                 |
-| `--output-format text\|json` | Human-readable text (default) or the shared JSON contract.                                            |
+| Option                            | Meaning                                                                                               |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `--format FORMAT`                 | Override the extension hint: csv, tsv, text, json, jsonl, xls, xlsx, ods, parquet, feather.           |
+| `--sheet NAME`                    | Worksheet name or 1-based index to inspect.                                                           |
+| `--sample-rows N`                 | Positive inference-row limit; default scans all rows. Some readers still materialize the full source. |
+| `--encoding NAME`                 | Text or legacy XLS encoding override.                                                                 |
+| `--delimiter CHAR`                | Delimited-text override; one character or TAB/US/SPACE. Defaults quote to double quote.               |
+| `--quote CHAR`                    | Quote character or `none`; requires `--delimiter`.                                                    |
+| `--skip-rows N`                   | Non-negative lines/worksheet rows to skip before the header.                                          |
+| `--config FILE`                   | Explicit import configuration in addition to normal tool config search.                               |
+| `--show-settings`                 | Include effective import settings in text output; hidden by default.                                  |
+| `--show-config`                   | Include loaded configuration files in text output; hidden by default.                                 |
+| `--output-format text\|json\|sql` | Human-readable text (default), shared JSON, or SQL CREATE TABLE from full inference.                  |
+| `--dialect DIALECT`               | Required for file SQL: sqlite, duckdb, postgres, mysql, mssql, oracle, firebird or access.            |
+| `--table-name NAME`               | Required destination table name for file SQL.                                                         |
+| `--schema NAME`                   | Optional destination schema for file SQL.                                                             |
 
 See [file inspection](../reference/files.md) for the complete contract, format
 behavior, sampling limits and examples. Incomplete samples are provisional.
 JSON and Python reports always retain settings and configuration-file metadata.
+
+SQL output is supported only on file/table scopes. It rejects `--show-settings`
+and `--show-config`; file SQL also rejects `--sample-rows` and requires a sheet
+for workbooks. Destination options require SQL mode. See [file SQL](../reference/files.md#sql-output)
+and [table SQL](../reference/schema.md#sql-output) for the exact scope.
 
 The options below belong to `run`: `execsql run -tl script.sql mydb.sqlite`.
 `execsql run --help` lists them all. `-h`/`--help` works on every command.

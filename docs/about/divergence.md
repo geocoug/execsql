@@ -303,6 +303,14 @@ New options in `execsql.conf`:
     Inspection emits no tier notices and omits that inert control from text.
     JSON/Python settings retain the configuration snapshot for compatibility;
     a configured value there is not proof that the adapter used it.
+    File/table inspection supports SQL-only output. Files reuse IMPORT inference
+    and observed nullability with explicit target dialect/name, preserving identifier
+    folding with escaped SQL names. Table SQL retrieves native definitions for
+    SQLite, DuckDB and MySQL/MariaDB and assembles PostgreSQL 14+ catalog definitions
+    on the existing connection. Unsupported adapters/features fail without partial
+    SQL. No generated statement is executed; external dependency objects are not
+    scripted. Python calls can request an optional sql field; default metadata is
+    unchanged. See the file/schema references for options and fidelity limits.
     The redundant database filters were removed before the inspection interface's
     first release. Python's exact-name filters remain available.
     Missing or broken inspection drivers return a structured dependency error and

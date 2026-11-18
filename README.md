@@ -290,6 +290,20 @@ identity and namespace counts; also set `include_details=False` to skip column/k
 queries, as the database text summary does. See [schema discovery](https://execsql2.readthedocs.io/en/stable/reference/schema/)
 for the versioned JSON contract and adapter coverage.
 
+Copy CREATE statements with SQL output:
+
+```sh
+execsql inspect file samples.csv --output-format sql --dialect postgres --table-name samples
+execsql inspect table samples --schema public --dsn postgresql://localhost/project --output-format sql
+```
+
+File SQL follows IMPORT's inferred types, observed nullability and identifier
+folding; it requires a full scan. Table SQL supports SQLite, DuckDB,
+MySQL/MariaDB and PostgreSQL 14+, with explicit errors for unsupported features.
+See [file SQL](https://execsql2.readthedocs.io/en/stable/reference/files/#sql-output)
+and [table SQL](https://execsql2.readthedocs.io/en/stable/reference/schema/#sql-output)
+for scope and examples.
+
 Inspect an importable file before loading it:
 
 ```sh

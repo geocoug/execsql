@@ -51,6 +51,13 @@ For automation, request the shared versioned JSON contract explicitly:
 execsql inspect database --dsn sqlite:///project.sqlite --output-format json > schema.json
 ```
 
+File and table inspection also accept `--output-format sql` for copyable CREATE
+statements. File SQL requires `--dialect` and `--table-name`; optional `--schema`
+is the destination namespace. Table SQL uses the source dialect and requires one
+matching object. SQL rejects configuration display flags and file samples, and
+never executes the output. See [file SQL](../files.md#sql-output) and
+[table SQL](../schema.md#sql-output) for supported adapters, fidelity and examples.
+
 `--dsn` and `--connection-string` are interchangeable, as they are for `execsql run`.
 Omit the URL to use `[connect]` configuration defaults. `--config FILE` reads
 an additional configuration file after the normal system/user/working-directory
@@ -68,7 +75,7 @@ Text mode on an interactive terminal follows the configured `password_prompt`
 preference for the connection's user, with hidden input and configured keyring
 lookup/storage. Use `--no-passwd` to disable prompting and keyring use for
 OS/driver authentication. JSON mode and redirected stdin never prompt automatically;
-`--prompt-password` explicitly allows prompting for JSON output when stdin is a
+`--prompt-password` explicitly allows prompting for JSON/SQL output when stdin is a
 terminal. The two password flags cannot be combined.
 
 Failures exit with status 1. Text mode puts errors and diagnostic hints on stderr;
@@ -82,7 +89,7 @@ credential-bearing URLs are not echoed.
 | `--show-settings`                      | Include applicable nonsecret connection policies with readable labels; hidden by default.           |
 | `--show-config`                        | Include loaded configuration files in text output; hidden by default.                               |
 | `--schema NAME`                        | Optional exact, case-sensitive schema name for `table`; `schema` takes it positionally.             |
-| `--output-format text\|json`           | Readable text (default) or versioned JSON.                                                          |
+| `--output-format text\|json\|sql`      | Readable text (default), versioned JSON, or SQL (table/file only).                                  |
 | `-w`, `--no-passwd`                    | Disable password prompting; use supplied or driver credentials.                                     |
 | `--prompt-password`                    | Override the configured prompt preference on a terminal, including in JSON mode.                    |
 

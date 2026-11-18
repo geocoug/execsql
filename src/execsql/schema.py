@@ -572,6 +572,7 @@ def inspect_schema(
     prompt_password: bool | None = False,
     include_database: bool = False,
     include_details: bool = True,
+    include_sql: bool = False,
 ) -> dict[str, Any]:
     """Return JSON-compatible metadata; see the schema discovery reference.
 
@@ -590,6 +591,9 @@ def inspect_schema(
     *include_details=False* returns object identities and namespace counts without
     querying columns or keys; those fields and their capability flags are omitted.
     Detailed discovery remains the default, including for JSON database overviews.
+    *include_sql=True* adds the selected table/view's CREATE statement in ``sql``;
+    it requires a table filter and cannot be combined with *include_database*.
+    Set *include_details=False* to extract SQL without querying columns or keys.
     """
     from execsql.api import _connect_from_dsn, _LibraryConfig
     from execsql.exceptions import ScriptExit
@@ -609,8 +613,10 @@ def inspect_schema(
             raise ValueError(f"{name} must be a nonempty name without NUL characters.")
     if include_database and (schema is not None or table is not None):
         raise ValueError("Database overview requires unfiltered inspection.")
-    if not include_details and not include_database:
-        raise ValueError("Inventory-only inspection requires include_database=True.")
+    if include_sql and (table is None or include_database):
+        raise ValueError("SQL output requires a table name and cannot include_database.")
+    if not include_details and not (include_database or include_sql):
+        raise ValueError("Inventory-only inspection requires include_database=True or include_sql=True.")
     result: dict[str, Any] = {
         "schema_version": 1,
         "success": False,
@@ -624,6 +630,8 @@ def inspect_schema(
     }
     if include_database:
         result.update(database=None, schemas=None)
+    if include_sql:
+        result["sql"] = None
     ctx = RuntimeContext()
     ctx.conf = cast(Any, _LibraryConfig())
     phase = "configuration"
@@ -656,6 +664,13 @@ def inspect_schema(
                     if params["password"] is not None:
                         conf.passwd_prompt = False
                 result["settings"] = _inspection_settings(conf)
+                if include_sql and conf.db_type not in ("l", "k", "p", "m"):
+                    from execsql.ddl import DdlError
+
+                    raise DdlError(
+                        "unsupported_sql",
+                        "SQL output supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL tables/views.",
+                    )
                 phase = "dependency"
                 _check_inspection_driver(conf.db_type or "")
                 phase = "connection"
@@ -676,6 +691,14 @@ def inspect_schema(
                     "message": "Schema discovery is unavailable for this adapter.",
                 }
                 return result
+            if include_sql:
+                from execsql.ddl import DdlError, SUPPORTED_TABLE_SQL
+
+                if dialect not in SUPPORTED_TABLE_SQL:
+                    raise DdlError(
+                        "unsupported_sql",
+                        "SQL output supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL tables/views.",
+                    )
             keys = dialect not in ("Access", "DSN")
             result["capabilities"] = {"tables": True}
             if include_details:
@@ -691,10 +714,16 @@ def inspect_schema(
                 identity, namespaces = _database_overview(db, tables)
                 result.update(database=identity, schemas=namespaces)
                 result["capabilities"]["schemas"] = namespaces is not None
+            if include_sql:
+                from execsql.ddl import table_sql
+
+                result["sql"] = table_sql(db, tables)
             result["tables"] = sorted(tables, key=lambda t: (t["catalog"] or "", t["schema"] or "", t["name"]))
             result["success"] = True
         except (Exception, ScriptExit) as exc:
             result["error"] = _inspection_error(phase, exc, dsn, ctx.conf.db_type)
+            if include_sql:
+                result["sql"] = None
         finally:
             if connection is None and db is not None:
                 try:
@@ -704,6 +733,8 @@ def inspect_schema(
                     result["tables"] = []
                     if include_database:
                         result.update(database=None, schemas=None)
+                    if include_sql:
+                        result["sql"] = None
                     result["error"] = {"code": "close_error", "message": "Schema discovery connection cleanup failed."}
     return result
 
@@ -746,6 +777,10 @@ def _check_inspection_driver(db_type: str) -> None:
 
 
 def _inspection_error(phase: str, exc: BaseException, dsn: str | None, db_type: str | None = None) -> dict[str, str]:
+    from execsql.ddl import DdlError
+
+    if isinstance(exc, DdlError):
+        return {"code": exc.code, "message": exc.message}
     """Classify common connection problems without echoing secret-bearing errors."""
     message = f"Schema discovery {phase} failed."
     if phase == "configuration":

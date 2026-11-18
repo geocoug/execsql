@@ -114,6 +114,57 @@ not included. Command-line parsing controls are reported separately. When reader
 reported, `settings.import_encoding` uses that same canonical codec name, including
 explicit overrides and BOM precedence; `encoding.source` retains its provenance.
 
+## SQL output
+
+Generate a destination CREATE TABLE statement without connecting to a database:
+
+```sh
+execsql inspect file samples.csv --output-format sql --dialect postgres --table-name samples
+execsql inspect file samples.xlsx --sheet Data --output-format sql --dialect sqlite --table-name samples
+```
+
+SQL mode requires `--dialect` and `--table-name`; `--schema` optionally names the
+destination schema. Dialects are `sqlite`, `duckdb`, `postgres`, `mysql` (also for
+MariaDB), `mssql`, `oracle`, `firebird` and `access`. A generic ODBC DSN is not a
+target SQL dialect. These destination options require `--output-format sql`.
+Access and Firebird have no schema namespace and reject `--schema`.
+
+The statement uses the same structured inference and dialect type mappings as
+IMPORT TO NEW and WRITE CREATE_TABLE. It retains observed nullability, including
+NOT NULL when no NULL was observed; that is an inference about this file, not a
+business constraint or a guarantee about future data. No keys or relationships are
+invented. Empty/all-NULL columns follow IMPORT's existing fallback type and remain
+nullable. A source with no inferable columns fails rather than producing an empty
+CREATE TABLE.
+
+Identifiers are escaped for the chosen dialect, preserving IMPORT's existing
+unquoted-name folding: for example PostgreSQL's ASCII `SampleID` becomes
+`"sampleid"`, while a name containing spaces retains its quoted spelling. This
+changes SQL formatting, not the names/types/nullability IMPORT would create for
+valid identifiers. The existing import path and stored-value conversions are
+unchanged. Review observed lengths and numeric ranges before reusing the table
+for a different dataset; columnar source types are not a native-schema export.
+
+All supported file formats can generate SQL. Workbooks require an explicit sheet.
+SQL mode requires a full scan and rejects `--sample-rows`, including samples that
+would reach EOF. It also rejects `--show-settings` and `--show-config`. Normal
+format, encoding, delimiter, quoting, skip-row and configuration options still
+apply. stdout contains complete SQL only, ending in a newline; errors use stderr
+and leave SQL stdout empty. Output is never executed or written to a destination
+by execsql; use shell redirection to save it.
+
+Python callers add destination arguments to the ordinary report:
+
+```python
+result = inspect_file("samples.csv", dialect="postgres", table_name="samples", schema="public")
+if result["success"]:
+    print(result["sql"], end="")
+```
+
+The optional `sql` field is present only when destination arguments request it:
+a string on success and `null` on failure. Invalid destination arguments or a
+sample request raise `ValueError`. Existing reports are unchanged by default.
+
 ## Python and JSON contract
 
 ```python
