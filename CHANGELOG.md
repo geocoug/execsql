@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.42.0] - 2026-11-19
+
 ### Added
 
 - Log IMPORT, IMPORT_FILE, EXPORT and COPY start, outcome, source, destination, script location, duration and available row counts in `execsql.log`.
