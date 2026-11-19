@@ -6,6 +6,7 @@ import argparse
 import csv
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 STATIONS = [("MW-01", "North well"), ("MW-02", "South well"), ("SW-01", "Creek")]
@@ -68,7 +69,7 @@ def main() -> None:
         writer.writerows(STATIONS)
     (directory / "samples.json").write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
     (directory / "samples.jsonl").write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
-    with sqlite3.connect(directory / "inspection.sqlite") as connection:
+    with closing(sqlite3.connect(directory / "inspection.sqlite")) as connection, connection:
         connection.execute("PRAGMA foreign_keys=ON")
         for statement in (STATION_SQL, SAMPLE_SQL, VIEW_SQL):
             connection.execute(statement)
