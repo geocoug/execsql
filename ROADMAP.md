@@ -128,7 +128,9 @@ exists; additional backends remain possible extensions.
 
 E1's measurement phase is delivered in [PR #215](https://github.com/geocoug/execsql/pull/215).
 The [benchmark guide](scripts/benchmarks/README.md#control-flow-profiling-e1) covers
-reproduction and retained data. Runtime optimization remains separately scoped.
+reproduction and retained data. Matching-text `EQUAL()` now skips unnecessary
+type conversions while preserving comparison results. Body copying, path resolution
+and unequal-comparison optimizations remain separately scoped.
 
 Startup and general `EXPORT` throughput are not current optimization priorities.
 Fresh measurements can change that decision.
