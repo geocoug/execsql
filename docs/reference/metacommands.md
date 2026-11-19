@@ -2453,7 +2453,7 @@ PG_UPSERT CHECK FROM <staging_schema> TO <base_schema> TABLES <table1>, <table2>
 
 Performs QA-checked, FK-dependency-ordered upserts from a staging schema to a base schema on PostgreSQL. Integrates [pg-upsert](https://pg-upsert.readthedocs.io/) as an optional dependency.
 
-**Requires:** the `upsert` extra, `uv tool install "execsql2[upsert]"` (pg-upsert 1.26.0 or later)
+**Requires:** the `upsert` extra, `uv tool install "execsql2[upsert]"` (pg-upsert 1.27.0 or later)
 
 **Requires:** A PostgreSQL connection. Raises an error if the current DBMS is not PostgreSQL.
 
@@ -2473,7 +2473,7 @@ Keywords can appear in any order after the table list.
 | `COMMIT` | Commit changes if QA passes. Without it, changes are rolled back (dry-run). Full mode only. |
 | `EXCLUDE col1, col2` | Columns to skip during upsert. QA checks an excluded column as it will end up: the base value in updated rows, NULL in inserted rows. |
 | `EXCLUDE_NULL col1, col2` | Columns to skip in null QA checks. |
-| `INTERACTIVE` | Enable pg-upsert's interactive UI dialogs (tkinter or textual) for reviewing QA failures. Without it, runs non-interactively. |
+| `INTERACTIVE` | Enable pg-upsert's interactive UI dialogs (tkinter or textual) for reviewing QA failures and proposed changes. In the Textual comparison dialog, selecting a row highlights and scrolls to the matching primary-key row in the other table. Without `INTERACTIVE`, the run proceeds without dialogs. |
 | `COMPACT` | Use compact grid format for QA summary instead of detailed per-table panels. |
 | `LOGFILE <path>` | Append pg-upsert's plain-text log output to the given file. Supports quoted paths for spaces: `LOGFILE "path/to/log.txt"`. |
 | `CLEANUP` | Drop all `ups_*` temporary tables and views after execution. Without it, temp objects persist for inspection (default). |
@@ -2548,6 +2548,8 @@ Set after every `PG_UPSERT` execution:
     ```
 
 ### QA failure behavior
+
+If a PostgreSQL error prevents a QA check from running, the remaining checks continue. A skip explained by a known missing staging column or a reported type mismatch is a warning. An unexplained skip fails QA and appears under the affected table's `qa_errors` in `$PG_UPSERT_RESULT_JSON`. Inspect the reported error and rerun QA before loading the data.
 
 `PG_UPSERT`, `PG_UPSERT QA`, and `PG_UPSERT CHECK` do **not** raise an error when QA checks fail. The outcome is reported via `$PG_UPSERT_QA_PASSED` (and the per-table `$PG_UPSERT_TABLE_QA_PASSED`), so the script controls flow with `IF` or with execsql's standard error-halt configuration. When QA fails, the metacommand still runs `EXPORT_FAILURES`, populates all `$PG_UPSERT_*` substitution variables, and skips the upsert (no commit). To tell the ways a run can end apart, branch on `$PG_UPSERT_STATUS` rather than combining `$PG_UPSERT_QA_PASSED` with `$PG_UPSERT_COMMITTED`: a run with nothing to load (`no_changes`) and one the user cancelled (`cancelled`) both leave QA passed and nothing committed. Pair with `ASSERT` to halt explicitly:
 

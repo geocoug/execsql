@@ -70,9 +70,9 @@ Required for the SQL-formatting pass of `execsql format`. Without this extra, `e
 
 ### `upsert` extra
 
-| Feature                                   | Library                                          |
-| ----------------------------------------- | ------------------------------------------------ |
-| `PG_UPSERT` PostgreSQL upsert metacommand | [pg-upsert](https://pypi.org/project/pg-upsert/) |
+| Feature                                   | Library                                                          |
+| ----------------------------------------- | ---------------------------------------------------------------- |
+| `PG_UPSERT` PostgreSQL upsert metacommand | [pg-upsert](https://pypi.org/project/pg-upsert/) 1.27.0 or later |
 
 ### `map` extra
 
