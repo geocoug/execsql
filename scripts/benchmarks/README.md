@@ -116,6 +116,14 @@ comparisons per sample), `--repeat` (5 paired samples), and `--outdir` (a new ou
 directory). Existing output directories are refused. Without `--outdir`, each run
 gets a timestamped directory under ignored `scripts/benchmarks/results/`.
 
+Repeat `--case NAME` to time/profile selected workload names from `results.md`;
+all correctness guards still run. For longer matching-text samples and controls:
+
+```sh
+uv run python scripts/benchmarks/control_flow.py --iterations 10000 --repeat 7 \
+  --case api_same_comparison_loop --case api_comparison_loop --case api_numeric_comparison_loop
+```
+
 Results include `results.json` (raw wall/CPU samples, medians, MAD, environment,
 source identities and correctness outcomes), `results.md` (summary), `profiles.json`
 (function statistics), and `profiles/{baseline,current}/*.prof`. Inspect a profile

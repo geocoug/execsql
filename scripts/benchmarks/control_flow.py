@@ -109,7 +109,14 @@ def fixtures(directory: Path, iterations: int) -> None:
     )
 
 
-def worker(source: Path, directory: Path, iterations: int, number: int, profile_dir: Path | None) -> dict:
+def worker(
+    source: Path,
+    directory: Path,
+    iterations: int,
+    number: int,
+    profile_dir: Path | None,
+    selected: list[str] | None,
+) -> dict:
     if sys.pycache_prefix is None or Path(sys.pycache_prefix).resolve() != directory.parent / "bytecode":
         raise RuntimeError("Worker requires the measurement's private bytecode cache.")
     sys.path.insert(0, str(source))
@@ -122,10 +129,17 @@ def worker(source: Path, directory: Path, iterations: int, number: int, profile_
     context = RuntimeContext()
     context.conf = _LibraryConfig()
     with active_context(context):
-        return _measure_worker(source, directory, iterations, number, profile_dir)
+        return _measure_worker(source, directory, iterations, number, profile_dir, selected)
 
 
-def _measure_worker(source: Path, directory: Path, iterations: int, number: int, profile_dir: Path | None) -> dict:
+def _measure_worker(
+    source: Path,
+    directory: Path,
+    iterations: int,
+    number: int,
+    profile_dir: Path | None,
+    selected: list[str] | None,
+) -> dict:
     import execsql
     from execsql.metacommands.conditions import xf_equals
 
@@ -217,6 +231,11 @@ def _measure_worker(source: Path, directory: Path, iterations: int, number: int,
     results = {}
     if profile_dir:
         profile_dir.mkdir(parents=True)
+    if selected:
+        unknown = set(selected) - cases.keys()
+        if unknown:
+            raise ValueError(f"Unknown workload(s): {', '.join(sorted(unknown))}")
+        cases = {name: case for name, case in cases.items() if name in selected}
     for name, (call, operations) in cases.items():
         expected = call()  # Imports, caches and all workload paths warm before timing.
         profiler = cProfile.Profile() if profile_dir else None
@@ -273,6 +292,7 @@ def main() -> None:
     )
     parser.add_argument("--baseline-ref", default="v2.41.0", help="Trusted local Git revision to execute in isolation.")
     parser.add_argument("--outdir", type=Path, help="New output directory; must not already exist.")
+    parser.add_argument("--case", action="append", help="Measure only this workload name; repeat to select several.")
     parser.add_argument("--worker-source", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--workdir", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--profile-dir", type=Path, help=argparse.SUPPRESS)
@@ -284,7 +304,11 @@ def main() -> None:
     if args.worker_source:
         if not args.workdir:
             parser.error("worker requires --workdir")
-        print(json.dumps(worker(args.worker_source, args.workdir, args.iterations, args.number, args.profile_dir)))
+        print(
+            json.dumps(
+                worker(args.worker_source, args.workdir, args.iterations, args.number, args.profile_dir, args.case),
+            ),
+        )
         return
     baseline = git("rev-parse", "--verify", "--end-of-options", args.baseline_ref + "^{commit}")
     outdir = (
@@ -341,6 +365,8 @@ def main() -> None:
             ]
             if profile:
                 command += ["--profile-dir", str(outdir / "profiles" / label)]
+            for name in args.case or []:
+                command += ["--case", name]
             completed = subprocess.run(command, cwd=workdir, capture_output=True, text=True, timeout=600)
             if completed.returncode:
                 raise RuntimeError(f"{label} worker failed:\n{completed.stdout}\n{completed.stderr}")
@@ -401,6 +427,7 @@ def main() -> None:
         "iterations": args.iterations,
         "number": args.number,
         "repeat": args.repeat,
+        "selected_cases": args.case,
         "guards": guards,
         "results": rows,
     }
