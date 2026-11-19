@@ -18,6 +18,7 @@ from typing import Any
 from execsql.db.base import Database
 from execsql.db.target_types import ColumnKinds, _NUMBER_TEXT, _whole_number_converter, kind_for_type_name
 from execsql.types import DT_Long
+from execsql.utils.transfers import load_operation, loaded_rows
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error
 import execsql.state as _state
@@ -330,7 +331,7 @@ class SQLiteDatabase(Database):
             interval = getattr(_state.conf, "import_progress_interval", 0)
             if _state.exec_log and interval > 0 and total_rows % interval == 0:
                 _state.exec_log.log_status_info(
-                    f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                    f"{load_operation()} into {sq_name}: {total_rows} rows imported so far.",
                 )
 
         last_line: list[Any] = []
@@ -382,9 +383,10 @@ class SQLiteDatabase(Database):
             raise
         finally:
             curs.close()
+        loaded_rows(total_rows)
         if _state.exec_log:
             _state.exec_log.log_status_info(
-                f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
+                f"{load_operation()} into {sq_name} complete: {total_rows} rows imported.",
             )
 
     def import_entire_file(

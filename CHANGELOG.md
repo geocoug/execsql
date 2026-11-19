@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- Log IMPORT, IMPORT_FILE, EXPORT and COPY start, outcome, source, destination, script location, duration and available row counts in `execsql.log`.
 - Finish `execsql.log` runs with a summary of outcome, exit code, attempted commands, errors, warnings and duration.
 - Include the log's `run_id` in `--manifest` output to link both records of a run.
 

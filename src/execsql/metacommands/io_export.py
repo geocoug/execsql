@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from execsql.utils.transfers import count_query, loaded_rows, log_transfer, payload_query
+
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.exporters.base import ExportRecord
@@ -82,6 +84,7 @@ def _check_zip_compat(outfile: str, filefmt: str, zipfilename: str | None) -> No
         raise ErrInfo("error", other_msg=f"Cannot export to the {filefmt} format within a zipfile.")
 
 
+@count_query
 def _dispatch_format(
     select_stmt: str,
     outfile: str,
@@ -169,6 +172,7 @@ def _dispatch_format(
 # ---------------------------------------------------------------------------
 
 
+@log_transfer("EXPORT")
 def x_export(**kwargs: Any) -> None:
     schema = kwargs["schema"]
     table = kwargs["table"]
@@ -210,6 +214,7 @@ def x_export(**kwargs: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
+@log_transfer("EXPORT")
 def x_export_query(**kwargs: Any) -> None:
     select_stmt = kwargs["query"]
     outfile = _apply_output_dir(kwargs["filename"])
@@ -240,6 +245,7 @@ def x_export_query(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("EXPORT")
 def x_export_query_with_template(**kwargs: Any) -> None:
     select_stmt = kwargs["query"]
     outfile = _apply_output_dir(kwargs["filename"])
@@ -252,11 +258,13 @@ def x_export_query_with_template(**kwargs: Any) -> None:
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
         prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
-    report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
+    with payload_query(select_stmt):
+        report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
     _state.export_metadata.add(ExportRecord(select_stmt, outfile, zipfilename))
     return None
 
 
+@log_transfer("EXPORT")
 def x_export_with_template(**kwargs: Any) -> None:
     schema = kwargs["schema"]
     table = kwargs["table"]
@@ -272,11 +280,13 @@ def x_export_with_template(**kwargs: Any) -> None:
     check_dir(outfile)
     if tee and outfile.lower() != "stdout":
         prettyprint_query(select_stmt, _state.dbs.current(), "stdout", False)
-    report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
+    with payload_query(select_stmt):
+        report_query(select_stmt, _state.dbs.current(), outfile, template_file, append, zipfile=zipfilename)
     _state.export_metadata.add(ExportRecord(queryname, outfile, zipfilename))
     return None
 
 
+@log_transfer("EXPORT")
 def x_export_ods_multiple(**kwargs: Any) -> None:
     table_list = kwargs["tables"]
     outfile = _apply_output_dir(kwargs["filename"])
@@ -289,6 +299,7 @@ def x_export_ods_multiple(**kwargs: Any) -> None:
     write_queries_to_ods(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
 
 
+@log_transfer("EXPORT")
 def x_export_xlsx_multiple(**kwargs: Any) -> None:
     """Export multiple tables to separate worksheets in a single XLSX workbook."""
     table_list = kwargs["tables"]
@@ -302,6 +313,7 @@ def x_export_xlsx_multiple(**kwargs: Any) -> None:
     write_queries_to_xlsx(table_list, _state.dbs.current(), outfile, append, tee, desc=description)
 
 
+@log_transfer("EXPORT")
 def x_export_metadata(**kwargs: Any) -> None:
     outfile = _apply_output_dir(kwargs["filename"])
     append = kwargs["append"] is not None
@@ -312,6 +324,7 @@ def x_export_metadata(**kwargs: Any) -> None:
         hdrs, rows = _state.export_metadata.get_all()
     else:
         hdrs, rows = _state.export_metadata.get()
+    loaded_rows(len(rows))
     if outfile.lower() != "stdout":
         check_dir(outfile)
     if filefmt in ("txt", "text"):
@@ -320,6 +333,7 @@ def x_export_metadata(**kwargs: Any) -> None:
         write_delimited_file(outfile, filefmt, hdrs, rows, _state.conf.output_encoding, append, zipfilename)
 
 
+@log_transfer("EXPORT")
 def x_export_metadata_table(**kwargs: Any) -> None:
     xall = kwargs["all"] is not None
     schemaname = kwargs["schema"]
