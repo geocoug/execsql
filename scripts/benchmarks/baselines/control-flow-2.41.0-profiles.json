@@ -1,0 +1,1592 @@
+{
+  "benchmark_sha256": "4ad57526d75f2fe042f443610d8a28fc46f444505c0ce41a0e5b3fac46857fea",
+  "source_sha256": {
+    "baseline": "2694b93c6f6c9aa652358fb1a8e8fb5e1ad7ece2d60013c864c7ea3b7f693e6c",
+    "current": "2694b93c6f6c9aa652358fb1a8e8fb5e1ad7ece2d60013c864c7ea3b7f693e6c"
+  },
+  "description": "Separate instrumented main-thread profiles. Cumulative costs overlap; percentages are ranking evidence, not uninstrumented speedup bounds.",
+  "implementations": {
+    "baseline": {
+      "api_small_inline": {
+        "profiled_seconds": 0.34187750006094575,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 2004,
+            "total_calls": 2004,
+            "self_seconds": 0.008557333,
+            "cumulative_seconds": 0.12812230600000002
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 25000,
+            "self_seconds": 0.022624995000000002,
+            "cumulative_seconds": 0.065607288
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2006,
+            "total_calls": 2006,
+            "self_seconds": 0.0011942110000000001,
+            "cumulative_seconds": 0.060702519
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.000983677,
+            "cumulative_seconds": 0.065607288
+          }
+        ]
+      },
+      "api_small_relative": {
+        "profiled_seconds": 0.3442926660645753,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 2004,
+            "total_calls": 2004,
+            "self_seconds": 0.008630255,
+            "cumulative_seconds": 0.129917796
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 25000,
+            "self_seconds": 0.022866820000000003,
+            "cumulative_seconds": 0.065789318
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2007,
+            "total_calls": 2007,
+            "self_seconds": 0.00123842,
+            "cumulative_seconds": 0.06245511300000001
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0009810370000000001,
+            "cumulative_seconds": 0.065789318
+          }
+        ]
+      },
+      "api_small_absolute": {
+        "profiled_seconds": 0.3633527080528438,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 2004,
+            "total_calls": 2004,
+            "self_seconds": 0.009053956,
+            "cumulative_seconds": 0.139845405
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2007,
+            "total_calls": 2007,
+            "self_seconds": 0.001306964,
+            "cumulative_seconds": 0.070975093
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 25000,
+            "self_seconds": 0.023609049,
+            "cumulative_seconds": 0.068479678
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0010328470000000001,
+            "cumulative_seconds": 0.068479678
+          }
+        ]
+      },
+      "api_large_relative": {
+        "profiled_seconds": 4.099863624898717,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 32004,
+            "total_calls": 32004,
+            "self_seconds": 0.129902381,
+            "cumulative_seconds": 1.996421011
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 32007,
+            "total_calls": 32007,
+            "self_seconds": 0.018433935000000002,
+            "cumulative_seconds": 0.956028882
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 385000,
+            "self_seconds": 0.316997856,
+            "cumulative_seconds": 0.919183535
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001135037,
+            "cumulative_seconds": 0.919183535
+          }
+        ]
+      },
+      "api_comparison_loop": {
+        "profiled_seconds": 0.8430438339710236,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.006020714000000001,
+            "cumulative_seconds": 0.251631313
+          },
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3004,
+            "total_calls": 3004,
+            "self_seconds": 0.014167517000000001,
+            "cumulative_seconds": 0.21364321300000003
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.034427727000000005,
+            "cumulative_seconds": 0.203902038
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.054280309000000006,
+            "cumulative_seconds": 0.14953369600000002
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3007,
+            "total_calls": 3007,
+            "self_seconds": 0.002146818,
+            "cumulative_seconds": 0.104550271
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001024533,
+            "cumulative_seconds": 0.14953369600000002
+          }
+        ]
+      },
+      "api_same_comparison_loop": {
+        "profiled_seconds": 0.9154712918680161,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 4004,
+            "total_calls": 4004,
+            "self_seconds": 0.017951987000000003,
+            "cumulative_seconds": 0.268573801
+          },
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.005875721,
+            "cumulative_seconds": 0.240678035
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.033071162,
+            "cumulative_seconds": 0.194666262
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.051145549000000005,
+            "cumulative_seconds": 0.14387639300000002
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 4007,
+            "total_calls": 4007,
+            "self_seconds": 0.002572352,
+            "cumulative_seconds": 0.129228376
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0010185320000000002,
+            "cumulative_seconds": 0.14387639300000002
+          }
+        ]
+      },
+      "api_changing_comparison_loop": {
+        "profiled_seconds": 0.8151277920696884,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.005501359,
+            "cumulative_seconds": 0.24032683700000002
+          },
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3004,
+            "total_calls": 3004,
+            "self_seconds": 0.013824038,
+            "cumulative_seconds": 0.203474539
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.033285167000000004,
+            "cumulative_seconds": 0.19434265
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.051387623,
+            "cumulative_seconds": 0.143811249
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3007,
+            "total_calls": 3007,
+            "self_seconds": 0.00197969,
+            "cumulative_seconds": 0.09786673300000001
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.000993546,
+            "cumulative_seconds": 0.143811249
+          }
+        ]
+      },
+      "api_numeric_comparison_loop": {
+        "profiled_seconds": 1.1922225831076503,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.006453027,
+            "cumulative_seconds": 0.40990283400000005
+          },
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3005,
+            "total_calls": 3005,
+            "self_seconds": 0.017134675000000002,
+            "cumulative_seconds": 0.273111213
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 16983,
+            "total_calls": 16983,
+            "self_seconds": 0.042071247000000006,
+            "cumulative_seconds": 0.267444309
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.060077428,
+            "cumulative_seconds": 0.177389763
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3008,
+            "total_calls": 3008,
+            "self_seconds": 0.0024178290000000002,
+            "cumulative_seconds": 0.133574142
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0011705300000000001,
+            "cumulative_seconds": 0.177389763
+          }
+        ]
+      },
+      "api_sql_loop": {
+        "profiled_seconds": 0.5093781671021134,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3006,
+            "total_calls": 3006,
+            "self_seconds": 0.013291228,
+            "cumulative_seconds": 0.197866966
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 37000,
+            "self_seconds": 0.033326028,
+            "cumulative_seconds": 0.09661240800000001
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3009,
+            "total_calls": 3009,
+            "self_seconds": 0.0018795740000000002,
+            "cumulative_seconds": 0.094624013
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001045617,
+            "cumulative_seconds": 0.09661240800000001
+          }
+        ]
+      },
+      "equal_text_same": {
+        "profiled_seconds": 0.21478125010617077,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004168024,
+            "cumulative_seconds": 0.214283823
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030328755000000002,
+            "cumulative_seconds": 0.178606279
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_text_different": {
+        "profiled_seconds": 0.21821795916184783,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0042492020000000005,
+            "cumulative_seconds": 0.21770359800000003
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030684292000000002,
+            "cumulative_seconds": 0.18112767000000002
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_integer_same": {
+        "profiled_seconds": 0.002602625172585249,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.00147883,
+            "cumulative_seconds": 0.00222921
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_integer_different": {
+        "profiled_seconds": 0.21129787503741682,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.003483934,
+            "cumulative_seconds": 0.210809411
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030055944,
+            "cumulative_seconds": 0.177637084
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_decimal_same": {
+        "profiled_seconds": 0.00304695894010365,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001962208,
+            "cumulative_seconds": 0.002678699
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_decimal_different": {
+        "profiled_seconds": 0.21252758288756013,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0038162010000000004,
+            "cumulative_seconds": 0.21206138800000002
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030182952000000002,
+            "cumulative_seconds": 0.178400168
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_boolean_same": {
+        "profiled_seconds": 0.2152558749075979,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004173082,
+            "cumulative_seconds": 0.214779041
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030558655,
+            "cumulative_seconds": 0.178999963
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_boolean_different": {
+        "profiled_seconds": 0.2154662909451872,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004133639000000001,
+            "cumulative_seconds": 0.214981266
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030256989,
+            "cumulative_seconds": 0.179246374
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_boolean_numeric": {
+        "profiled_seconds": 0.21479441598057747,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004176214,
+            "cumulative_seconds": 0.21431460900000002
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030221951,
+            "cumulative_seconds": 0.178716121
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_date_same": {
+        "profiled_seconds": 0.009316625073552132,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.002531614,
+            "cumulative_seconds": 0.008912107
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_date_different": {
+        "profiled_seconds": 0.04948537494055927,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.00376827,
+            "cumulative_seconds": 0.049023862
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 5000,
+            "total_calls": 5000,
+            "self_seconds": 0.011415389000000001,
+            "cumulative_seconds": 0.023318299
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_timestamp_different": {
+        "profiled_seconds": 0.2510227910242975,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0059108550000000004,
+            "cumulative_seconds": 0.25034721000000004
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.035668326,
+            "cumulative_seconds": 0.205389278
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_offset_same_instant": {
+        "profiled_seconds": 0.01552750007249415,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004517852,
+            "cumulative_seconds": 0.015095319000000001
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_unicode_same": {
+        "profiled_seconds": 0.22072679200209677,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004417816000000001,
+            "cumulative_seconds": 0.220186137
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.031141646000000002,
+            "cumulative_seconds": 0.18297947
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_quoted_same": {
+        "profiled_seconds": 0.21299874992109835,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004107321000000001,
+            "cumulative_seconds": 0.21251015
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.02993219,
+            "cumulative_seconds": 0.177166016
+          }
+        ],
+        "body_deepcopy_calls": []
+      }
+    },
+    "current": {
+      "api_small_inline": {
+        "profiled_seconds": 0.33913666708394885,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 2004,
+            "total_calls": 2004,
+            "self_seconds": 0.008573312000000001,
+            "cumulative_seconds": 0.12689385
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 25000,
+            "self_seconds": 0.022550504000000002,
+            "cumulative_seconds": 0.065204764
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2006,
+            "total_calls": 2006,
+            "self_seconds": 0.001202184,
+            "cumulative_seconds": 0.060081185
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0010050340000000001,
+            "cumulative_seconds": 0.065204764
+          }
+        ]
+      },
+      "api_small_relative": {
+        "profiled_seconds": 0.392979082884267,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 2004,
+            "total_calls": 2004,
+            "self_seconds": 0.009542154,
+            "cumulative_seconds": 0.147606009
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2007,
+            "total_calls": 2007,
+            "self_seconds": 0.001413984,
+            "cumulative_seconds": 0.073536879
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 25000,
+            "self_seconds": 0.024302,
+            "cumulative_seconds": 0.071718432
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.00105133,
+            "cumulative_seconds": 0.071718432
+          }
+        ]
+      },
+      "api_small_absolute": {
+        "profiled_seconds": 0.36031354195438325,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 2004,
+            "total_calls": 2004,
+            "self_seconds": 0.008988766,
+            "cumulative_seconds": 0.138930761
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2007,
+            "total_calls": 2007,
+            "self_seconds": 0.001258514,
+            "cumulative_seconds": 0.070199326
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 25000,
+            "self_seconds": 0.023304909000000002,
+            "cumulative_seconds": 0.067551655
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0010141570000000001,
+            "cumulative_seconds": 0.067551655
+          }
+        ]
+      },
+      "api_large_relative": {
+        "profiled_seconds": 4.128187583992258,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 32004,
+            "total_calls": 32004,
+            "self_seconds": 0.132659792,
+            "cumulative_seconds": 2.016500557
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 32007,
+            "total_calls": 32007,
+            "self_seconds": 0.019161795000000002,
+            "cumulative_seconds": 0.966561039
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 385000,
+            "self_seconds": 0.31607360300000004,
+            "cumulative_seconds": 0.916203073
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001147819,
+            "cumulative_seconds": 0.916203073
+          }
+        ]
+      },
+      "api_comparison_loop": {
+        "profiled_seconds": 0.8094392090570182,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.005650962000000001,
+            "cumulative_seconds": 0.24167052800000002
+          },
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3004,
+            "total_calls": 3004,
+            "self_seconds": 0.013834131000000001,
+            "cumulative_seconds": 0.204928677
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.033672745000000004,
+            "cumulative_seconds": 0.19591380300000003
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.051128974,
+            "cumulative_seconds": 0.14220316800000002
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3007,
+            "total_calls": 3007,
+            "self_seconds": 0.002022905,
+            "cumulative_seconds": 0.099133781
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001002581,
+            "cumulative_seconds": 0.14220316800000002
+          }
+        ]
+      },
+      "api_same_comparison_loop": {
+        "profiled_seconds": 0.9217411251738667,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 4004,
+            "total_calls": 4004,
+            "self_seconds": 0.018793986000000002,
+            "cumulative_seconds": 0.27208213400000003
+          },
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.005860268,
+            "cumulative_seconds": 0.24320479600000003
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.033407854,
+            "cumulative_seconds": 0.19683064
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.051037923000000006,
+            "cumulative_seconds": 0.14318133900000002
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 4007,
+            "total_calls": 4007,
+            "self_seconds": 0.002652111,
+            "cumulative_seconds": 0.13034958800000002
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0010093810000000002,
+            "cumulative_seconds": 0.14318133900000002
+          }
+        ]
+      },
+      "api_changing_comparison_loop": {
+        "profiled_seconds": 0.8369087921455503,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.005757728,
+            "cumulative_seconds": 0.24546911300000002
+          },
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3004,
+            "total_calls": 3004,
+            "self_seconds": 0.014269044000000002,
+            "cumulative_seconds": 0.211469383
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.033948516000000005,
+            "cumulative_seconds": 0.19814781
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.051356216,
+            "cumulative_seconds": 0.14428980400000002
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3007,
+            "total_calls": 3007,
+            "self_seconds": 0.002123046,
+            "cumulative_seconds": 0.10283122500000001
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001063155,
+            "cumulative_seconds": 0.14428980400000002
+          }
+        ]
+      },
+      "api_numeric_comparison_loop": {
+        "profiled_seconds": 0.8268157080747187,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004926128,
+            "cumulative_seconds": 0.240709272
+          },
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3005,
+            "total_calls": 3005,
+            "self_seconds": 0.014026842000000001,
+            "cumulative_seconds": 0.208337704
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 16983,
+            "total_calls": 16983,
+            "self_seconds": 0.033767362,
+            "cumulative_seconds": 0.19718396400000002
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 61000,
+            "self_seconds": 0.051770468,
+            "cumulative_seconds": 0.14489811800000002
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3008,
+            "total_calls": 3008,
+            "self_seconds": 0.002076755,
+            "cumulative_seconds": 0.10121634700000001
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.001026273,
+            "cumulative_seconds": 0.14489811800000002
+          }
+        ]
+      },
+      "api_sql_loop": {
+        "profiled_seconds": 0.5100562500301749,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/script/executor.py",
+            "line": 241,
+            "function": "_set_command_vars",
+            "primitive_calls": 3006,
+            "total_calls": 3006,
+            "self_seconds": 0.013383445,
+            "cumulative_seconds": 0.19783355500000002
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 37000,
+            "self_seconds": 0.033064225,
+            "cumulative_seconds": 0.095854756
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 3009,
+            "total_calls": 3009,
+            "self_seconds": 0.0019150220000000002,
+            "cumulative_seconds": 0.09438587000000001
+          }
+        ],
+        "body_deepcopy_calls": [
+          {
+            "caller": "_run_body",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.00102036,
+            "cumulative_seconds": 0.095854756
+          }
+        ]
+      },
+      "equal_text_same": {
+        "profiled_seconds": 0.2147039589472115,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004040223,
+            "cumulative_seconds": 0.21420972600000002
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030506937,
+            "cumulative_seconds": 0.17889607700000001
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_text_different": {
+        "profiled_seconds": 0.21820450015366077,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004218329000000001,
+            "cumulative_seconds": 0.21767281500000002
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030802619000000003,
+            "cumulative_seconds": 0.181346166
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_integer_same": {
+        "profiled_seconds": 0.002501250011846423,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0014429030000000002,
+            "cumulative_seconds": 0.002151182
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_integer_different": {
+        "profiled_seconds": 0.21125245792791247,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0034301490000000004,
+            "cumulative_seconds": 0.21075590600000002
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.029939462000000003,
+            "cumulative_seconds": 0.177503028
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_decimal_same": {
+        "profiled_seconds": 0.00308308401145041,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.00197575,
+            "cumulative_seconds": 0.0027137050000000003
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_decimal_different": {
+        "profiled_seconds": 0.24680891586467624,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0046713300000000004,
+            "cumulative_seconds": 0.24612889000000002
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.034851352,
+            "cumulative_seconds": 0.206579807
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_boolean_same": {
+        "profiled_seconds": 0.21384966699406505,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004048781,
+            "cumulative_seconds": 0.213371786
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030078149000000002,
+            "cumulative_seconds": 0.177944816
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_boolean_different": {
+        "profiled_seconds": 0.21474304189905524,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004064656,
+            "cumulative_seconds": 0.214248874
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030301456,
+            "cumulative_seconds": 0.17867126
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_boolean_numeric": {
+        "profiled_seconds": 0.21573883411474526,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0040535400000000004,
+            "cumulative_seconds": 0.215236321
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030601237000000003,
+            "cumulative_seconds": 0.179666352
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_date_same": {
+        "profiled_seconds": 0.009536874946206808,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0026375490000000003,
+            "cumulative_seconds": 0.009146563
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_date_different": {
+        "profiled_seconds": 0.050259041832759976,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.0039015050000000004,
+            "cumulative_seconds": 0.049759229
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 5000,
+            "total_calls": 5000,
+            "self_seconds": 0.011573104,
+            "cumulative_seconds": 0.023571202000000003
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_timestamp_different": {
+        "profiled_seconds": 0.22168437484651804,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004258439,
+            "cumulative_seconds": 0.221136769
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.031777414000000004,
+            "cumulative_seconds": 0.182535408
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_offset_same_instant": {
+        "profiled_seconds": 0.015054124873131514,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004326539,
+            "cumulative_seconds": 0.014665973
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_unicode_same": {
+        "profiled_seconds": 0.2143434160389006,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004149794,
+            "cumulative_seconds": 0.21385388400000002
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030443069000000003,
+            "cumulative_seconds": 0.178022179
+          }
+        ],
+        "body_deepcopy_calls": []
+      },
+      "equal_quoted_same": {
+        "profiled_seconds": 0.21584558300673962,
+        "operations": 1000,
+        "functions": [
+          {
+            "file": "execsql/metacommands/conditions.py",
+            "line": 287,
+            "function": "xf_equals",
+            "primitive_calls": 1000,
+            "total_calls": 1000,
+            "self_seconds": 0.004136787,
+            "cumulative_seconds": 0.215359085
+          },
+          {
+            "file": "_strptime.py",
+            "line": 516,
+            "function": "_strptime",
+            "primitive_calls": 17000,
+            "total_calls": 17000,
+            "self_seconds": 0.030484147000000003,
+            "cumulative_seconds": 0.179583382
+          }
+        ],
+        "body_deepcopy_calls": []
+      }
+    }
+  }
+}

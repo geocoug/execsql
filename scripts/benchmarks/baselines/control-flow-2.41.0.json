@@ -1,0 +1,3347 @@
+{
+  "environment": {
+    "python": "3.13.7 (main, Sep  2 2025, 14:05:52) [Clang 20.1.4 ]",
+    "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "processor": "arm",
+    "logical_cpus": 10,
+    "locale": [
+      null,
+      null
+    ],
+    "dateutil": "3.0.0",
+    "perf_counter_resolution": 4.166666666666666e-08
+  },
+  "measured_at": "2026-11-19T15:42:38.628992+00:00",
+  "benchmark_sha256": "4ad57526d75f2fe042f443610d8a28fc46f444505c0ce41a0e5b3fac46857fea",
+  "baseline_ref": "v2.41.0",
+  "baseline_commit": "0e4ec110b0811320158b4c3c2b874a1fa9c132d0",
+  "current_commit": "9fbddd8b3d90cf2feb6b74d9fb71e4aa8b205d6f",
+  "runtime_dirty": false,
+  "source_sha256": {
+    "baseline": "2694b93c6f6c9aa652358fb1a8e8fb5e1ad7ece2d60013c864c7ea3b7f693e6c",
+    "current": "2694b93c6f6c9aa652358fb1a8e8fb5e1ad7ece2d60013c864c7ea3b7f693e6c"
+  },
+  "iterations": 1000,
+  "number": 1000,
+  "repeat": 7,
+  "guards": {
+    "extension_calls": "3",
+    "extension_seen": "3",
+    "paths": {
+      "start_seen": "\"<fixture>/\"",
+      "after_cd": "\"<fixture>/sub/\"",
+      "included_before": "\"<fixture>/sub/\"",
+      "included_after": "\"<fixture>/other/\"",
+      "inline_seen": "\"<fixture>/sub/\"",
+      "after_return": "\"<fixture>/\""
+    },
+    "comparison_matrix": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "results": [
+    {
+      "name": "api_small_inline",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.12204337492585182,
+            "cpu_seconds": 0.12201799999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.13101474987342954,
+            "cpu_seconds": 0.13060299999999997,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1370927079115063,
+            "cpu_seconds": 0.13449899999999998,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12339116702787578,
+            "cpu_seconds": 0.12336799999999998,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12311999988742173,
+            "cpu_seconds": 0.12306299999999998,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1256182088982314,
+            "cpu_seconds": 0.12513000000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12325208308175206,
+            "cpu_seconds": 0.123162,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.12339116702787578,
+        "mad_percent": 1.0922922073664108,
+        "microseconds_per_operation": 123.39116702787578
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.12360079190693796,
+            "cpu_seconds": 0.12346000000000001,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12661670800298452,
+            "cpu_seconds": 0.126415,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12332000001333654,
+            "cpu_seconds": 0.12314400000000003,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12248720810748637,
+            "cpu_seconds": 0.12285499999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1275131250731647,
+            "cpu_seconds": 0.12720700000000001,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12947562499903142,
+            "cpu_seconds": 0.12895299999999998,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12318704091012478,
+            "cpu_seconds": 0.12315000000000004,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.12360079190693796,
+        "mad_percent": 0.9009519941344987,
+        "microseconds_per_operation": 123.60079190693796
+      },
+      "baseline_over_current": 0.9983040166990191
+    },
+    {
+      "name": "api_small_relative",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.12571883294731379,
+            "cpu_seconds": 0.12551,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1247055409476161,
+            "cpu_seconds": 0.12493600000000005,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12375083309598267,
+            "cpu_seconds": 0.123915,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12246174993924797,
+            "cpu_seconds": 0.12240899999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12504325015470386,
+            "cpu_seconds": 0.12530800000000009,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12379933288320899,
+            "cpu_seconds": 0.12373900000000004,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12517837504856288,
+            "cpu_seconds": 0.12581900000000001,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.1247055409476161,
+        "mad_percent": 0.7266782674779243,
+        "microseconds_per_operation": 124.7055409476161
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.12300599995069206,
+            "cpu_seconds": 0.12301399999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1254883341025561,
+            "cpu_seconds": 0.125788,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12355641601607203,
+            "cpu_seconds": 0.12415500000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12682191701605916,
+            "cpu_seconds": 0.126606,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12237083283253014,
+            "cpu_seconds": 0.12235300000000005,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12445737514644861,
+            "cpu_seconds": 0.12440000000000007,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12595691694878042,
+            "cpu_seconds": 0.12617699999999998,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.12445737514644861,
+        "mad_percent": 1.1661624665060835,
+        "microseconds_per_operation": 124.45737514644861
+      },
+      "baseline_over_current": 1.001993982284099
+    },
+    {
+      "name": "api_small_absolute",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.12914683390408754,
+            "cpu_seconds": 0.1276299999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1247732499614358,
+            "cpu_seconds": 0.12351599999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.11449104198254645,
+            "cpu_seconds": 0.114456,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.11812212504446507,
+            "cpu_seconds": 0.11788600000000005,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12419620784930885,
+            "cpu_seconds": 0.1226529999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.11407212517224252,
+            "cpu_seconds": 0.11402999999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.11826433287933469,
+            "cpu_seconds": 0.11841299999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.11826433287933469,
+        "mad_percent": 3.544777706875904,
+        "microseconds_per_operation": 118.26433287933469
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.116286417003721,
+            "cpu_seconds": 0.116224,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.11710237502120435,
+            "cpu_seconds": 0.11705700000000008,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.11543937493115664,
+            "cpu_seconds": 0.11540300000000003,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.12149795796722174,
+            "cpu_seconds": 0.12099300000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1164512091781944,
+            "cpu_seconds": 0.11663499999999993,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.11780137498863041,
+            "cpu_seconds": 0.11763600000000007,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1164645841345191,
+            "cpu_seconds": 0.11635299999999993,
+            "operations": 1000,
+            "signature": {
+              "commands": 2004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.1164645841345191,
+        "mad_percent": 0.5476264663844848,
+        "microseconds_per_operation": 116.4645841345191
+      },
+      "baseline_over_current": 1.0154531848303072
+    },
+    {
+      "name": "api_large_relative",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 1.6776441251859069,
+            "cpu_seconds": 1.6148109999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5775118751917034,
+            "cpu_seconds": 1.559697,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5204901250544935,
+            "cpu_seconds": 1.519113,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5269207921810448,
+            "cpu_seconds": 1.525875,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5436851670965552,
+            "cpu_seconds": 1.5416959999999995,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5285175410099328,
+            "cpu_seconds": 1.526808,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5647218329831958,
+            "cpu_seconds": 1.5532240000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 1.5436851670965552,
+        "mad_percent": 1.3627562365069184,
+        "microseconds_per_operation": 1543.6851670965552
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 1.537947083124891,
+            "cpu_seconds": 1.5356539999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.552782957907766,
+            "cpu_seconds": 1.5503089999999995,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5569820411037654,
+            "cpu_seconds": 1.54102,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.6013379169162363,
+            "cpu_seconds": 1.5816059999999998,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5166163749527186,
+            "cpu_seconds": 1.51458,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5455132499337196,
+            "cpu_seconds": 1.5441530000000006,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 1.5212051661219448,
+            "cpu_seconds": 1.5184929999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 32004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 1.5455132499337196,
+        "mad_percent": 0.7420700644616007,
+        "microseconds_per_operation": 1545.5132499337196
+      },
+      "baseline_over_current": 0.9988171678002483
+    },
+    {
+      "name": "api_comparison_loop",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.29010933288373053,
+            "cpu_seconds": 0.28977399999999953,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28451995900832117,
+            "cpu_seconds": 0.28272800000000053,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.290206833044067,
+            "cpu_seconds": 0.28897200000000023,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2818880840204656,
+            "cpu_seconds": 0.2823400000000005,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2854153329972178,
+            "cpu_seconds": 0.2851809999999997,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2862917089369148,
+            "cpu_seconds": 0.28542799999999957,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.29229529201984406,
+            "cpu_seconds": 0.29164299999999965,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.2862917089369148,
+        "mad_percent": 1.333473456493619,
+        "microseconds_per_operation": 286.2917089369148
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.2851819589268416,
+            "cpu_seconds": 0.28494899999999923,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28861199994571507,
+            "cpu_seconds": 0.28812199999999955,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.31419462501071393,
+            "cpu_seconds": 0.3019309999999997,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2802149171475321,
+            "cpu_seconds": 0.28014200000000056,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2754928751382977,
+            "cpu_seconds": 0.27610899999999994,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2971485420130193,
+            "cpu_seconds": 0.2941039999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28112416598014534,
+            "cpu_seconds": 0.2809419999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.2851819589268416,
+        "mad_percent": 1.7417096782702577,
+        "microseconds_per_operation": 285.1819589268416
+      },
+      "baseline_over_current": 1.0038913752267122
+    },
+    {
+      "name": "api_same_comparison_loop",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.34020270803011954,
+            "cpu_seconds": 0.3398349999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.35773141705431044,
+            "cpu_seconds": 0.3379500000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.324990666937083,
+            "cpu_seconds": 0.32558500000000024,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.33068150002509356,
+            "cpu_seconds": 0.33040800000000026,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.3361561668571085,
+            "cpu_seconds": 0.33515799999999984,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.3240105411969125,
+            "cpu_seconds": 0.3242419999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.3313839160837233,
+            "cpu_seconds": 0.3310000000000004,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          }
+        ],
+        "median_seconds": 0.3313839160837233,
+        "mad_percent": 1.9292575277024195,
+        "microseconds_per_operation": 331.3839160837233
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.3280227920040488,
+            "cpu_seconds": 0.3284269999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.3406510839704424,
+            "cpu_seconds": 0.33934700000000007,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.32748166704550385,
+            "cpu_seconds": 0.3271740000000003,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.3290363750420511,
+            "cpu_seconds": 0.3286370000000005,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.32729641697369516,
+            "cpu_seconds": 0.3271860000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.3273851659614593,
+            "cpu_seconds": 0.32722999999999924,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.33053654222749174,
+            "cpu_seconds": 0.33091700000000035,
+            "operations": 1000,
+            "signature": {
+              "commands": 4004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          }
+        ],
+        "median_seconds": 0.3280227920040488,
+        "mad_percent": 0.22144041452604293,
+        "microseconds_per_operation": 328.0227920040488
+      },
+      "baseline_over_current": 1.0102466174961189
+    },
+    {
+      "name": "api_changing_comparison_loop",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.30089508299715817,
+            "cpu_seconds": 0.3002130000000003,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.31620070803910494,
+            "cpu_seconds": 0.2963560000000003,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.31869366695173085,
+            "cpu_seconds": 0.30689800000000034,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28528070892207325,
+            "cpu_seconds": 0.2855540000000003,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28659437503665686,
+            "cpu_seconds": 0.28629700000000025,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28365700016729534,
+            "cpu_seconds": 0.28350400000000064,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28289308305829763,
+            "cpu_seconds": 0.2827290000000007,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.28659437503665686,
+        "mad_percent": 1.2914740486046903,
+        "microseconds_per_operation": 286.59437503665686
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.2915025409311056,
+            "cpu_seconds": 0.29093899999999984,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.28395904204808176,
+            "cpu_seconds": 0.28397500000000075,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2824140840675682,
+            "cpu_seconds": 0.2820670000000005,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2923555001616478,
+            "cpu_seconds": 0.2917569999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.29220437491312623,
+            "cpu_seconds": 0.2915260000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2867828330490738,
+            "cpu_seconds": 0.28654500000000027,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.2954431250691414,
+            "cpu_seconds": 0.29353300000000004,
+            "operations": 1000,
+            "signature": {
+              "commands": 3004,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.2915025409311056,
+        "mad_percent": 1.3518181095262223,
+        "microseconds_per_operation": 291.5025409311056
+      },
+      "baseline_over_current": 0.9831625279190662
+    },
+    {
+      "name": "api_numeric_comparison_loop",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.2820289998780936,
+            "cpu_seconds": 0.2817369999999997,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2991645000874996,
+            "cpu_seconds": 0.297847,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.28806583280675113,
+            "cpu_seconds": 0.2876750000000001,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2863903329707682,
+            "cpu_seconds": 0.28636200000000045,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2842486659064889,
+            "cpu_seconds": 0.2844280000000001,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2915563329588622,
+            "cpu_seconds": 0.2907149999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2830475000664592,
+            "cpu_seconds": 0.2831569999999992,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          }
+        ],
+        "median_seconds": 0.2863903329707682,
+        "mad_percent": 1.167229658080057,
+        "microseconds_per_operation": 286.3903329707682
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.2843927089124918,
+            "cpu_seconds": 0.2842900000000004,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.28367408318445086,
+            "cpu_seconds": 0.28385899999999964,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.280655707931146,
+            "cpu_seconds": 0.2807240000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2839427499566227,
+            "cpu_seconds": 0.28419099999999986,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2845301248598844,
+            "cpu_seconds": 0.2844440000000006,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.2882100420538336,
+            "cpu_seconds": 0.28749799999999937,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          },
+          {
+            "seconds": 0.28552716691046953,
+            "cpu_seconds": 0.2853500000000002,
+            "operations": 1000,
+            "signature": {
+              "commands": 3005,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": "yes"
+            }
+          }
+        ],
+        "median_seconds": 0.2843927089124918,
+        "mad_percent": 0.2526878170642751,
+        "microseconds_per_operation": 284.3927089124918
+      },
+      "baseline_over_current": 1.007024174655937
+    },
+    {
+      "name": "api_sql_loop",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.1920723330695182,
+            "cpu_seconds": 0.19233399999999978,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.20483658299781382,
+            "cpu_seconds": 0.20232700000000037,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19695741590112448,
+            "cpu_seconds": 0.19658799999999932,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19257575017400086,
+            "cpu_seconds": 0.19249500000000008,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19038245803676546,
+            "cpu_seconds": 0.190353,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.1920439158566296,
+            "cpu_seconds": 0.19177800000000023,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19207087508402765,
+            "cpu_seconds": 0.1921229999999996,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.1920723330695182,
+        "mad_percent": 0.26209766728894013,
+        "microseconds_per_operation": 192.0723330695182
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.1952207910362631,
+            "cpu_seconds": 0.1948129999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19159350008703768,
+            "cpu_seconds": 0.19146900000000056,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19524229201488197,
+            "cpu_seconds": 0.19487000000000076,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19739758409559727,
+            "cpu_seconds": 0.1969599999999998,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.22393587487749755,
+            "cpu_seconds": 0.21351799999999965,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19559054099954665,
+            "cpu_seconds": 0.19540800000000047,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          },
+          {
+            "seconds": 0.19217937486246228,
+            "cpu_seconds": 0.1919979999999999,
+            "operations": 1000,
+            "signature": {
+              "commands": 3006,
+              "i": "1000",
+              "label": "item_1000",
+              "matched": null
+            }
+          }
+        ],
+        "median_seconds": 0.19524229201488197,
+        "mad_percent": 1.1039063608979838,
+        "microseconds_per_operation": 195.24229201488197
+      },
+      "baseline_over_current": 0.9837639739185087
+    },
+    {
+      "name": "equal_text_same",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07310354197397828,
+            "cpu_seconds": 0.07303300000000057,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07604016596451402,
+            "cpu_seconds": 0.07596799999999959,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07669612509198487,
+            "cpu_seconds": 0.07648799999999945,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07394900009967387,
+            "cpu_seconds": 0.07387500000000014,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07529091695323586,
+            "cpu_seconds": 0.07524499999999978,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07546391687355936,
+            "cpu_seconds": 0.0752669999999993,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.08022008300758898,
+            "cpu_seconds": 0.07895699999999994,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.07546391687355936,
+        "mad_percent": 1.6328442379820955,
+        "microseconds_per_operation": 75.46391687355936
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07533566700294614,
+            "cpu_seconds": 0.07525099999999973,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07372308406047523,
+            "cpu_seconds": 0.07365599999999972,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07574383309110999,
+            "cpu_seconds": 0.0755650000000001,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07531854207627475,
+            "cpu_seconds": 0.07529199999999925,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.09450554195791483,
+            "cpu_seconds": 0.0918669999999997,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07766174990683794,
+            "cpu_seconds": 0.07729500000000034,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07508862507529557,
+            "cpu_seconds": 0.07502500000000012,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.07533566700294614,
+        "mad_percent": 0.5417966076385713,
+        "microseconds_per_operation": 75.33566700294614
+      },
+      "baseline_over_current": 1.0017023791746371
+    },
+    {
+      "name": "equal_text_different",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07295904099009931,
+            "cpu_seconds": 0.07293399999999917,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.10711041605100036,
+            "cpu_seconds": 0.08877500000000005,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07500470778904855,
+            "cpu_seconds": 0.07500399999999985,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07376266596838832,
+            "cpu_seconds": 0.07370000000000054,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07865600008517504,
+            "cpu_seconds": 0.0782740000000004,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07632733299396932,
+            "cpu_seconds": 0.0761459999999996,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07497929106466472,
+            "cpu_seconds": 0.07491100000000017,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07500470778904855,
+        "mad_percent": 1.7633895843453782,
+        "microseconds_per_operation": 75.00470778904855
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07592395879328251,
+            "cpu_seconds": 0.07584999999999997,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07281212508678436,
+            "cpu_seconds": 0.07281600000000044,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07540850015357137,
+            "cpu_seconds": 0.07523999999999997,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07498724991455674,
+            "cpu_seconds": 0.07488399999999995,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07576712500303984,
+            "cpu_seconds": 0.07554399999999983,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07483549998141825,
+            "cpu_seconds": 0.07478000000000051,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07477770908735693,
+            "cpu_seconds": 0.07471600000000045,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07498724991455674,
+        "mad_percent": 0.5617624856153729,
+        "microseconds_per_operation": 74.98724991455674
+      },
+      "baseline_over_current": 1.0002328112380665
+    },
+    {
+      "name": "equal_integer_same",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.0008380841463804245,
+            "cpu_seconds": 0.0008379999999998944,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008482090197503567,
+            "cpu_seconds": 0.0008490000000005438,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008561250288039446,
+            "cpu_seconds": 0.0008590000000001652,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008408331777900457,
+            "cpu_seconds": 0.0008409999999994255,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008371248841285706,
+            "cpu_seconds": 0.0008420000000004535,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008384580723941326,
+            "cpu_seconds": 0.0008390000000000342,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008334580343216658,
+            "cpu_seconds": 0.0008330000000000837,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.0008384580723941326,
+        "mad_percent": 0.2832706218846758,
+        "microseconds_per_operation": 0.8384580723941326
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.0008457079529762268,
+            "cpu_seconds": 0.0008499999999997954,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008435421623289585,
+            "cpu_seconds": 0.0008439999999998449,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008515838999301195,
+            "cpu_seconds": 0.0008539999999994663,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008463328704237938,
+            "cpu_seconds": 0.000848000000000404,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.000860708998516202,
+            "cpu_seconds": 0.0008619999999996963,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008647090289741755,
+            "cpu_seconds": 0.0008650000000001157,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0008902500849217176,
+            "cpu_seconds": 0.0008910000000001972,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.0008515838999301195,
+        "mad_percent": 0.944327106444932,
+        "microseconds_per_operation": 0.8515838999301195
+      },
+      "baseline_over_current": 0.9845865715203587
+    },
+    {
+      "name": "equal_integer_different",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07248625019565225,
+            "cpu_seconds": 0.07239899999999988,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07440987508744001,
+            "cpu_seconds": 0.07425999999999977,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07431666599586606,
+            "cpu_seconds": 0.07428699999999999,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07226250017993152,
+            "cpu_seconds": 0.07223399999999991,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0751668750308454,
+            "cpu_seconds": 0.07502799999999965,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07339537492953241,
+            "cpu_seconds": 0.07336200000000037,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07401879201643169,
+            "cpu_seconds": 0.07393400000000039,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07401879201643169,
+        "mad_percent": 0.8422416388001659,
+        "microseconds_per_operation": 74.01879201643169
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07488958397880197,
+            "cpu_seconds": 0.07461499999999965,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07584833283908665,
+            "cpu_seconds": 0.07549200000000056,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07333254185505211,
+            "cpu_seconds": 0.07324899999999968,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07377470913343132,
+            "cpu_seconds": 0.07372700000000076,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07415129081346095,
+            "cpu_seconds": 0.07389500000000027,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0731324590742588,
+            "cpu_seconds": 0.07309400000000021,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07358799991197884,
+            "cpu_seconds": 0.07348799999999933,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07377470913343132,
+        "mad_percent": 0.5993480470109125,
+        "microseconds_per_operation": 73.77470913343132
+      },
+      "baseline_over_current": 1.0033084899400813
+    },
+    {
+      "name": "equal_decimal_same",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.0013057917822152376,
+            "cpu_seconds": 0.0013070000000006132,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013503748923540115,
+            "cpu_seconds": 0.0013500000000004064,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.001345708966255188,
+            "cpu_seconds": 0.0013459999999998473,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013241248670965433,
+            "cpu_seconds": 0.0013250000000004647,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013256669044494629,
+            "cpu_seconds": 0.0013259999999997163,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0014965420123189688,
+            "cpu_seconds": 0.0014490000000000336,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013342921156436205,
+            "cpu_seconds": 0.001334999999999198,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.0013342921156436205,
+        "mad_percent": 0.8556485103758834,
+        "microseconds_per_operation": 1.3342921156436205
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.0013697920367121696,
+            "cpu_seconds": 0.0013740000000002084,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013606250286102295,
+            "cpu_seconds": 0.0013740000000002084,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013798750005662441,
+            "cpu_seconds": 0.0013839999999998298,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013352909591048956,
+            "cpu_seconds": 0.001336000000000226,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013589998707175255,
+            "cpu_seconds": 0.0013609999999992795,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013315840624272823,
+            "cpu_seconds": 0.0013329999999998066,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0013467089738696814,
+            "cpu_seconds": 0.001346999999999987,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.0013589998707175255,
+        "mad_percent": 0.9044075067759035,
+        "microseconds_per_operation": 1.3589998707175255
+      },
+      "baseline_over_current": 0.9818191630431431
+    },
+    {
+      "name": "equal_decimal_different",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07227816712111235,
+            "cpu_seconds": 0.07220999999999922,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07318058307282627,
+            "cpu_seconds": 0.07313400000000048,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07517179218120873,
+            "cpu_seconds": 0.07503199999999932,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07221675012260675,
+            "cpu_seconds": 0.07218700000000045,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0739403332117945,
+            "cpu_seconds": 0.07387500000000014,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0749592911452055,
+            "cpu_seconds": 0.07479699999999934,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07405816693790257,
+            "cpu_seconds": 0.07394700000000043,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.0739403332117945,
+        "mad_percent": 1.3780813382221333,
+        "microseconds_per_operation": 73.9403332117945
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07338770804926753,
+            "cpu_seconds": 0.07338999999999984,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07342745806090534,
+            "cpu_seconds": 0.07319500000000012,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07348025008104742,
+            "cpu_seconds": 0.07339699999999993,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07730808388441801,
+            "cpu_seconds": 0.07688999999999968,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0735144168138504,
+            "cpu_seconds": 0.07338300000000064,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07390437508001924,
+            "cpu_seconds": 0.07373300000000071,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07250170805491507,
+            "cpu_seconds": 0.07247499999999985,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07348025008104742,
+        "mad_percent": 0.125941367480123,
+        "microseconds_per_operation": 73.48025008104742
+      },
+      "baseline_over_current": 1.00626131688773
+    },
+    {
+      "name": "equal_boolean_same",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.0724624590948224,
+            "cpu_seconds": 0.07240299999999955,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07458095788024366,
+            "cpu_seconds": 0.07451700000000017,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07526549999602139,
+            "cpu_seconds": 0.07508400000000037,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07401683297939599,
+            "cpu_seconds": 0.07379099999999994,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07490991707891226,
+            "cpu_seconds": 0.07484600000000086,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07387829199433327,
+            "cpu_seconds": 0.07382499999999936,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07436729082837701,
+            "cpu_seconds": 0.07434999999999992,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07436729082837701,
+        "mad_percent": 0.6575455803173477,
+        "microseconds_per_operation": 74.36729082837701
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07656695903278887,
+            "cpu_seconds": 0.0763429999999996,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07264641602523625,
+            "cpu_seconds": 0.07260600000000039,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07475512498058379,
+            "cpu_seconds": 0.07468400000000042,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07431312510743737,
+            "cpu_seconds": 0.07426300000000019,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0735140407923609,
+            "cpu_seconds": 0.07345999999999986,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07376370811834931,
+            "cpu_seconds": 0.07373300000000071,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07388204196467996,
+            "cpu_seconds": 0.07383399999999973,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07388204196467996,
+        "mad_percent": 0.5834748624889108,
+        "microseconds_per_operation": 73.88204196467996
+      },
+      "baseline_over_current": 1.0065678864686636
+    },
+    {
+      "name": "equal_boolean_different",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07361475005745888,
+            "cpu_seconds": 0.07349400000000106,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07394495909102261,
+            "cpu_seconds": 0.07390100000000022,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.09215345908887684,
+            "cpu_seconds": 0.08411800000000014,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0727608751039952,
+            "cpu_seconds": 0.07270699999999941,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07476345798932016,
+            "cpu_seconds": 0.07464099999999974,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07570366701111197,
+            "cpu_seconds": 0.07551699999999961,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07486170809715986,
+            "cpu_seconds": 0.07482700000000087,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07476345798932016,
+        "mad_percent": 1.2575782970420164,
+        "microseconds_per_operation": 74.76345798932016
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07439841702580452,
+            "cpu_seconds": 0.07428399999999957,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0729340419638902,
+            "cpu_seconds": 0.07291000000000025,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07478349981829524,
+            "cpu_seconds": 0.07459800000000083,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07755704107694328,
+            "cpu_seconds": 0.07715899999999998,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07353175012394786,
+            "cpu_seconds": 0.07346599999999981,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07396391709335148,
+            "cpu_seconds": 0.07393800000000006,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0767548750154674,
+            "cpu_seconds": 0.07618300000000033,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07439841702580452,
+        "mad_percent": 1.1648996531150173,
+        "microseconds_per_operation": 74.39841702580452
+      },
+      "baseline_over_current": 1.0049065689581678
+    },
+    {
+      "name": "equal_boolean_numeric",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07604691595770419,
+            "cpu_seconds": 0.07546299999999917,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07422883389517665,
+            "cpu_seconds": 0.07413399999999992,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0753869591280818,
+            "cpu_seconds": 0.07524399999999964,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07291708397679031,
+            "cpu_seconds": 0.07286700000000046,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07469204091466963,
+            "cpu_seconds": 0.07459099999999985,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.0755941248498857,
+            "cpu_seconds": 0.07543699999999998,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07418395788408816,
+            "cpu_seconds": 0.07416200000000028,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07469204091466963,
+        "mad_percent": 0.9303778620884927,
+        "microseconds_per_operation": 74.69204091466963
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07652054214850068,
+            "cpu_seconds": 0.07638799999999968,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07314566592685878,
+            "cpu_seconds": 0.07303300000000057,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07369091617874801,
+            "cpu_seconds": 0.07366399999999995,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07422695797868073,
+            "cpu_seconds": 0.07417699999999972,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.09971704101189971,
+            "cpu_seconds": 0.09404400000000024,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07658537500537932,
+            "cpu_seconds": 0.07642700000000069,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07362483302131295,
+            "cpu_seconds": 0.0735639999999993,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07422695797868073,
+        "mad_percent": 1.4567376614470888,
+        "microseconds_per_operation": 74.22695797868073
+      },
+      "baseline_over_current": 1.006265687678087
+    },
+    {
+      "name": "equal_date_same",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.0030337499920278788,
+            "cpu_seconds": 0.003009999999999735,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.00282979104667902,
+            "cpu_seconds": 0.002830999999999584,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0028987079858779907,
+            "cpu_seconds": 0.002898000000000067,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.002857958199456334,
+            "cpu_seconds": 0.0028610000000002245,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0029029168654233217,
+            "cpu_seconds": 0.002902999999999878,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0028302501887083054,
+            "cpu_seconds": 0.002837999999999674,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.002959707984700799,
+            "cpu_seconds": 0.002930000000000099,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.0028987079858779907,
+        "mad_percent": 2.104385785666919,
+        "microseconds_per_operation": 2.8987079858779907
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.002940249862149358,
+            "cpu_seconds": 0.0029340000000006583,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0028453331906348467,
+            "cpu_seconds": 0.002847000000000044,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0028408330399543047,
+            "cpu_seconds": 0.0028410000000000935,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.002922957995906472,
+            "cpu_seconds": 0.002913999999999639,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.004249999998137355,
+            "cpu_seconds": 0.00371800000000011,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0029641669243574142,
+            "cpu_seconds": 0.0029639999999995226,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0029232080560177565,
+            "cpu_seconds": 0.0029240000000001487,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.0029232080560177565,
+        "mad_percent": 1.4011615853117019,
+        "microseconds_per_operation": 2.9232080560177565
+      },
+      "baseline_over_current": 0.9916187730499273
+    },
+    {
+      "name": "equal_date_different",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.015268374932929873,
+            "cpu_seconds": 0.015188000000000201,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.014887041877955198,
+            "cpu_seconds": 0.014886999999999873,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.015158750116825104,
+            "cpu_seconds": 0.0151469999999998,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.014910208061337471,
+            "cpu_seconds": 0.014907000000000004,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.020045208977535367,
+            "cpu_seconds": 0.018951000000000384,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.015462750103324652,
+            "cpu_seconds": 0.015371000000000024,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.015394791960716248,
+            "cpu_seconds": 0.015393000000000434,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.015268374932929873,
+        "mad_percent": 1.2730573571098394,
+        "microseconds_per_operation": 15.268374932929873
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.015739875147119164,
+            "cpu_seconds": 0.01564500000000013,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.01488337479531765,
+            "cpu_seconds": 0.014884000000000341,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.014844208024442196,
+            "cpu_seconds": 0.014848000000000638,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.014984916895627975,
+            "cpu_seconds": 0.014968999999999788,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.015040000202134252,
+            "cpu_seconds": 0.015033999999999992,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.01542795798741281,
+            "cpu_seconds": 0.015426999999999857,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.014867166988551617,
+            "cpu_seconds": 0.0148710000000003,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.014984916895627975,
+        "mad_percent": 0.7857895235355874,
+        "microseconds_per_operation": 14.984916895627975
+      },
+      "baseline_over_current": 1.0189162235116966
+    },
+    {
+      "name": "equal_timestamp_different",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.0757474999409169,
+            "cpu_seconds": 0.07570799999999878,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07835970795713365,
+            "cpu_seconds": 0.07810300000000048,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07668604096397758,
+            "cpu_seconds": 0.07659500000000108,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07874399982392788,
+            "cpu_seconds": 0.0782380000000007,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07944720890372992,
+            "cpu_seconds": 0.07925199999999943,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.10911429184488952,
+            "cpu_seconds": 0.10015800000000041,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07747870800085366,
+            "cpu_seconds": 0.07721499999999981,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07835970795713365,
+        "mad_percent": 1.3878318015059188,
+        "microseconds_per_operation": 78.35970795713365
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07722462504170835,
+            "cpu_seconds": 0.0771070000000007,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07522720913402736,
+            "cpu_seconds": 0.07516899999999982,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07797433319501579,
+            "cpu_seconds": 0.07785399999999942,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07629383401945233,
+            "cpu_seconds": 0.0761649999999996,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07710799993947148,
+            "cpu_seconds": 0.07693399999999961,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.075462874956429,
+            "cpu_seconds": 0.07546599999999959,
+            "operations": 1000,
+            "signature": false
+          },
+          {
+            "seconds": 0.07600737502798438,
+            "cpu_seconds": 0.07590100000000088,
+            "operations": 1000,
+            "signature": false
+          }
+        ],
+        "median_seconds": 0.07629383401945233,
+        "mad_percent": 1.0891562518819837,
+        "microseconds_per_operation": 76.29383401945233
+      },
+      "baseline_over_current": 1.0270778623755439
+    },
+    {
+      "name": "equal_offset_same_instant",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.005047667073085904,
+            "cpu_seconds": 0.0050480000000003855,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005176458973437548,
+            "cpu_seconds": 0.005183000000000604,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0051120000425726175,
+            "cpu_seconds": 0.005114000000000729,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005362707888707519,
+            "cpu_seconds": 0.005311999999999983,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005240791942924261,
+            "cpu_seconds": 0.005235000000000767,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005427457857877016,
+            "cpu_seconds": 0.005433000000000021,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005205708090215921,
+            "cpu_seconds": 0.005203000000001623,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.005205708090215921,
+        "mad_percent": 1.8001018501100214,
+        "microseconds_per_operation": 5.205708090215921
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.005102500086650252,
+            "cpu_seconds": 0.005105000000000359,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0051727090030908585,
+            "cpu_seconds": 0.005166000000000892,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.006011333083733916,
+            "cpu_seconds": 0.005894000000001398,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005068708909675479,
+            "cpu_seconds": 0.005069999999999908,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0052102908957749605,
+            "cpu_seconds": 0.005179000000000045,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005129083059728146,
+            "cpu_seconds": 0.005132000000001469,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.005154083017259836,
+            "cpu_seconds": 0.005155000000000243,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.005154083017259836,
+        "mad_percent": 1.00081683660982,
+        "microseconds_per_operation": 5.154083017259836
+      },
+      "baseline_over_current": 1.0100163448635198
+    },
+    {
+      "name": "equal_unicode_same",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07453937502577901,
+            "cpu_seconds": 0.07430599999999998,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0766582500655204,
+            "cpu_seconds": 0.07646199999999936,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07445733295753598,
+            "cpu_seconds": 0.07434599999999847,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0743848339188844,
+            "cpu_seconds": 0.07417500000000032,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07597199990414083,
+            "cpu_seconds": 0.07572399999999924,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07765658292919397,
+            "cpu_seconds": 0.07727700000000048,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07438204204663634,
+            "cpu_seconds": 0.07432700000000025,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.07453937502577901,
+        "mad_percent": 0.2110736494480309,
+        "microseconds_per_operation": 74.53937502577901
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07426895806565881,
+            "cpu_seconds": 0.07413599999999931,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.10531054111197591,
+            "cpu_seconds": 0.08538700000000077,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07590445782989264,
+            "cpu_seconds": 0.07572399999999924,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.0747470420319587,
+            "cpu_seconds": 0.07463699999999918,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07532537495717406,
+            "cpu_seconds": 0.07514899999999969,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07322212494909763,
+            "cpu_seconds": 0.07320099999999918,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07423225021921098,
+            "cpu_seconds": 0.07413000000000025,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.0747470420319587,
+        "mad_percent": 0.7737201493111829,
+        "microseconds_per_operation": 74.7470420319587
+      },
+      "baseline_over_current": 0.9972217361311649
+    },
+    {
+      "name": "equal_quoted_same",
+      "baseline": {
+        "samples": [
+          {
+            "seconds": 0.07344225002452731,
+            "cpu_seconds": 0.07344200000000001,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07313912501558661,
+            "cpu_seconds": 0.07304199999999916,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07449983293190598,
+            "cpu_seconds": 0.0743109999999998,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07257066597230732,
+            "cpu_seconds": 0.07256899999999966,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07394875003956258,
+            "cpu_seconds": 0.07391600000000054,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07506804214790463,
+            "cpu_seconds": 0.07484999999999964,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07409562496468425,
+            "cpu_seconds": 0.07398700000000069,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.07394875003956258,
+        "mad_percent": 0.7452227279684546,
+        "microseconds_per_operation": 73.94875003956258
+      },
+      "current": {
+        "samples": [
+          {
+            "seconds": 0.07356687495484948,
+            "cpu_seconds": 0.0735209999999995,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07460591685958207,
+            "cpu_seconds": 0.07436000000000043,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.075839291093871,
+            "cpu_seconds": 0.07557500000000061,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07295674993656576,
+            "cpu_seconds": 0.07296100000000116,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07536941720172763,
+            "cpu_seconds": 0.07517299999999949,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.07302516605705023,
+            "cpu_seconds": 0.07297299999999929,
+            "operations": 1000,
+            "signature": true
+          },
+          {
+            "seconds": 0.11618550005368888,
+            "cpu_seconds": 0.09099399999999847,
+            "operations": 1000,
+            "signature": true
+          }
+        ],
+        "median_seconds": 0.07460591685958207,
+        "mad_percent": 1.6531855464095426,
+        "microseconds_per_operation": 74.60591685958207
+      },
+      "baseline_over_current": 0.9911914919394884
+    }
+  ]
+}
