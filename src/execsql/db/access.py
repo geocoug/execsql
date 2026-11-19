@@ -17,6 +17,7 @@ from typing import Any, cast
 from execsql.db.base import Database, _fetched
 from execsql.db.odbc import fresh_sessions, odbc_value
 from execsql.db.tiers import SupportTier
+from execsql.utils.transfers import query_counter
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc, fatal_error, install_hint
 from execsql.utils.auth import (
@@ -330,6 +331,9 @@ class AccessDatabase(Database):
         with self._cursor() as curs:
             curs.execute(sql)
             rows = curs.fetchall()
+            completed = query_counter(sql)
+            if completed is not None:
+                completed(len(rows))
             return [d[0] for d in curs.description], rows
 
     def select_rowsource(self, sql: str, *, decode_bytes: bool = True) -> tuple[list[str], Any]:  # noqa: ARG002

@@ -22,6 +22,7 @@ from decimal import Decimal
 from typing import Any, ClassVar
 from collections.abc import Callable, Generator, Iterator
 
+from execsql.utils.transfers import load_operation, loaded_rows, query_counter
 from execsql.exceptions import ErrInfo
 from execsql.utils.errors import exception_desc
 from execsql.db.target_types import ColumnKinds, ColumnMetadata, existing_table_converter, kind_for_python_type
@@ -441,6 +442,9 @@ class Database(ABC):
             except Exception:
                 pass  # Non-critical: some drivers lack rowcount support.
             rows = curs.fetchall()
+            completed = query_counter(sql)
+            if completed is not None:
+                completed(len(rows))
             return [d[0] for d in curs.description], rows
 
     def select_rowsource(self, sql: str, *, decode_bytes: bool = True) -> tuple[list[str], Generator]:
@@ -468,11 +472,18 @@ class Database(ABC):
         except Exception:
             pass  # Non-critical: some drivers lack rowcount support.
 
+        completed = query_counter(sql)
+
         def decode_row() -> Generator:
+            count = 0
             try:
                 while True:
                     rows = curs.fetchmany()
+                    if completed is not None:
+                        count += len(rows)
                     if not rows:
+                        if completed is not None:
+                            completed(count)
                         break
                     else:
                         for row in rows:
@@ -508,11 +519,18 @@ class Database(ABC):
             pass  # Non-critical: some drivers lack rowcount support.
         hdrs = [d[0] for d in curs.description]
 
+        completed = query_counter(sql)
+
         def dict_rows() -> Generator:
+            count = 0
             try:
                 while True:
                     rows = curs.fetchmany()
+                    if completed is not None:
+                        count += len(rows)
                     if not rows:
+                        if completed is not None:
+                            completed(count)
                         break
                     for row in rows:
                         if self.encoding:
@@ -942,7 +960,7 @@ class Database(ABC):
                     interval = _state.conf.import_progress_interval
                     if _state.exec_log and interval > 0 and total_rows % interval == 0:
                         _state.exec_log.log_status_info(
-                            f"IMPORT into {sq_name}: {total_rows} rows imported so far.",
+                            f"{load_operation()} into {sq_name}: {total_rows} rows imported so far.",
                         )
                 if eof:
                     break
@@ -962,9 +980,10 @@ class Database(ABC):
             self.rollback()
             raise
 
+        loaded_rows(total_rows)
         if _state.exec_log:
             _state.exec_log.log_status_info(
-                f"IMPORT into {sq_name} complete: {total_rows} rows imported.",
+                f"{load_operation()} into {sq_name} complete: {total_rows} rows imported.",
             )
 
     def _scanned_type_converter(self, data_type: type[DataType]) -> Callable[[Any], Any]:

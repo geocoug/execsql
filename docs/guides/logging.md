@@ -29,6 +29,43 @@ The optional [run manifest](../getting-started/syntax.md#options) contains the s
 `run_id` as the log, so callers can match the two without guessing from filenames
 or timestamps.
 
+## Data transfers
+
+`IMPORT` (including spreadsheet, JSON, Parquet and Feather forms), `IMPORT_FILE`,
+`EXPORT` and `COPY` write ordinary `status`/`info` records when they start and
+when they complete, fail or are interrupted. For example, the description column
+of three completed transfers could contain:
+
+```text
+IMPORT completed: source='samples.csv'; destination='initial:samples'; at='load.sql:4'; mode='new'; rows_loaded=2500; duration=0.142s
+COPY completed: source='initial:samples'; destination='warehouse:lab.samples'; at='load.sql:7'; rows_loaded=2500; duration=0.289s
+EXPORT completed: source='warehouse:lab.samples'; destination='samples.jsonl'; at='load.sql:9'; format='jsonl'; rows_read=2500; duration=0.083s
+```
+
+The corresponding start messages use `started` and omit counts and duration.
+Events are flushed to the log so a running transfer is visible. A start without
+a terminal event can mean the transfer is still running or the process was killed
+without cleanup (for example, SIGKILL).
+
+- `rows_loaded` counts rows inserted by the loader, summed across matching
+    worksheets. `IMPORT_FILE` loads one row containing the file.
+- `rows_read` counts rows consumed from the export's payload queries, summed
+    across workbook sheets. It excludes headers, metadata queries and the extra
+    display performed by `TEE`. It is not the number of lines in the output file.
+- Counts are `unknown` on failure or interruption, or when an adapter does not
+    provide a count. Access streaming exports currently report `unknown`; its text
+    exports can report the eagerly fetched count. No extra count queries are run.
+- `completed` means the handler returned successfully. Counts do not promise
+    that a later transaction cannot roll back, or that a failed transfer left no
+    partial file or committed database changes.
+
+Sources and destinations identify files, connection aliases, schemas and tables.
+Query exports and `COPY QUERY` identify the connection without repeating SQL text
+or row values in these messages. Filenames and other user text follow the log's
+normal secret redaction; tabs and newlines are escaped within the description.
+Existing export action and import progress messages remain available. COPY
+progress messages identify COPY rather than IMPORT.
+
 ## Record types
 
 Each line starts with a record type, followed by a run identifier (a compact date-time representation shared by all records from the same run). The remaining fields depend on the record type:
@@ -134,9 +171,9 @@ Each executed SQL statement, when the [`log_sql`](../reference/configuration.md#
 | Line number     | Script line              |
 | Query           | The SQL text             |
 
-### `import_progress`
+### Import progress messages
 
-Periodic row-count status lines during an `IMPORT`, written every N rows when the [`import_progress_interval`](../reference/configuration.md#import_progress_interval) config option is set to a positive integer. A final completion line is also written.
+Periodic `status`/`info` row-count lines during an `IMPORT` or `COPY`, written every N rows when the [`import_progress_interval`](../reference/configuration.md#import_progress_interval) config option is set to a positive integer. A final completion line is also written.
 
 ### Per-event timestamps
 

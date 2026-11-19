@@ -15,6 +15,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from execsql.utils.transfers import payload_query
+
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.exporters.base import ExportRecord
@@ -116,7 +118,8 @@ def write_query_to_xlsx(
     openpyxl = _require_openpyxl()
 
     try:
-        hdrs, rows = db.select_rowsource(select_stmt)
+        with payload_query(select_stmt):
+            hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
     except Exception as e:
@@ -302,7 +305,8 @@ def write_queries_to_xlsx(
         # Fetch data.
         select_stmt = f"select * from {t};"
         try:
-            hdrs, rows = db.select_rowsource(select_stmt)
+            with payload_query(select_stmt):
+                hdrs, rows = db.select_rowsource(select_stmt)
         except ErrInfo:
             raise
         except Exception as e:

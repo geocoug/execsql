@@ -19,6 +19,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from execsql.utils.transfers import loaded_rows, log_transfer
+
 import execsql.state as _state
 from execsql.exceptions import ErrInfo
 from execsql.importers.csv import importfile, importtable
@@ -32,6 +34,7 @@ from execsql.utils.errors import exception_desc
 from execsql.utils.strings import clean_words, fold_words
 
 
+@log_transfer("IMPORT")
 def x_import(**kwargs: Any) -> None:
     newstr = kwargs["new"]
     if newstr:
@@ -91,6 +94,7 @@ def x_import(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_file(**kwargs: Any) -> None:
     schemaname = kwargs["schema"]
     tablename = kwargs["table"]
@@ -119,6 +123,7 @@ def x_import_file(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_ods(**kwargs: Any) -> None:
     newstr = kwargs["new"]
     if newstr:
@@ -153,6 +158,7 @@ def x_import_ods(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_ods_pattern(**kwargs: Any) -> None:
     import re
 
@@ -206,6 +212,7 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
         tables = clean_words(tables)
     if _state.conf.fold_col_hdrs != "no":
         tables = fold_words(tables, _state.conf.fold_col_hdrs)
+    loaded_rows(0)
     for ix in range(len(impsheets)):
         sheetname = impsheets[ix]
         tablename = tables[ix]
@@ -234,6 +241,7 @@ def x_import_ods_pattern(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_xls(**kwargs: Any) -> None:
     newstr = kwargs["new"]
     if newstr:
@@ -269,6 +277,7 @@ def x_import_xls(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_xls_pattern(**kwargs: Any) -> None:
     import re
 
@@ -322,6 +331,7 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
         tables = clean_words(tables)
     if _state.conf.fold_col_hdrs != "no":
         tables = fold_words(tables, _state.conf.fold_col_hdrs)
+    loaded_rows(0)
     for ix in range(len(impsheets)):
         sheetname = impsheets[ix]
         tablename = tables[ix]
@@ -359,6 +369,7 @@ def x_import_xls_pattern(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_parquet(**kwargs: Any) -> None:
     newstr = kwargs["new"]
     if newstr:
@@ -393,6 +404,7 @@ def x_import_parquet(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_feather(**kwargs: Any) -> None:
     newstr = kwargs["new"]
     if newstr:
@@ -427,6 +439,7 @@ def x_import_feather(**kwargs: Any) -> None:
     return None
 
 
+@log_transfer("IMPORT")
 def x_import_json(**kwargs: Any) -> None:
     newstr = kwargs["new"]
     if newstr:

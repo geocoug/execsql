@@ -86,6 +86,7 @@ Delivered reporting improvements:
 - Preserve structured parser locations in Python errors ([#222](https://github.com/geocoug/execsql/issues/222)); an error-free `HALT EXIT_STATUS 0` succeeds.
 - Count attempted executable nodes consistently across Python results, manifests and run logs.
 - Add a final log summary and a shared log/manifest run identifier.
+- Log IMPORT, EXPORT and COPY lifecycle events with source, destination, location, duration and available row counts.
 
 ## Engineering track: performance and execution architecture
 

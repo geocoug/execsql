@@ -1286,6 +1286,27 @@ class Logger:
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tinfo\t{msg or ''}\n"
         self.writelog(wmsg)
 
+    def log_transfer(
+        self,
+        operation: str,
+        outcome: str,
+        fields: dict[str, str],
+        *,
+        rows: int | None = None,
+        count_name: str = "rows_loaded",
+        duration: float | None = None,
+    ) -> None:
+        """Write ordinary info records with redacted, single-line transfer details."""
+        details = "; ".join(f"{key}={self._redact(value)!r}" for key, value in fields.items())
+        if outcome != "started":
+            details += f"; {count_name}={rows if rows is not None else 'unknown'}"
+        if duration is not None:
+            details += f"; duration={duration:.3f}s"
+        self.seq_no += 1
+        self.writelog(f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tinfo\t{operation} {outcome}: {details}\n")
+        if self.log_file is not None:
+            self.log_file.flush()
+
     def log_status_warning(self, msg: str | None) -> None:
         self.warning_count += 1
         msg = self._redact(None if not msg else msg.replace("\n", ""))
@@ -1349,6 +1370,9 @@ class Logger:
         """Write the summary and final ``exit`` once; ``atexit`` is the fallback for an unclassified exit."""
         if self._exit_written:
             return
+        from execsql.utils.transfers import finish_active_transfer
+
+        finish_active_transfer(self, "interrupted" if self.exit_type in ("interrupted", "terminated") else "failed")
         self._exit_written = True
         elapsed = time.monotonic() - self._run_clock
         if exit_status is None:

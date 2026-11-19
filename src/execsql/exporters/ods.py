@@ -17,6 +17,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from execsql.utils.transfers import payload_query
+
 import execsql.state as _state
 from execsql.exceptions import OdsFileError
 from execsql.exceptions import ErrInfo
@@ -569,7 +571,8 @@ def write_query_to_ods(
 ) -> None:
     """Execute a SELECT and write the result set as a single-sheet ODS spreadsheet."""
     try:
-        hdrs, rows = db.select_rowsource(select_stmt)
+        with payload_query(select_stmt):
+            hdrs, rows = db.select_rowsource(select_stmt)
     except ErrInfo:
         raise
     except Exception as e:
@@ -631,7 +634,8 @@ def write_queries_to_ods(
         # Get the data
         select_stmt = f"select * from {t};"
         try:
-            hdrs, rows = db.select_rowsource(select_stmt)
+            with payload_query(select_stmt):
+                hdrs, rows = db.select_rowsource(select_stmt)
         except ErrInfo:
             raise
         except Exception as e:

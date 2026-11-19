@@ -384,6 +384,12 @@ Formatter correctness notes added in the 2.19.x line:
 
 ### Logging Enhancements
 
+IMPORT, IMPORT_FILE, EXPORT and COPY log start and terminal events with source,
+destination, script location, duration and known row counts. Export counts track
+payload reads, excluding TEE; failed or interrupted transfers report unknown
+counts. COPY progress messages name COPY. These additions use existing status
+records and do not change transferred values or transaction behavior.
+
 Each run ends with a summary before the existing `exit` record: outcome, known
 exit code, attempted executable nodes, recorded errors, logged warnings and duration.
 The manifest includes the log's `run_id` and retains known interruption exit codes.

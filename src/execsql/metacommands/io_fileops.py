@@ -17,6 +17,8 @@ from pathlib import Path
 from shutil import copyfileobj
 from typing import Any, Literal
 
+from execsql.utils.transfers import log_transfer
+
 import execsql.state as _state
 from execsql.db.base import Database
 from execsql.exceptions import ErrInfo
@@ -79,6 +81,7 @@ def x_include(**kwargs: Any) -> None:
     )
 
 
+@log_transfer("COPY")
 def x_copy(**kwargs: Any) -> None:
     alias1 = kwargs["alias1"].lower()
     schema1 = kwargs["schema1"]
@@ -107,6 +110,7 @@ def x_copy(**kwargs: Any) -> None:
     _copy_rows(db1, db2, f"select * from {tbl1};", schema2, table2, new_tbl2)
 
 
+@log_transfer("COPY")
 def x_copy_query(**kwargs: Any) -> None:
     alias1 = kwargs["alias1"].lower()
     select_stmt = kwargs["query"]
