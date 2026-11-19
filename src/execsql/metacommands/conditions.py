@@ -289,6 +289,8 @@ def xf_equals(**kwargs: Any) -> bool:
 
     s1 = unicodedata.normalize("NFC", kwargs["string1"]).lower().strip('"')
     s2 = unicodedata.normalize("NFC", kwargs["string2"]).lower().strip('"')
+    if s1 == s2:
+        return True
     converters = (
         int,
         float,

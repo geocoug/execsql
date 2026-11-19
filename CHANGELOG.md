@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Changed
+
+- Speed up `EQUAL()` comparisons of matching text without changing comparison results.
+
 ______________________________________________________________________
 
 ## [2.41.0] - 2026-11-19

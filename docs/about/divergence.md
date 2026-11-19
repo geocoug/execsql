@@ -219,6 +219,10 @@ Finite Decimal values loaded into existing text columns are bound as exact decim
 
 ### Conditional Tests
 
+`EQUAL()` returns immediately for matching Unicode-normalized, lowercased,
+quote-stripped strings. Unequal strings retain the existing type-conversion
+order and forgiving comparisons; results are unchanged.
+
 | Conditional               | Description                                                                                              |
 | ------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `ROW_COUNT_GT(table, N)`  | True if the number of rows in *table* is strictly greater than *N* (integer). Queries `SELECT count(*)`. |

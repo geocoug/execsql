@@ -1749,7 +1749,14 @@ Evaluates whether *string1* ends with *string2*. The comparison is case-sensitiv
 EQUAL("<string_1>", "<string_2>")
 ```
 
-Evaluates whether the two values are equal. The two string representations of the values first are converted to a normalized Unicode form ([Normal Form C](http://unicode.org/reports/tr15/)) and then are compared as integers, floating-point values, date/time values with a time zone, date/time values, dates, Boolean values, and strings. String comparisons are case insensitive. The first of these data types to which both values can be successfully converted is the basis for determining whether the values are equal. This test is as forgiving as possible, and returns True whenever the two values are plausibly the same. See also [IDENTICAL](#identical).
+Evaluates whether the two values are equal. Both strings are normalized to Unicode
+[Normal Form C](http://unicode.org/reports/tr15/), lowercased and stripped of surrounding
+double quotes. Matching normalized strings return True immediately. Different strings
+are compared as integers, floating-point values, timestamps, timestamps with time zones,
+dates and Boolean values, in that order. Any successful conversion that produces equal
+values returns True; an unequal conversion does not prevent later conversions from
+matching. If none matches, the result is False. This test is as forgiving as possible,
+and returns True whenever the two values are plausibly the same. See also [IDENTICAL](#identical).
 
 The double quotes around the strings may be omitted if they are not needed.
 
