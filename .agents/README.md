@@ -57,6 +57,9 @@ State remains under `<git common dir>/claude-review/pr-<number>/`: `state.json`,
 reports, and head-specific `.approved` files. Legacy `state` files are read too.
 Git refs retain `refs/claude-review/pr-<number>` so existing records survive.
 The historical name is intentional. Worktrees share that common state.
+If GitHub's PR ref cannot be fetched, the hook fetches the exact head commit
+reported by its API instead. The fetched head must match before review proceeds;
+fetch failures or mismatches still block the merge.
 
 Subprocess calls share a 90-second budget, with each call capped at 10 seconds
 and root discovery capped at 5 seconds, below both registrations' 120-second

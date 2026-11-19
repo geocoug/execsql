@@ -583,11 +583,28 @@ def gate(m: dict, cwd: str) -> None:
         ],
         cwd,
     )
+    if fetch.returncode:
+        # GitHub can expose the PR through its API before refs/pull/<n>/head is available.
+        # Fetch the exact API head instead, never a branch that might have advanced.
+        fetch = run(
+            [
+                "git",
+                "fetch",
+                "-q",
+                "origin",
+                f"+{head}:refs/claude-review/pr-{n}",
+                f"+refs/heads/{base_ref}:refs/remotes/origin/{base_ref}",
+            ],
+            cwd,
+        )
     if fetch.returncode or run(["git", "cat-file", "-e", head + "^{commit}"], cwd).returncode:
         block(
             f"Merge blocked: the review hook couldn't fetch PR #{n}'s head ({head}) and its base ({base_ref}). Its "
             f"error:\n{fetch.stderr.strip()}",
         )
+    fetched = run(["git", "rev-parse", f"refs/claude-review/pr-{n}"], cwd)
+    if fetched.returncode or fetched.stdout.strip() != head:
+        block(f"Merge blocked: PR #{n}'s fetched head differs from its API head ({head}); retry for a fresh review.")
     mb = run(["git", "merge-base", f"origin/{base_ref}", head], cwd)
     if mb.returncode:
         block(f"Merge blocked: PR #{n}'s head has no common history with origin/{base_ref}.")
