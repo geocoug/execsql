@@ -126,12 +126,9 @@ coverage is missing. The corpus harness already exists; do not rebuild it. The
 generated model currently covers SQLite, and its larger scheduled run already
 exists; additional backends remain possible extensions.
 
-E1's measurement phase is delivered in the [control-flow baseline](scripts/benchmarks/control-flow-baseline.md):
-seven paired timing samples, isolated 2.41.0/current source trees, separate profiles
-and behavior guards. Runtime code is unchanged. The first proposed follow-up is
-an early `True` result for identical normalized `EQUAL()` strings; unequal
-comparisons retain their existing conversion order. Optimization remains subject
-to its own scope and the report's correctness and whole-workload performance gates.
+E1's measurement phase is delivered in [PR #215](https://github.com/geocoug/execsql/pull/215).
+The [benchmark guide](scripts/benchmarks/README.md#control-flow-profiling-e1) covers
+reproduction and retained data. Runtime optimization remains separately scoped.
 
 Startup and general `EXPORT` throughput are not current optimization priorities.
 Fresh measurements can change that decision.

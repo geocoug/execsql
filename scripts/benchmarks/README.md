@@ -69,8 +69,8 @@ environment-specific numbers.
 
 ## Control-flow profiling (E1)
 
-The [2.41.0 baseline report](control-flow-baseline.md) retains the canonical
-timings, profile statistics and follow-up recommendation.
+The canonical 2.41.0 run retains [raw timings](baselines/control-flow-2.41.0.json)
+and [profile statistics](baselines/control-flow-2.41.0-profiles.json).
 
 Measure the three E1 targets: named-script body copying, per-command path/system
 variables, and `EQUAL()` conversion attempts. This uses isolated SQLite memory
