@@ -73,36 +73,17 @@ SQL supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL 14+, with explicit err
 for unsupported features. The [inspection demo](templates/inspect/README.md)
 provides synthetic inputs and runnable commands for all four inspection levels.
 
-## Product track: agents and automation
-
-The order below expresses feature priority, not a strict serial implementation
-schedule. Dependencies determine what can proceed independently. Build on
-interfaces that already exist; each milestone must be useful independently.
-
-| Milestone                            | Outcome and completion criteria                                                                                                                                                                                                             | Dependencies                                                                                |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| **A1. Schema discovery (delivered)** | Filtered, read-only JSON metadata with explicit adapter capabilities and errors; see the interface above.                                                                                                                                   | Existing database adapters.                                                                 |
-| **A5. Optional MCP interface**       | Expose schema inspection, script validation and execution of explicitly selected scripts through the established APIs and result schemas. Keep the integration optional and define execution permissions separately from inspection access. | Existing Python API/manifest plus A1; reconsider scope without A3/A4 before implementation. |
-
-**Decisions, 2026-11-13:** skip A3's unattended mode; no current workflow justifies
-the additional prompt-answer and credential machinery. Skip A4's `inspect script`;
-existing `--parse-tree` and `--dry-run` cover current preview needs. Neither remains
-an implementation prerequisite for A5.
-
-Explicit run context is not a prerequisite for these milestones. Each interface must respect
-existing run and connection-ownership constraints.
-
 ## Reporting direction
-
-**Decision, 2026-11-13:** drop A2's separate versioned execution report and detailed
-per-command/transaction trace. No current consumer justifies another reporting
-interface or its collection and maintenance costs.
 
 Improve `execsql.log`, the existing `--manifest` output and Python `ScriptResult`
 where a concrete bug or caller need warrants it. Preserve existing interfaces,
 secret redaction and execution behavior. Measure the cost of any new
-instrumentation before enabling it. The remaining automation milestones build on
-these existing interfaces; a separate report is not a prerequisite.
+instrumentation before enabling it.
+
+Investigate how these three outputs describe successful runs, non-halting errors,
+error handlers, startup failures, cancellation and interruptions. Compare outcome,
+error location, command counts, file effects and secret redaction. Bring concrete
+gaps and proposed changes back for approval before changing execution behavior.
 
 ## Engineering track: performance and execution architecture
 
@@ -113,29 +94,24 @@ historical; their benchmark scripts were not retained, so they are not current
 performance claims or release targets. Each scoped performance task chooses its
 representative workloads and measurable success criteria before implementation.
 
-| Order                                   | Work                                                                                                                                                                                                                                   | Evidence required before shipping                                                                                                                                                                                                                                                                                                         |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **E1. Loop and control-flow overhead**  | Profile `EXECUTE SCRIPT` body copying, per-command path resolution and unequal `EQUAL()` comparisons. Optimize the measured cost.                                                                                                      | Preserve script-body snapshot/mutation behavior, including runtime script extension; do not assume AST structures are immutable. Preserve path-variable behavior across `CD`, includes and inline scripts. Compare `EQUAL()` across value pairs before changing conversion order: integer, date and Boolean interpretations can disagree. |
-| **E2. Type-scan memoization**           | Reuse per-column type checks for repeated values.                                                                                                                                                                                      | The scan's golden corpus must keep the same inferred types. Length, precision and scale calculations still see every value. Measure memory use and high-cardinality inputs as well as repeated codes and dates.                                                                                                                           |
-| **E3. DuckDB bulk loading**             | Evaluate Arrow registration plus `INSERT … SELECT`, including whether existing format dependencies provide a usable path without a mandatory new Arrow dependency. Keep the current loader when the optional fast path is unavailable. | Differential tests across every source-value type × destination-column type, including errors, must show identical stored values. A speedup never justifies a changed value.                                                                                                                                                              |
-| **E4. Explicit run context**            | Continue passing the existing `RuntimeContext` explicitly through remaining handlers; evaluate a per-run library object.                                                                                                               | Preserve independent/reentrant library calls, cleanup, transaction state and the existing plugin handler contract. Define a compatible plugin transition rather than unconditionally adding arguments to handlers. This prepares for a separately scoped parallel-execution feature.                                                      |
-| **E5. Driver autocommit investigation** | Investigate avoiding a separate commit round trip for every statement.                                                                                                                                                                 | This remains gated on cross-backend transaction coverage: SQL-level `BEGIN`/`COMMIT`, `AUTOCOMMIT OFF`, batches, interruptions and metacommands that commit independently must retain their outcomes. If parity cannot be shown, retain the current path and recommend explicit batching.                                                 |
+| Order                                   | Work                                                                                                                                                                                                                                   | Evidence required before shipping                                                                                                                                                                                                                                                         |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **E2. Type-scan memoization**           | Reuse per-column type checks for repeated values.                                                                                                                                                                                      | The scan's golden corpus must keep the same inferred types. Length, precision and scale calculations still see every value. Measure memory use and high-cardinality inputs as well as repeated codes and dates.                                                                           |
+| **E3. DuckDB bulk loading**             | Evaluate Arrow registration plus `INSERT … SELECT`, including whether existing format dependencies provide a usable path without a mandatory new Arrow dependency. Keep the current loader when the optional fast path is unavailable. | Differential tests across every source-value type × destination-column type, including errors, must show identical stored values. A speedup never justifies a changed value.                                                                                                              |
+| **E4. Explicit run context**            | Continue passing the existing `RuntimeContext` explicitly through remaining handlers; evaluate a per-run library object.                                                                                                               | Preserve independent/reentrant library calls, cleanup, transaction state and the existing plugin handler contract. Define a compatible plugin transition rather than unconditionally adding arguments to handlers. This prepares for a separately scoped parallel-execution feature.      |
+| **E5. Driver autocommit investigation** | Investigate avoiding a separate commit round trip for every statement.                                                                                                                                                                 | This remains gated on cross-backend transaction coverage: SQL-level `BEGIN`/`COMMIT`, `AUTOCOMMIT OFF`, batches, interruptions and metacommands that commit independently must retain their outcomes. If parity cannot be shown, retain the current path and recommend explicit batching. |
 
 Extend the existing script behavior corpus and generated transaction model where
 coverage is missing. The corpus harness already exists; do not rebuild it. The
 generated model currently covers SQLite, and its larger scheduled run already
 exists; additional backends remain possible extensions.
 
-E1's measurement phase is delivered in [PR #215](https://github.com/geocoug/execsql/pull/215).
-The [benchmark guide](scripts/benchmarks/README.md#control-flow-profiling-e1) covers
-reproduction and retained data. Runtime optimization remains separately scoped.
-
 Startup and general `EXPORT` throughput are not current optimization priorities.
 Fresh measurements can change that decision.
 
 ## Additional 2.x feature proposals
 
-These proposals are retained alongside the agent track. Their syntax and design
+These proposals remain unapproved. Their syntax and design
 still need a scoped decision before implementation.
 
 | Proposal                                          | Intended behavior                                                                                                                                    | Compatibility requirement                                                                                                                                                                                                        |
