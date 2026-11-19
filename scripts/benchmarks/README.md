@@ -88,6 +88,10 @@ uv run python scripts/benchmarks/control_flow.py --baseline-ref v2.41.0
 revision**. It does not fetch code. The baseline is archived into a temporary
 directory; each baseline/current sample runs in a separate process using the same
 Python interpreter, installed dependencies and fixture directory. The benchmark
+uses a fresh private bytecode-cache prefix for the entire measurement, overriding
+inherited cache settings so stale working-tree `.pyc` files cannot mask edits.
+Direct comparisons run inside an active default library configuration; Boolean
+outcomes are checked against API script assertions before measurement. The benchmark
 verifies the imported package path and hashes both source trees before and after
 measurement. It never installs the baseline over the working copy.
 

@@ -110,12 +110,25 @@ def fixtures(directory: Path, iterations: int) -> None:
 
 
 def worker(source: Path, directory: Path, iterations: int, number: int, profile_dir: Path | None) -> dict:
+    if sys.pycache_prefix is None or Path(sys.pycache_prefix).resolve() != directory.parent / "bytecode":
+        raise RuntimeError("Worker requires the measurement's private bytecode cache.")
     sys.path.insert(0, str(source))
     import execsql
-    from execsql.metacommands.conditions import xf_equals
+    from execsql.api import _LibraryConfig
+    from execsql.state import RuntimeContext, active_context
 
     if not Path(execsql.__file__).resolve().is_relative_to(source.resolve()):
         raise RuntimeError("Benchmark imported the wrong source tree.")
+    context = RuntimeContext()
+    context.conf = _LibraryConfig()
+    with active_context(context):
+        return _measure_worker(source, directory, iterations, number, profile_dir)
+
+
+def _measure_worker(source: Path, directory: Path, iterations: int, number: int, profile_dir: Path | None) -> dict:
+    import execsql
+    from execsql.metacommands.conditions import xf_equals
+
     os.chdir(directory)
 
     def execute(**kwargs: Any) -> Any:
@@ -124,6 +137,9 @@ def worker(source: Path, directory: Path, iterations: int, number: int, profile_
             raise RuntimeError(str(result.errors))
         return result
 
+    execute(sql="-- !x! ASSERT EQUAL(true, t)\n-- !x! ASSERT EQUAL(true, 1)\n")
+    boolean_checks = [xf_equals(string1="true", string2=value) for value in ("t", "1")]
+    assert boolean_checks == [True, True], "Direct comparisons must use the API's default Boolean configuration."
     snapshot = execute(
         sql="""-- !x! SUB calls 0
 -- !x! SUB seen 0
@@ -152,6 +168,7 @@ def worker(source: Path, directory: Path, iterations: int, number: int, profile_
     for name, path in expected_paths.items():
         assert paths.variables[name] == f'"{path.resolve()}{os.sep}"', (name, paths.variables[name])
     guards = {
+        "default_booleans": boolean_checks,
         "extension_calls": snapshot.variables["calls"],
         "extension_seen": snapshot.variables["seen"],
         "paths": {name: paths.variables[name].replace(str(directory), "<fixture>") for name in expected_paths},
@@ -310,6 +327,8 @@ def main() -> None:
         def invoke(label: str, *, profile: bool = False) -> dict:
             command = [
                 sys.executable,
+                "-X",
+                f"pycache_prefix={directory / 'bytecode'}",
                 str(Path(__file__).resolve()),
                 "--worker-source",
                 str(sources[label]),
