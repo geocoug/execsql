@@ -90,7 +90,8 @@ def test_export_reports_consumed_rows_without_tee_double_count(tmp_path, fmt):
     assert "source='initial:src'" in completed
     assert "rows_read=2" in completed
     assert "duration=" in completed
-    assert f"{tmp_path / 's.sql'}:3" in completed
+    location = f"{tmp_path / 's.sql'}:3"
+    assert f"at={location!r}" in completed
 
 
 @pytest.mark.parametrize("fmt", ["csv", "tsv", "json", "jsonl", "json_ts", "xml", "yaml", "markdown", "values"])
