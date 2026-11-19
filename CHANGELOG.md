@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.41.0] - 2026-11-19
+
 ### Added
 
 - Generate synthetic inspection datasets and try all four commands with the repository examples in `templates/inspect/`.
