@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from asyncio import CancelledError
 from pathlib import Path
 import re
 import sqlite3
@@ -79,6 +80,8 @@ _SETUP = (
     ],
 )
 def test_export_reports_consumed_rows_without_tee_double_count(tmp_path, fmt):
+    if fmt == "duckdb":
+        pytest.importorskip("duckdb")
     result = _run(tmp_path, _SETUP + f"-- !x! EXPORT src TEE TO result.{fmt} AS {fmt}\n")
     assert result.returncode == 0, result.stdout + result.stderr
     started, completed = _messages(tmp_path)
@@ -169,7 +172,7 @@ def logger(tmp_path):
     log.close()
 
 
-@pytest.mark.parametrize("error", [ValueError("bad"), KeyboardInterrupt(), SystemExit(143)])
+@pytest.mark.parametrize("error", [ValueError("bad"), KeyboardInterrupt(), SystemExit(143), CancelledError()])
 def test_terminal_event_precedes_exception_and_scope_is_restored(logger, error):
     @log_transfer("IMPORT")
     def transfer(**kwargs):

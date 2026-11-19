@@ -188,11 +188,9 @@ def log_transfer(operation: str) -> Callable[[_F], _F]:
                 except BaseException as exc:
                     from execsql.exceptions import ScriptExit
 
-                    outcome = (
-                        "interrupted"
-                        if isinstance(exc, (KeyboardInterrupt, SystemExit)) and not isinstance(exc, ScriptExit)
-                        else "failed"
-                    )
+                    # Match the executor: cancellation/timeouts may use a
+                    # non-Exception BaseException, not just KeyboardInterrupt.
+                    outcome = "failed" if isinstance(exc, (Exception, ScriptExit)) else "interrupted"
                     # Partial counts do not prove that rows were retained or written.
                     transfer.finish(outcome)
                     raise
