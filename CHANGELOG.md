@@ -18,7 +18,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- Count attempted commands, including commands that fail, halt or are interrupted, in Python results and run diagnostics.
+- Count attempted executable nodes, including failing and halting nodes, consistently in Python results, manifests and run logs.
 - Return Python `success=True` for `HALT EXIT_STATUS 0` when no earlier errors occurred.
 
 ### Fixed

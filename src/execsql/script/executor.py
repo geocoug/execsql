@@ -479,7 +479,7 @@ def _exec_metacommand(
     manifest = _manifest.current()
     if manifest is None:
         return _dispatch_metacommand(ctx, cmd, source, line_no)
-    with manifest.command(cmd, source, line_no, ctx.metacommandlist):
+    with manifest.command(cmd, source, line_no, ctx.metacommandlist, count=False):
         return _dispatch_metacommand(ctx, cmd, source, line_no)
 
 
@@ -583,6 +583,11 @@ def _execute_nodes(
             t0 = _time.perf_counter()
 
         ctx.cmds_run += 1
+        if (manifest := _manifest.current()) is not None:
+            if isinstance(node, SqlStatement):
+                manifest.record_sql()
+            else:
+                manifest.metacommands += 1
         _execute_node(ctx, node, localvars, in_loop=in_loop)
 
         if profiling:
@@ -612,8 +617,6 @@ def _execute_node(
         # Deduplicate trailing semicolons
         text = re.sub(r"\s*;(\s*;\s*)+$", ";", text)
         ctx.last_command = ExecutingStatement(node)
-        if (manifest := _manifest.current()) is not None:
-            manifest.record_sql()
         _exec_sql(
             ctx,
             text,
@@ -952,7 +955,13 @@ def _run_directive(
     """
     if (manifest := _manifest.current()) is not None:
         assert ctx.metacommandlist is not None
-        manifest.record_metacommand(node.command, node.span.file, node.span.start_line, ctx.metacommandlist)
+        manifest.record_metacommand(
+            node.command,
+            node.span.file,
+            node.span.start_line,
+            ctx.metacommandlist,
+            count=False,
+        )
 
     if not node.is_execute_script:
         _execute_include_native(ctx, node, localvars)

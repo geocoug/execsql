@@ -1346,7 +1346,7 @@ class Logger:
         self.exit_description = self._redact(None if not msg else msg.replace("\n", ""))
 
     def log_exit(self, exit_status: int | None = None) -> None:
-        """Write the run's ``exit`` record, once: ``exit_now`` writes it before closing the log, ``atexit`` otherwise."""
+        """Write the summary and final ``exit`` once; ``atexit`` is the fallback for an unclassified exit."""
         if self._exit_written:
             return
         self._exit_written = True

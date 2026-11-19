@@ -141,12 +141,21 @@ class RunManifest:
         self.sql_statements += 1
 
     @contextmanager
-    def command(self, command: str, source: str, line: int, metacommandlist: Any) -> Iterator[None]:
-        """Count an attempt and retain provenance for asynchronous writes, including nested commands."""
+    def command(
+        self,
+        command: str,
+        source: str,
+        line: int,
+        metacommandlist: Any,
+        *,
+        count: bool = True,
+    ) -> Iterator[None]:
+        """Retain provenance for asynchronous writes, optionally counting the command attempt."""
         hit = metacommandlist.get_match(command)
         words = command.split(None, 1)
         by = (hit[0].description if hit else None) or (words[0].upper() if words else "METACOMMAND")
-        self.metacommands += 1
+        if count:
+            self.metacommands += 1
         self._commands.append({"source": source, "line": line, "by": by, "queued": {}})
         try:
             yield
@@ -187,9 +196,10 @@ class RunManifest:
         *,
         count: bool = True,
     ) -> None:
-        """Count a metacommand that ran, and record the files and connections it touched.
+        """Record a successful metacommand's file and connection effects.
 
-        *command* is the text after substitution, so paths are the ones used.
+        *command* is substituted text. *count* is false when the executor has
+        already counted this attempt.
         """
         from execsql.metacommands.effects import effects
 

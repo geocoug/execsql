@@ -75,7 +75,8 @@ class ScriptResult:
 
     Attributes:
         success: ``True`` if execution completed without errors.
-        commands_run: Number of SQL statements and metacommands executed.
+        commands_run: Number of attempted SQL and metacommand/control nodes,
+            including a node that fails, halts or is interrupted.
         elapsed: Wall-clock execution time in seconds.
         errors: List of errors encountered (empty on success).
         variables: Final state of substitution variables, keyed by
@@ -532,7 +533,7 @@ def run(
 
     tree = prepare_script(tree, conf.include_req, conf.include_opt)
 
-    # Capture output to a buffer (suppress stdout/stderr)
+    # Route WRITE output through run-local buffers.
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
     ctx.output = WriteHooks(stdout_buf.write, stderr_buf.write)

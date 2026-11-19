@@ -231,6 +231,27 @@ def test_queued_write_retains_literal_path_whitespace(work):
     assert [entry["path"] for entry in manifest["files_written"]] == [" spaced.txt "]
 
 
+@pytest.mark.parametrize(
+    "script",
+    [
+        "select * from missing;\n",
+        "-- !x! HALT EXIT_STATUS 0\n",
+        "-- !x! IF (EQUAL(a, a))\nselect 1;\n-- !x! ENDIF\n",
+        "-- !x! BEGIN SCRIPT example\nselect 1;\n-- !x! END SCRIPT\n-- !x! EXECUTE SCRIPT example\n",
+        "-- !x! LOOP WHILE (EQUAL(a, a))\n-- !x! BREAK\n-- !x! ENDLOOP\n",
+        "-- !x! BEGIN SQL\nselect 1;\n-- !x! END SQL\n",
+    ],
+)
+def test_counts_align_with_python_and_log_for_control_and_failure_paths(work, script):
+    from execsql import run
+
+    _, manifest = _run(work, script, "--manifest", "runs/m.json")
+    result = run(sql=script, dsn="sqlite:///:memory:")
+    assert sum(manifest["statements"].values()) == result.commands_run
+    summary = next(line for line in (work / "execsql.log").read_text().splitlines() if "Run finished:" in line)
+    assert f"attempted={result.commands_run};" in summary
+
+
 def test_record_metacommand_classifies_with_the_dispatch_table(tmp_path):
     from execsql.metacommands import DISPATCH_TABLE
 

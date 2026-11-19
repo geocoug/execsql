@@ -456,9 +456,11 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
     ```
 
     `run_id` matches the identifier in `execsql.log`; it is `null` if logging
-    could not be initialized. Statement counts include attempted SQL and dispatched
-    metacommands, including one that fails or halts; structural control nodes are
-    not included in the manifest's metacommand count.
+    could not be initialized. Statement counts include attempted SQL and metacommand
+    nodes, including one that fails or halts. Executable control nodes such as
+    script declarations, IF and LOOP count as metacommands; comments and commands
+    never reached do not. Their sum matches the log's attempted-command total
+    and Python `commands_run` for the same execution.
 
     Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. Registering a halt-write handler does not count as writing its destination: it is recorded only if the handler writes successfully. Queued text output is listed after a write and flush succeed. File lists are not a transactional guarantee: a failed command can leave partial files, and a later failure does not undo earlier confirmed writes. A file's presence before the run is not evidence that the run wrote it.
 
