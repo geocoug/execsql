@@ -19,14 +19,14 @@ ______________________________________________________________________
 
 ### Changed
 
-- Count attempted executable nodes, including failing and halting nodes, consistently in Python results, manifests and run logs.
+- Count attempted commands, including failing and halting commands, consistently in Python results, manifests and run logs.
 - Return Python `success=True` for `HALT EXIT_STATUS 0` when no earlier errors occurred.
 
 ### Fixed
 
 - Preserve known interruption exit codes in `--manifest` output.
-- Exclude unused halt-write handlers and failed metacommand effects from manifest file lists; confirm queued writes after flushing.
-- Preserve known parser source lines in Python `ScriptError` results.
+- Exclude unused halt-write output and unconfirmed file effects from `--manifest` output.
+- Include known script line numbers in Python `ScriptError` results.
 
 ______________________________________________________________________
 
