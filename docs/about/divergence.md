@@ -384,6 +384,12 @@ Formatter correctness notes added in the 2.19.x line:
 
 ### Logging Enhancements
 
+Each run ends with a summary before the existing `exit` record: outcome, known
+exit code, attempted executable nodes, recorded errors, logged warnings and duration.
+The manifest includes the log's `run_id` and retains known interruption exit codes.
+Failed metacommands and unused halt-write registrations do not claim completed
+file effects; queued output is confirmed only after a successful write and flush.
+
 | Feature                       | Description                                                                        |
 | ----------------------------- | ---------------------------------------------------------------------------------- |
 | Per-event ISO 8601 timestamps | `status`, `connect`, `action`, and `user_msg` log entries include a timestamp.     |
@@ -406,6 +412,11 @@ Formatter correctness notes added in the 2.19.x line:
 execsql2 adds an interactive debug REPL (no upstream equivalent), triggered either by the `BREAKPOINT` metacommand or the `--debug` CLI flag (step-through mode). The REPL prompts with `execsql debug>`, and input runs as if it were the next lines of the script where it paused, so SQL (ending with `;`, results shown as tables), metacommands and blocks all work, in the paused script's variable scope and transaction. A `SUB` typed there is still set when the script resumes, a `BREAK` leaves the `LOOP`, `SCRIPT` or included file the script paused in, and `HALT` ends the run. An error ends only the input that caused it, without running `ON ERROR_HALT` actions. Input starting with `.` is a REPL command (`.continue`, `.quit`, `.next`, `.vars`, `.vars VAR`, `.where`, `.stack`, `.set`, `.scripts`, `.cancel`, `.help`). `BREAKPOINT` is silently skipped when stdin is not a TTY so it does not hang CI. Full command list and behavior: [Debugging guide](../guides/debugging.md).
 
 ### Library API
+
+Python results count attempted commands, including a failing or halting command.
+An error-free `HALT EXIT_STATUS 0` succeeds; earlier errors still cause failure.
+Parser failures retain their known structured source line without changing their
+human-readable messages.
 
 When `execsql.run(connection=...)` borrows the initial connection, it still rolls back and closes connections opened by the script with CONNECT. The borrowed object is excluded from this cleanup by identity under every alias and remains caller-owned; the existing error/interrupt rollback rules continue to apply. Uncommitted work on run-created connections is discarded on exit, so commit it before the script ends if it must be kept.
 

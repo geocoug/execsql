@@ -39,7 +39,7 @@ from typing import Any, cast
 
 from execsql.cli.dsn import _parse_connection_string
 from execsql.config import ConfigData, StatObj, WriteHooks
-from execsql.exceptions import ErrInfo, ScriptExit
+from execsql.exceptions import ErrInfo, ScriptExit, ScriptParseError
 from execsql.state import RuntimeContext, active_context
 
 __all__ = ["run", "ScriptResult", "ScriptError"]
@@ -459,7 +459,11 @@ def run(
             assert sql is not None
             tree = parse_string(sql, source_name="<inline>")
     except (ErrInfo, OSError) as exc:
-        return _failed(_error_text(exc), str(script) if script else "<inline>")
+        return _failed(
+            _error_text(exc),
+            exc.source if isinstance(exc, ScriptParseError) else (str(script) if script else "<inline>"),
+            exc.line if isinstance(exc, ScriptParseError) else None,
+        )
 
     # ------------------------------------------------------------------
     # Build an isolated RuntimeContext
@@ -714,7 +718,8 @@ def _capture_errors(
     lc = ctx.last_command
     if err is not None and lc is not None and lc.command_type == "sql" and ctx.subvars is not None:
         sql = ctx.subvars.varvalue("$LAST_ERROR") or None
-    if err is None or ctx.status is None or ctx.status.last_halting_error_id != id(err):
+    successful_halt = not interrupted and err is None and exit_code == 0
+    if not successful_halt and (err is None or ctx.status is None or ctx.status.last_halting_error_id != id(err)):
         errors.append(
             ScriptError(
                 message=msg,
@@ -727,13 +732,13 @@ def _capture_errors(
         errors.append(ScriptError(message=ctx.halt_output_error.errmsg(), source="<output>"))
 
 
-def _failed(message: str, source: str) -> ScriptResult:
+def _failed(message: str, source: str, line: int | None = None) -> ScriptResult:
     """A result for a run that failed before any of the script ran."""
     return ScriptResult(
         success=False,
         commands_run=0,
         elapsed=0.0,
-        errors=[ScriptError(message=message, source=source)],
+        errors=[ScriptError(message=message, source=source, line=line)],
         variables={},
     )
 
@@ -749,6 +754,8 @@ def _last_source(ctx: RuntimeContext, err: ErrInfo | None = None) -> str:
     An error can name a line other than the statement on record: an ELSEIF,
     ANDIF or ORIF condition, or a loop condition evaluated after its body.
     """
+    if isinstance(err, ScriptParseError):
+        return err.source
     if err is not None and err.script_file and err.script_line_no:
         return err.script_file
     lc = ctx.last_command
@@ -759,6 +766,8 @@ def _last_source(ctx: RuntimeContext, err: ErrInfo | None = None) -> str:
 
 def _last_line(ctx: RuntimeContext, err: ErrInfo | None = None) -> int | None:
     """The line of *err*, as its report gives it, else of the last executed command (see :func:`_last_source`)."""
+    if isinstance(err, ScriptParseError):
+        return err.line
     if err is not None and err.script_file and err.script_line_no:
         return err.script_line_no
     lc = ctx.last_command

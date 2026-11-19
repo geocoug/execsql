@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import execsql.state as _state
-from execsql.exceptions import ErrInfo, ScriptExit
+from execsql.exceptions import ErrInfo, ScriptExit, ScriptParseError
 
 __all__ = [
     "error_origin",
@@ -203,7 +203,9 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
             # substitution variables, or even the error that ends the run.
             lc = _state.last_command
             line: int | None
-            if errinfo.script_file and errinfo.script_line_no:
+            if isinstance(errinfo, ScriptParseError):
+                source, line = errinfo.source, errinfo.line
+            elif errinfo.script_file and errinfo.script_line_no:
                 source, line = errinfo.script_file, errinfo.script_line_no
             else:
                 source = getattr(lc, "source", None) or "<unknown>"
@@ -285,8 +287,8 @@ def exit_now(exit_status: int, errinfo: ErrInfo | None, logmsg: str | None = Non
         if lost_output is not None:
             _state.exec_log.log_status_error(lost_output.errmsg())
     if _state.exec_log is not None:
-        _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
-        _state.exec_log.log_exit()
+        _state.exec_log.log_status_info(f"{_state.cmds_run} commands attempted")
+        _state.exec_log.log_exit(exit_status)
         _state.exec_log.close()
     from execsql.utils.fileio import filewriter_end
 

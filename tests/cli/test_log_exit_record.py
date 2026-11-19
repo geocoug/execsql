@@ -8,6 +8,7 @@ and could not be told apart from one still running or killed.
 from __future__ import annotations
 
 import os
+import json
 import signal
 import subprocess
 import sys
@@ -15,11 +16,11 @@ import sys
 import pytest
 
 
-def _run(tmp_path, body: str) -> subprocess.CompletedProcess:
+def _run(tmp_path, body: str, *args: str) -> subprocess.CompletedProcess:
     script = tmp_path / "s.sql"
     script.write_text(body)
     return subprocess.run(
-        [sys.executable, "-m", "execsql", "run", str(script), "--dsn", f"sqlite:///{tmp_path / 't.db'}", "-n"],
+        [sys.executable, "-m", "execsql", "run", str(script), "--dsn", f"sqlite:///{tmp_path / 't.db'}", "-n", *args],
         capture_output=True,
         text=True,
         cwd=tmp_path,
@@ -69,3 +70,39 @@ def test_run_db_file_names_the_database_file(tmp_path):
     lines = (tmp_path / "execsql.log").read_text().splitlines()
     (record,) = [line.split("\t") for line in lines if line.startswith("run_db_file\t")]
     assert record[2].endswith("t.db")
+
+
+@pytest.mark.parametrize(
+    "body,outcome,code,attempted,errors,warnings",
+    [
+        ("select 1;\n", "success", 0, 1, 0, 0),
+        ("select * from missing;\n", "failed", 1, 1, 1, 0),
+        ("-- !x! ERROR_HALT OFF\nselect * from missing;\nselect 1;\n", "completed_with_errors", 0, 3, 1, 0),
+        ("-- !x! HALT EXIT_STATUS 0\n", "success", 0, 1, 0, 0),
+        ("select '!!REPORTING_MISSING!!';\n", "success", 0, 1, 0, 1),
+    ],
+)
+def test_summary_and_manifest_share_outcome_counts_and_run_id(
+    tmp_path,
+    body,
+    outcome,
+    code,
+    attempted,
+    errors,
+    warnings,
+):
+    result = _run(tmp_path, body, "--manifest", "m.json", "--var", "numeric_argument=1")
+    assert result.returncode == code
+    manifest = json.loads((tmp_path / "m.json").read_text())
+    records = [line.split("\t") for line in (tmp_path / "execsql.log").read_text().splitlines()]
+    summaries = [record for record in records if record[-1].startswith("Run finished:")]
+    assert len(summaries) == 1
+    summary = summaries[0]
+    assert len(summary) == 6
+    assert summary[0] == "status" and summary[4] == "info"
+    assert summary[1] == manifest["run_id"] == records[-1][1]
+    assert manifest["exit_status"] == code
+    assert summary[-1].startswith(
+        f"Run finished: {outcome}; exit={code}; attempted={attempted}; errors={errors}; warnings={warnings}; duration=",
+    )
+    assert records[-1][0] == "exit"

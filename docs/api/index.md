@@ -89,6 +89,17 @@ result = run(script="load.sql", dsn="sqlite:///data.db", config_file="restricted
 
 ### Errors
 
+`commands_run` counts attempted executable nodes, including a command that fails,
+halts or is interrupted. Control nodes such as script declarations also count;
+comments and commands never reached do not. Parser failures occur before execution
+and return zero attempts, with a structured `source` and `line` when known.
+
+An explicit `HALT EXIT_STATUS 0` returns `success=True` if no errors occurred.
+Earlier non-halting errors still make the result unsuccessful. A nonzero HALT
+remains a failed result, and an external `SystemExit`, even with status zero,
+is an interruption rather than a successful HALT. `KeyboardInterrupt` still
+propagates after cleanup.
+
 Expected configuration, connection and script-execution failures normally return `success=False`; `result.errors` lists what went wrong in the order it happened. Each `ScriptError` has a `message`, a `source`, a `line`, and, for a failed SQL statement, the statement in `sql`.
 
 If an `ON ERROR_HALT` script also fails, the original error appears first,

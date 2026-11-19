@@ -204,6 +204,24 @@ def safe_output_path(user_path: str, root: str | os.PathLike[str] | None) -> str
     return str(resolved)
 
 
+class _WriteReceipt:
+    __slots__ = ("written",)
+
+    def __init__(self) -> None:
+        self.written = False
+
+
+class _TrackedWrite(str):
+    """The original text plus a receipt set only after its write and flush succeed."""
+
+    receipt: _WriteReceipt
+
+    def __new__(cls, text: str) -> _TrackedWrite:
+        value = super().__new__(cls, text)
+        value.receipt = _WriteReceipt()
+        return value
+
+
 class LostOutput(NamedTuple):
     """Output a file never received, as the writer reports it."""
 
@@ -358,6 +376,8 @@ class FileWriter(threading.Thread):
                     self._retire(1)
                     self.fail(self.STATUS_WRITEFAILURE, exc)
                     return
+                if not self._stopped() and isinstance(message, _TrackedWrite):
+                    message.receipt.written = True
                 self._retire(1)
             if self.close_after_write and not self._stopped():
                 self.close_after_write = False
@@ -862,6 +882,10 @@ def filewriter_write(filename: str, message: str) -> None:
     if fw is None:
         _warn_write_dropped(filename)
         return
+    from execsql.manifest import current
+
+    if (manifest := current()) is not None:
+        message = manifest.queued_write(filename, message)
     fw.submit(FileWriter.CMD_WRITE, (_abspath(filename), message))
 
 
@@ -1120,6 +1144,9 @@ class Logger:
 
         _now = _datetime.datetime.now()
         self.run_start = _now
+        self._run_clock = time.monotonic()
+        self._run_context = _state.get_context()
+        self.warning_count = 0
         self.run_id = _now.strftime("%Y%m%d_%H%M_%S_") + f"{_now.microsecond // 1000:03d}"
         self.user = getpass.getuser()
         sz: int
@@ -1260,6 +1287,7 @@ class Logger:
         self.writelog(wmsg)
 
     def log_status_warning(self, msg: str | None) -> None:
+        self.warning_count += 1
         msg = self._redact(None if not msg else msg.replace("\n", ""))
         self.seq_no += 1
         wmsg = f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\twarning\t{msg or ''}\n"
@@ -1317,14 +1345,33 @@ class Logger:
         self.exit_lno = None
         self.exit_description = self._redact(None if not msg else msg.replace("\n", ""))
 
-    def log_exit(self) -> None:
+    def log_exit(self, exit_status: int | None = None) -> None:
         """Write the run's ``exit`` record, once: ``exit_now`` writes it before closing the log, ``atexit`` otherwise."""
-        import datetime as _datetime
-
         if self._exit_written:
             return
         self._exit_written = True
-        elapsed = (_datetime.datetime.now() - self.run_start).total_seconds()
+        elapsed = time.monotonic() - self._run_clock
+        if exit_status is None:
+            exit_status = {"end_of_script": 0, "interrupted": 130, "terminated": 143}.get(self.exit_type)
+        ctx = self._run_context
+        errors = len(ctx.status.error_history) if ctx.status is not None else 0
+        if ctx.halt_output_error is not None:
+            errors += 1
+        if self.exit_type in ("interrupted", "terminated", "unknown"):
+            outcome = self.exit_type
+        elif exit_status == 0:
+            outcome = "completed_with_errors" if errors else "success"
+        elif self.exit_type == "halt":
+            outcome = "halted"
+        else:
+            outcome = "failed"
+        # Only generated metadata: argument/secret replacement must not hide counts or timestamps.
+        self.seq_no += 1
+        summary = (
+            f"Run finished: {outcome}; exit={exit_status if exit_status is not None else 'unknown'}; "
+            f"attempted={ctx.cmds_run}; errors={errors}; warnings={self.warning_count}; duration={elapsed:.3f}s"
+        )
+        self.writelog(f"status\t{self.run_id}\t{self.seq_no}\t{self._ts()}\tinfo\t{summary}\n")
         wmsg = "exit\t{}\t{}\t{}({})\t{}\t{:.1f}s\n".format(
             self.run_id,
             self.exit_type,

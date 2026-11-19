@@ -14,7 +14,8 @@ import os
 import platform
 import sys
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -600,6 +601,29 @@ def _setup_logging(
 # ---------------------------------------------------------------------------
 
 
+@contextmanager
+def _finish_interrupted_manifest() -> Iterator[None]:
+    """Preserve a known termination status before the unknown-exit atexit fallback."""
+    try:
+        yield
+    except (KeyboardInterrupt, SystemExit) as exc:
+        from execsql.manifest import current
+        import execsql.state as _state
+
+        if isinstance(exc, KeyboardInterrupt):
+            code = 130
+        else:
+            code = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
+        if _state.exec_log is not None:
+            if isinstance(exc, KeyboardInterrupt):
+                _state.exec_log.log_exit_interrupted()
+            _state.exec_log.log_exit(code)
+        if (manifest := current()) is not None:
+            manifest.finish(code)
+        raise
+
+
+@_finish_interrupted_manifest()
 def _run(
     positional: list,
     sub_vars: list[str] | None,
@@ -794,6 +818,8 @@ def _run(
         import_buffer=import_buffer,
         named_vars=named_vars,
     )
+    if manifest is not None:
+        manifest.run_id = _state.exec_log.run_id
 
     # ------------------------------------------------------------------
     # Load the SQL script (--dry-run / --ping already exited above)
@@ -856,6 +882,8 @@ def _run(
         initialize()
         if _ast_tree is not None:
             _execute_script_ast(_ast_tree, conf, profile=profile, profile_limit=profile_limit)
+    if _state.exec_log is not None:
+        _state.exec_log.log_exit(0)
     if manifest is not None:
         manifest.finish(0)
 
@@ -924,7 +952,7 @@ def _execute_script_ast(
             )
             if gui_console_isrunning():
                 gui_console_off()
-        _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+        _state.exec_log.log_status_info(f"{_state.cmds_run} commands attempted")
         if profile and _state.profile_data is not None:
             _print_profile(_state.profile_data, limit=profile_limit)
         sys.exit(exc.code)
@@ -953,7 +981,7 @@ def _execute_script_ast(
         )
         if gui_console_isrunning():
             gui_console_off()
-    _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+    _state.exec_log.log_status_info(f"{_state.cmds_run} commands attempted")
     if profile and _state.profile_data is not None:
         _print_profile(_state.profile_data, limit=profile_limit)
     _state.exec_log.log_exit_end()
@@ -1042,13 +1070,13 @@ def _execute_script_textual_console(
 
     if app._quit_requested or isinstance(app._script_exception, KeyboardInterrupt):
         _state.exec_log.log_exit_interrupted()
-        _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+        _state.exec_log.log_status_info(f"{_state.cmds_run} commands attempted")
         raise SystemExit(130)
 
     if app._script_exception is not None:
         exc = app._script_exception
         if isinstance(exc, SystemExit):
-            _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+            _state.exec_log.log_status_info(f"{_state.cmds_run} commands attempted")
             sys.exit(exc.code)
         elif isinstance(exc, ConfigError):
             raise exc
@@ -1068,7 +1096,7 @@ def _execute_script_textual_console(
             exit_now(1, ErrInfo("exception", exception_msg=msg))
 
     _state.dbs.do_rollback = False
-    _state.exec_log.log_status_info(f"{_state.cmds_run} commands run")
+    _state.exec_log.log_status_info(f"{_state.cmds_run} commands attempted")
     _state.exec_log.log_exit_end()
 
 

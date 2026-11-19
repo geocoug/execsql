@@ -200,6 +200,23 @@ class ErrInfo(ExecSqlError):
         return self.eval_err()
 
 
+class ScriptParseError(ErrInfo):
+    """A parser diagnostic with a structured location and the existing human message."""
+
+    def __init__(
+        self,
+        type: str,
+        *,
+        source: str,
+        line: int,
+        command_text: str | None = None,
+        other_msg: str | None = None,
+    ) -> None:
+        super().__init__(type, command_text=command_text, other_msg=other_msg)
+        self.source = source
+        self.line = line
+
+
 class DataTypeError(ExecSqlError):
     """Raised when a value cannot be cast to or rendered as a given DataType."""
 
