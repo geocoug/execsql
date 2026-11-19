@@ -61,6 +61,13 @@ These scripts create a glossary of column names or other terms that can be expor
 
 Complete documentation is in the [Glossary Scripts](https://execsql2.readthedocs.io/en/stable/templates/glossary/) page of the execsql2 documentation.
 
+## Inspection examples
+
+[`inspect/`](inspect/README.md) contains a generator and copy/paste commands for
+`execsql inspect database`, `schema`, `table` and `file`, including JSON and SQL
+output. The base demo uses only SQLite and the Python standard library; optional
+extended inputs include Excel, Parquet, Feather and a DuckDB schema.
+
 ## Tests
 
 `tests/templates/` runs these scripts against live databases: the glossary, compare and upsert scripts on PostgreSQL, MySQL, MariaDB and SQL Server (`md_` scripts on both MySQL and MariaDB), plus lint and INCLUDE checks for every file. Run them with `just test-templates`; see `CONTRIBUTING.md`.

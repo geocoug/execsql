@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-11-13. This is the consolidated direction for execsql2: product
+Updated 2026-11-19. This is the consolidated direction for execsql2: product
 features, engineering work and compatibility proposals. [GitHub issues](https://github.com/geocoug/execsql/issues)
 remain the actionable backlog; this document records priorities, dependencies and
 completion criteria. Approving the roadmap accepts its priorities; implementation
@@ -67,6 +67,12 @@ provisional samples. The [file reference](docs/reference/files.md) documents
 formats, optional readers, effective configuration, worksheet behavior and
 materialization costs. It needs no database and does not modify source files.
 
+File and table inspection also deliver `--output-format sql` for copyable CREATE
+statements. Files require an explicit destination dialect and table name; table
+SQL supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL 14+, with explicit errors
+for unsupported features. The [inspection demo](templates/inspect/README.md)
+provides synthetic inputs and runnable commands for all four inspection levels.
+
 ## Product track: agents and automation
 
 The order below expresses feature priority, not a strict serial implementation
@@ -131,7 +137,7 @@ still need a scoped decision before implementation.
 | Proposal                                          | Intended behavior                                                                                                                                    | Compatibility requirement                                                                                                                                                                                                        |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Typed variables and bound SQL parameters**      | Add an opt-in form that sends typed values as driver parameters, with an explicit distinction between bound values and raw SQL/identifier fragments. | Existing `!!var!!` textual substitution keeps its behavior in 2.x. Reduce value-interpolation risks without silently changing existing scripts.                                                                                  |
-| **Schema-first imports and visible inferred DDL** | Add opt-in declared schemas and source-query types for new tables, and expose inferred DDL before a load.                                            | Existing-table loads already convert by destination type. Preserve the existing new-table inference default in 2.x; changing that default belongs to an approved 3.0 plan. Validate conversions and errors with the load corpus. |
+| **Schema-first imports (inferred DDL delivered)** | Add opt-in declared schemas and source-query types for new tables. Inferred DDL is already available through `inspect file --output-format sql`.     | Existing-table loads already convert by destination type. Preserve the existing new-table inference default in 2.x; changing that default belongs to an approved 3.0 plan. Validate conversions and errors with the load corpus. |
 | **One declarative metacommand grammar**           | Generate parsing, syntax references, editor completions and the VS Code grammar from shared command definitions.                                     | Build a corpus of accepted forms before replacing regex dispatch. Preserve supported 2.x forms; any later removal of quirks needs a migration plan.                                                                              |
 | **Named TOML connection profiles**                | Add an optional configuration file with named profiles and documented precedence alongside existing INI configuration and connection URLs.           | Keep existing configuration and CLI forms in 2.x. Choose an unambiguous profile-selector spelling: `--profile` already enables execution profiling.                                                                              |
 
