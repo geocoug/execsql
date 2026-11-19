@@ -67,6 +67,80 @@ Results are written to `scripts/benchmarks/results/`:
 Committed results represent one canonical run; re-run locally to get
 environment-specific numbers.
 
+## Control-flow profiling (E1)
+
+The [2.41.0 baseline report](control-flow-baseline.md) retains the canonical
+timings, profile statistics and follow-up recommendation.
+
+Measure the three E1 targets: named-script body copying, per-command path/system
+variables, and `EQUAL()` conversion attempts. This uses isolated SQLite memory
+databases and synthetic scripts; it never changes execsql's runtime implementation.
+
+```sh
+# Check the workloads/guards and profile output, not performance:
+uv run python scripts/benchmarks/control_flow.py --iterations 3 --number 3 --repeat 1
+
+# Five paired timing samples, plus separate profiles:
+uv run python scripts/benchmarks/control_flow.py --baseline-ref v2.41.0
+```
+
+`--baseline-ref` executes the full `src/execsql` package from a **trusted local Git
+revision**. It does not fetch code. The baseline is archived into a temporary
+directory; each baseline/current sample runs in a separate process using the same
+Python interpreter, installed dependencies and fixture directory. The benchmark
+uses a fresh private bytecode-cache prefix for the entire measurement, overriding
+inherited cache settings so stale working-tree `.pyc` files cannot mask edits.
+Direct comparisons run inside an active default library configuration; Boolean
+outcomes are checked against API script assertions before measurement. The benchmark
+verifies the imported package path and hashes both source trees before and after
+measurement. It never installs the baseline over the working copy.
+
+| Workload                                                              | Purpose                                                                                                                                       |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Small body, inline/relative/absolute script                           | Whole API runs with two commands per iteration; separate path/parse controls.                                                                 |
+| Large body                                                            | Thirty-two commands per iteration; profiles quantify body copying and dispatch rather than attributing the entire size difference to copying. |
+| Matching, fixed-unequal, changing-unequal and numeric `EQUAL()` loops | Measure comparisons inside actual execution, including one changing pair per iteration.                                                       |
+| SQLite INSERT loop                                                    | Include real statement/commit work and a final row-count assertion. This is not a server/database-throughput benchmark.                       |
+| Direct comparison pairs                                               | Separate comparison costs for text, integers, decimals, Booleans, dates, timestamps, offsets, Unicode and quotes.                             |
+
+Every worker checks a self-extending script's snapshot behavior, path variables
+across `CD`, `INCLUDE` and a named script, and a Cartesian comparison matrix.
+All timed/profiled outputs and command counts must agree with the baseline.
+In particular, the existing relative-source path variables can change after `CD`
+inside an included script; caching them solely by source name would change behavior.
+The guards complement, rather than replace, the script corpus and behavior tests.
+Python `-O` is refused because it would disable the assertions.
+
+Options: `--iterations` (default 1,000 script iterations), `--number` (1,000 direct
+comparisons per sample), `--repeat` (5 paired samples), and `--outdir` (a new output
+directory). Existing output directories are refused. Without `--outdir`, each run
+gets a timestamped directory under ignored `scripts/benchmarks/results/`.
+
+Results include `results.json` (raw wall/CPU samples, medians, MAD, environment,
+source identities and correctness outcomes), `results.md` (summary), `profiles.json`
+(function statistics), and `profiles/{baseline,current}/*.prof`. Inspect a profile
+with the same Python version used to produce it:
+
+```sh
+uv run python -c 'import pstats, sys; pstats.Stats(sys.argv[1]).sort_stats("cumulative").print_stats(25)' \
+  /path/to/results/profiles/current/api_large_relative.prof
+```
+
+Interpreter startup, imports, semantic guards and a complete workload warmup are
+outside timing samples. API timings include each run's parsing, setup and cleanup;
+inline script text is already in memory. Samples alternate baseline/current order
+to reduce thermal/load bias. Wall and process CPU time are both retained. Profiles
+are collected separately, after timing: instrumentation inflates their times and
+cumulative function costs overlap, so do not add them or subtract them from
+uninstrumented measurements.
+
+Before proposing an optimization, require at least five samples and identify the
+hotspot in a representative API workload, not just a direct-call microbenchmark.
+A follow-up change should demonstrate at least a 10% median whole-workload gain in
+two independent runs, with MAD at or below 5%, and preserve the semantic guards
+and relevant behavior/corpus coverage. These are decision criteria, not CI timing
+assertions. If runtime source hashes match, timing ratios measure noise, not speedup.
+
 ## Nested substitution
 
 Measure expansion with 10, 100 and 1,000 unrelated variables, including nested
