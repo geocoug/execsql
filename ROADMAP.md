@@ -1,6 +1,6 @@
 # Roadmap
 
-Updated 2026-11-13. This is the consolidated direction for execsql2: product
+Updated 2026-11-19. This is the consolidated direction for execsql2: product
 features, engineering work and compatibility proposals. [GitHub issues](https://github.com/geocoug/execsql/issues)
 remain the actionable backlog; this document records priorities, dependencies and
 completion criteria. Approving the roadmap accepts its priorities; implementation
@@ -66,6 +66,12 @@ reuses import readers and inference, with full scans by default and explicit
 provisional samples. The [file reference](docs/reference/files.md) documents
 formats, optional readers, effective configuration, worksheet behavior and
 materialization costs. It needs no database and does not modify source files.
+
+File and table inspection also deliver `--output-format sql` for copyable CREATE
+statements. Files require an explicit destination dialect and table name; table
+SQL supports SQLite, DuckDB, MySQL/MariaDB and PostgreSQL 14+, with explicit errors
+for unsupported features. The [inspection demo](templates/inspect/README.md)
+provides synthetic inputs and runnable commands for all four inspection levels.
 
 ## Product track: agents and automation
 

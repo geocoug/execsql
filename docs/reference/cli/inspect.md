@@ -9,6 +9,11 @@ execsql inspect table samples --schema main --dsn sqlite:///project.sqlite
 execsql inspect file results.csv
 ```
 
+For runnable examples and synthetic data, use the
+[inspection demo](https://github.com/geocoug/execsql/tree/main/templates/inspect).
+It covers all four commands, JSON and SQL output, SQLite, an optional DuckDB
+schema, and several file formats without needing a database server.
+
 `database` connects to the selected database and prints its identity, engine and
 schema/namespace inventory by default, with visible table/view counts. Namespaces
 with no visible objects are included. Count headings say `Visible tables` and
