@@ -13,6 +13,7 @@ ______________________________________________________________________
 
 ### Added
 
+- Generate synthetic inspection datasets and try all four commands with the repository examples in `templates/inspect/`.
 - Add `execsql inspect database`, `schema NAME` and `table NAME [--schema NAME]` for read-only database identity, namespace inventories, columns, keys and relationships, with text or versioned JSON output.
 - Add Python `inspect_schema()` for versioned database metadata, with `include_database=True` for identity and namespace counts and `include_details=False` for inventories without column/key queries.
 - Add `execsql inspect file PATH` and Python `inspect_file()` for IMPORT-inferred columns and types across all built-in import formats, with full scans, explicit samples, worksheet selection and text/JSON output.
