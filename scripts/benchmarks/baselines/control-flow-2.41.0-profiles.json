@@ -1,5 +1,5 @@
 {
-  "benchmark_sha256": "4ad57526d75f2fe042f443610d8a28fc46f444505c0ce41a0e5b3fac46857fea",
+  "benchmark_sha256": "9dd84c1c58b11cbc28d70dab9023417370b09be218403c5af90416115c1040b4",
   "source_sha256": {
     "baseline": "2694b93c6f6c9aa652358fb1a8e8fb5e1ad7ece2d60013c864c7ea3b7f693e6c",
     "current": "2694b93c6f6c9aa652358fb1a8e8fb5e1ad7ece2d60013c864c7ea3b7f693e6c"
@@ -8,7 +8,7 @@
   "implementations": {
     "baseline": {
       "api_small_inline": {
-        "profiled_seconds": 0.34187750006094575,
+        "profiled_seconds": 0.4000002078246325,
         "operations": 1000,
         "functions": [
           {
@@ -17,17 +17,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 2004,
             "total_calls": 2004,
-            "self_seconds": 0.008557333,
-            "cumulative_seconds": 0.12812230600000002
-          },
-          {
-            "file": "copy.py",
-            "line": 119,
-            "function": "deepcopy",
-            "primitive_calls": 1000,
-            "total_calls": 25000,
-            "self_seconds": 0.022624995000000002,
-            "cumulative_seconds": 0.065607288
+            "self_seconds": 0.009210304,
+            "cumulative_seconds": 0.16044180500000002
           },
           {
             "file": "_local.py",
@@ -35,8 +26,17 @@
             "function": "resolve",
             "primitive_calls": 2006,
             "total_calls": 2006,
-            "self_seconds": 0.0011942110000000001,
-            "cumulative_seconds": 0.060702519
+            "self_seconds": 0.001322505,
+            "cumulative_seconds": 0.088460667
+          },
+          {
+            "file": "copy.py",
+            "line": 119,
+            "function": "deepcopy",
+            "primitive_calls": 1000,
+            "total_calls": 25000,
+            "self_seconds": 0.023520917000000002,
+            "cumulative_seconds": 0.068388239
           }
         ],
         "body_deepcopy_calls": [
@@ -44,13 +44,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.000983677,
-            "cumulative_seconds": 0.065607288
+            "self_seconds": 0.0010119010000000002,
+            "cumulative_seconds": 0.068388239
           }
         ]
       },
       "api_small_relative": {
-        "profiled_seconds": 0.3442926660645753,
+        "profiled_seconds": 0.35566391702741385,
         "operations": 1000,
         "functions": [
           {
@@ -59,8 +59,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 2004,
             "total_calls": 2004,
-            "self_seconds": 0.008630255,
-            "cumulative_seconds": 0.129917796
+            "self_seconds": 0.008986171000000001,
+            "cumulative_seconds": 0.13502118300000002
           },
           {
             "file": "copy.py",
@@ -68,8 +68,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 25000,
-            "self_seconds": 0.022866820000000003,
-            "cumulative_seconds": 0.065789318
+            "self_seconds": 0.023571808000000003,
+            "cumulative_seconds": 0.068014486
           },
           {
             "file": "_local.py",
@@ -77,8 +77,8 @@
             "function": "resolve",
             "primitive_calls": 2007,
             "total_calls": 2007,
-            "self_seconds": 0.00123842,
-            "cumulative_seconds": 0.06245511300000001
+            "self_seconds": 0.001328161,
+            "cumulative_seconds": 0.065074796
           }
         ],
         "body_deepcopy_calls": [
@@ -86,13 +86,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0009810370000000001,
-            "cumulative_seconds": 0.065789318
+            "self_seconds": 0.0010178420000000001,
+            "cumulative_seconds": 0.068014486
           }
         ]
       },
       "api_small_absolute": {
-        "profiled_seconds": 0.3633527080528438,
+        "profiled_seconds": 0.3529246251564473,
         "operations": 1000,
         "functions": [
           {
@@ -101,8 +101,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 2004,
             "total_calls": 2004,
-            "self_seconds": 0.009053956,
-            "cumulative_seconds": 0.139845405
+            "self_seconds": 0.008589568,
+            "cumulative_seconds": 0.13588054900000002
           },
           {
             "file": "_local.py",
@@ -110,8 +110,8 @@
             "function": "resolve",
             "primitive_calls": 2007,
             "total_calls": 2007,
-            "self_seconds": 0.001306964,
-            "cumulative_seconds": 0.070975093
+            "self_seconds": 0.0013072770000000001,
+            "cumulative_seconds": 0.06941778800000001
           },
           {
             "file": "copy.py",
@@ -119,8 +119,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 25000,
-            "self_seconds": 0.023609049,
-            "cumulative_seconds": 0.068479678
+            "self_seconds": 0.023071845,
+            "cumulative_seconds": 0.066766137
           }
         ],
         "body_deepcopy_calls": [
@@ -128,13 +128,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0010328470000000001,
-            "cumulative_seconds": 0.068479678
+            "self_seconds": 0.0009949960000000002,
+            "cumulative_seconds": 0.066766137
           }
         ]
       },
       "api_large_relative": {
-        "profiled_seconds": 4.099863624898717,
+        "profiled_seconds": 4.159419332863763,
         "operations": 1000,
         "functions": [
           {
@@ -143,8 +143,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 32004,
             "total_calls": 32004,
-            "self_seconds": 0.129902381,
-            "cumulative_seconds": 1.996421011
+            "self_seconds": 0.131951903,
+            "cumulative_seconds": 2.0295031050000003
           },
           {
             "file": "_local.py",
@@ -152,8 +152,8 @@
             "function": "resolve",
             "primitive_calls": 32007,
             "total_calls": 32007,
-            "self_seconds": 0.018433935000000002,
-            "cumulative_seconds": 0.956028882
+            "self_seconds": 0.018844929,
+            "cumulative_seconds": 0.9691901390000001
           },
           {
             "file": "copy.py",
@@ -161,8 +161,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 385000,
-            "self_seconds": 0.316997856,
-            "cumulative_seconds": 0.919183535
+            "self_seconds": 0.323354801,
+            "cumulative_seconds": 0.930885752
           }
         ],
         "body_deepcopy_calls": [
@@ -170,13 +170,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001135037,
-            "cumulative_seconds": 0.919183535
+            "self_seconds": 0.001121616,
+            "cumulative_seconds": 0.930885752
           }
         ]
       },
       "api_comparison_loop": {
-        "profiled_seconds": 0.8430438339710236,
+        "profiled_seconds": 0.8079774170182645,
         "operations": 1000,
         "functions": [
           {
@@ -185,8 +185,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.006020714000000001,
-            "cumulative_seconds": 0.251631313
+            "self_seconds": 0.005603076,
+            "cumulative_seconds": 0.239459466
           },
           {
             "file": "execsql/script/executor.py",
@@ -194,8 +194,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3004,
             "total_calls": 3004,
-            "self_seconds": 0.014167517000000001,
-            "cumulative_seconds": 0.21364321300000003
+            "self_seconds": 0.013679440000000001,
+            "cumulative_seconds": 0.202706572
           },
           {
             "file": "_strptime.py",
@@ -203,8 +203,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.034427727000000005,
-            "cumulative_seconds": 0.203902038
+            "self_seconds": 0.032874308000000005,
+            "cumulative_seconds": 0.193993343
           },
           {
             "file": "copy.py",
@@ -212,8 +212,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.054280309000000006,
-            "cumulative_seconds": 0.14953369600000002
+            "self_seconds": 0.05217335100000001,
+            "cumulative_seconds": 0.14494518
           },
           {
             "file": "_local.py",
@@ -221,8 +221,8 @@
             "function": "resolve",
             "primitive_calls": 3007,
             "total_calls": 3007,
-            "self_seconds": 0.002146818,
-            "cumulative_seconds": 0.104550271
+            "self_seconds": 0.002000637,
+            "cumulative_seconds": 0.097534491
           }
         ],
         "body_deepcopy_calls": [
@@ -230,13 +230,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001024533,
-            "cumulative_seconds": 0.14953369600000002
+            "self_seconds": 0.0009735090000000001,
+            "cumulative_seconds": 0.14494518
           }
         ]
       },
       "api_same_comparison_loop": {
-        "profiled_seconds": 0.9154712918680161,
+        "profiled_seconds": 0.9493422079831362,
         "operations": 1000,
         "functions": [
           {
@@ -245,8 +245,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 4004,
             "total_calls": 4004,
-            "self_seconds": 0.017951987000000003,
-            "cumulative_seconds": 0.268573801
+            "self_seconds": 0.019247964000000003,
+            "cumulative_seconds": 0.279385282
           },
           {
             "file": "execsql/metacommands/conditions.py",
@@ -254,8 +254,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.005875721,
-            "cumulative_seconds": 0.240678035
+            "self_seconds": 0.006223341,
+            "cumulative_seconds": 0.248725194
           },
           {
             "file": "_strptime.py",
@@ -263,8 +263,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.033071162,
-            "cumulative_seconds": 0.194666262
+            "self_seconds": 0.034157836000000004,
+            "cumulative_seconds": 0.20122718
           },
           {
             "file": "copy.py",
@@ -272,8 +272,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.051145549000000005,
-            "cumulative_seconds": 0.14387639300000002
+            "self_seconds": 0.052666407000000005,
+            "cumulative_seconds": 0.14844658400000002
           },
           {
             "file": "_local.py",
@@ -281,8 +281,8 @@
             "function": "resolve",
             "primitive_calls": 4007,
             "total_calls": 4007,
-            "self_seconds": 0.002572352,
-            "cumulative_seconds": 0.129228376
+            "self_seconds": 0.002681404,
+            "cumulative_seconds": 0.13496639000000002
           }
         ],
         "body_deepcopy_calls": [
@@ -290,13 +290,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0010185320000000002,
-            "cumulative_seconds": 0.14387639300000002
+            "self_seconds": 0.0010049570000000001,
+            "cumulative_seconds": 0.14844658400000002
           }
         ]
       },
       "api_changing_comparison_loop": {
-        "profiled_seconds": 0.8151277920696884,
+        "profiled_seconds": 0.817657332867384,
         "operations": 1000,
         "functions": [
           {
@@ -305,8 +305,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.005501359,
-            "cumulative_seconds": 0.24032683700000002
+            "self_seconds": 0.005470705,
+            "cumulative_seconds": 0.241899198
           },
           {
             "file": "execsql/script/executor.py",
@@ -314,8 +314,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3004,
             "total_calls": 3004,
-            "self_seconds": 0.013824038,
-            "cumulative_seconds": 0.203474539
+            "self_seconds": 0.013701125000000001,
+            "cumulative_seconds": 0.203141659
           },
           {
             "file": "_strptime.py",
@@ -323,8 +323,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.033285167000000004,
-            "cumulative_seconds": 0.19434265
+            "self_seconds": 0.033146367,
+            "cumulative_seconds": 0.19585590300000003
           },
           {
             "file": "copy.py",
@@ -332,8 +332,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.051387623,
-            "cumulative_seconds": 0.143811249
+            "self_seconds": 0.051322338,
+            "cumulative_seconds": 0.143776321
           },
           {
             "file": "_local.py",
@@ -341,8 +341,8 @@
             "function": "resolve",
             "primitive_calls": 3007,
             "total_calls": 3007,
-            "self_seconds": 0.00197969,
-            "cumulative_seconds": 0.09786673300000001
+            "self_seconds": 0.0019916020000000003,
+            "cumulative_seconds": 0.09824862100000001
           }
         ],
         "body_deepcopy_calls": [
@@ -350,13 +350,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.000993546,
-            "cumulative_seconds": 0.143811249
+            "self_seconds": 0.0009722970000000001,
+            "cumulative_seconds": 0.143776321
           }
         ]
       },
       "api_numeric_comparison_loop": {
-        "profiled_seconds": 1.1922225831076503,
+        "profiled_seconds": 0.8127547081094235,
         "operations": 1000,
         "functions": [
           {
@@ -365,8 +365,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.006453027,
-            "cumulative_seconds": 0.40990283400000005
+            "self_seconds": 0.00470001,
+            "cumulative_seconds": 0.23600052300000002
           },
           {
             "file": "execsql/script/executor.py",
@@ -374,8 +374,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3005,
             "total_calls": 3005,
-            "self_seconds": 0.017134675000000002,
-            "cumulative_seconds": 0.273111213
+            "self_seconds": 0.013772040000000001,
+            "cumulative_seconds": 0.202534456
           },
           {
             "file": "_strptime.py",
@@ -383,8 +383,8 @@
             "function": "_strptime",
             "primitive_calls": 16983,
             "total_calls": 16983,
-            "self_seconds": 0.042071247000000006,
-            "cumulative_seconds": 0.267444309
+            "self_seconds": 0.032815611,
+            "cumulative_seconds": 0.19356897
           },
           {
             "file": "copy.py",
@@ -392,8 +392,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.060077428,
-            "cumulative_seconds": 0.177389763
+            "self_seconds": 0.051316247,
+            "cumulative_seconds": 0.14351523000000002
           },
           {
             "file": "_local.py",
@@ -401,8 +401,8 @@
             "function": "resolve",
             "primitive_calls": 3008,
             "total_calls": 3008,
-            "self_seconds": 0.0024178290000000002,
-            "cumulative_seconds": 0.133574142
+            "self_seconds": 0.0019381630000000001,
+            "cumulative_seconds": 0.09724535000000001
           }
         ],
         "body_deepcopy_calls": [
@@ -410,13 +410,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0011705300000000001,
-            "cumulative_seconds": 0.177389763
+            "self_seconds": 0.001022135,
+            "cumulative_seconds": 0.14351523000000002
           }
         ]
       },
       "api_sql_loop": {
-        "profiled_seconds": 0.5093781671021134,
+        "profiled_seconds": 0.5244617089629173,
         "operations": 1000,
         "functions": [
           {
@@ -425,8 +425,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3006,
             "total_calls": 3006,
-            "self_seconds": 0.013291228,
-            "cumulative_seconds": 0.197866966
+            "self_seconds": 0.013543791000000001,
+            "cumulative_seconds": 0.20337612500000002
           },
           {
             "file": "copy.py",
@@ -434,8 +434,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 37000,
-            "self_seconds": 0.033326028,
-            "cumulative_seconds": 0.09661240800000001
+            "self_seconds": 0.033988324,
+            "cumulative_seconds": 0.099188174
           },
           {
             "file": "_local.py",
@@ -443,8 +443,8 @@
             "function": "resolve",
             "primitive_calls": 3009,
             "total_calls": 3009,
-            "self_seconds": 0.0018795740000000002,
-            "cumulative_seconds": 0.094624013
+            "self_seconds": 0.001936816,
+            "cumulative_seconds": 0.098004197
           }
         ],
         "body_deepcopy_calls": [
@@ -452,13 +452,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001045617,
-            "cumulative_seconds": 0.09661240800000001
+            "self_seconds": 0.001032849,
+            "cumulative_seconds": 0.099188174
           }
         ]
       },
       "equal_text_same": {
-        "profiled_seconds": 0.21478125010617077,
+        "profiled_seconds": 0.24628049996681511,
         "operations": 1000,
         "functions": [
           {
@@ -467,8 +467,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004168024,
-            "cumulative_seconds": 0.214283823
+            "self_seconds": 0.004650268,
+            "cumulative_seconds": 0.24563463000000002
           },
           {
             "file": "_strptime.py",
@@ -476,14 +476,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030328755000000002,
-            "cumulative_seconds": 0.178606279
+            "self_seconds": 0.033587422,
+            "cumulative_seconds": 0.202892431
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_text_different": {
-        "profiled_seconds": 0.21821795916184783,
+        "profiled_seconds": 0.21753979218192399,
         "operations": 1000,
         "functions": [
           {
@@ -492,8 +492,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0042492020000000005,
-            "cumulative_seconds": 0.21770359800000003
+            "self_seconds": 0.004245569,
+            "cumulative_seconds": 0.216940036
           },
           {
             "file": "_strptime.py",
@@ -501,14 +501,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030684292000000002,
-            "cumulative_seconds": 0.18112767000000002
+            "self_seconds": 0.030345395,
+            "cumulative_seconds": 0.17874129200000002
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_integer_same": {
-        "profiled_seconds": 0.002602625172585249,
+        "profiled_seconds": 0.002517834072932601,
         "operations": 1000,
         "functions": [
           {
@@ -517,14 +517,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.00147883,
-            "cumulative_seconds": 0.00222921
+            "self_seconds": 0.0014344610000000002,
+            "cumulative_seconds": 0.0021554530000000003
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_integer_different": {
-        "profiled_seconds": 0.21129787503741682,
+        "profiled_seconds": 0.21836050017736852,
         "operations": 1000,
         "functions": [
           {
@@ -533,8 +533,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.003483934,
-            "cumulative_seconds": 0.210809411
+            "self_seconds": 0.003647155,
+            "cumulative_seconds": 0.21782012
           },
           {
             "file": "_strptime.py",
@@ -542,14 +542,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030055944,
-            "cumulative_seconds": 0.177637084
+            "self_seconds": 0.029985183000000002,
+            "cumulative_seconds": 0.17818850700000002
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_decimal_same": {
-        "profiled_seconds": 0.00304695894010365,
+        "profiled_seconds": 0.003105832962319255,
         "operations": 1000,
         "functions": [
           {
@@ -558,14 +558,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001962208,
-            "cumulative_seconds": 0.002678699
+            "self_seconds": 0.001992631,
+            "cumulative_seconds": 0.002730473
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_decimal_different": {
-        "profiled_seconds": 0.21252758288756013,
+        "profiled_seconds": 0.21401979215443134,
         "operations": 1000,
         "functions": [
           {
@@ -574,8 +574,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0038162010000000004,
-            "cumulative_seconds": 0.21206138800000002
+            "self_seconds": 0.0038970220000000004,
+            "cumulative_seconds": 0.213477307
           },
           {
             "file": "_strptime.py",
@@ -583,14 +583,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030182952000000002,
-            "cumulative_seconds": 0.178400168
+            "self_seconds": 0.030283678,
+            "cumulative_seconds": 0.17777466800000002
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_boolean_same": {
-        "profiled_seconds": 0.2152558749075979,
+        "profiled_seconds": 0.21856641699559987,
         "operations": 1000,
         "functions": [
           {
@@ -599,8 +599,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004173082,
-            "cumulative_seconds": 0.214779041
+            "self_seconds": 0.004109947,
+            "cumulative_seconds": 0.218046184
           },
           {
             "file": "_strptime.py",
@@ -608,14 +608,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030558655,
-            "cumulative_seconds": 0.178999963
+            "self_seconds": 0.030219376000000003,
+            "cumulative_seconds": 0.177774648
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_boolean_different": {
-        "profiled_seconds": 0.2154662909451872,
+        "profiled_seconds": 0.2183765829540789,
         "operations": 1000,
         "functions": [
           {
@@ -624,8 +624,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004133639000000001,
-            "cumulative_seconds": 0.214981266
+            "self_seconds": 0.004133428000000001,
+            "cumulative_seconds": 0.21784597400000003
           },
           {
             "file": "_strptime.py",
@@ -633,14 +633,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030256989,
-            "cumulative_seconds": 0.179246374
+            "self_seconds": 0.030169823000000002,
+            "cumulative_seconds": 0.177826951
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_boolean_numeric": {
-        "profiled_seconds": 0.21479441598057747,
+        "profiled_seconds": 0.21980999992229044,
         "operations": 1000,
         "functions": [
           {
@@ -649,8 +649,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004176214,
-            "cumulative_seconds": 0.21431460900000002
+            "self_seconds": 0.0041232840000000005,
+            "cumulative_seconds": 0.219260853
           },
           {
             "file": "_strptime.py",
@@ -658,14 +658,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030221951,
-            "cumulative_seconds": 0.178716121
+            "self_seconds": 0.030510199,
+            "cumulative_seconds": 0.178874789
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_date_same": {
-        "profiled_seconds": 0.009316625073552132,
+        "profiled_seconds": 0.009358749957755208,
         "operations": 1000,
         "functions": [
           {
@@ -674,14 +674,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.002531614,
-            "cumulative_seconds": 0.008912107
+            "self_seconds": 0.002543301,
+            "cumulative_seconds": 0.008975316
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_date_different": {
-        "profiled_seconds": 0.04948537494055927,
+        "profiled_seconds": 0.05205816705711186,
         "operations": 1000,
         "functions": [
           {
@@ -690,8 +690,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.00376827,
-            "cumulative_seconds": 0.049023862
+            "self_seconds": 0.0038801290000000004,
+            "cumulative_seconds": 0.051540312000000005
           },
           {
             "file": "_strptime.py",
@@ -699,14 +699,14 @@
             "function": "_strptime",
             "primitive_calls": 5000,
             "total_calls": 5000,
-            "self_seconds": 0.011415389000000001,
-            "cumulative_seconds": 0.023318299
+            "self_seconds": 0.011531262,
+            "cumulative_seconds": 0.023588228000000003
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_timestamp_different": {
-        "profiled_seconds": 0.2510227910242975,
+        "profiled_seconds": 0.2232474589254707,
         "operations": 1000,
         "functions": [
           {
@@ -715,8 +715,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0059108550000000004,
-            "cumulative_seconds": 0.25034721000000004
+            "self_seconds": 0.004233426,
+            "cumulative_seconds": 0.22268883900000003
           },
           {
             "file": "_strptime.py",
@@ -724,14 +724,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.035668326,
-            "cumulative_seconds": 0.205389278
+            "self_seconds": 0.031652503000000005,
+            "cumulative_seconds": 0.182264647
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_offset_same_instant": {
-        "profiled_seconds": 0.01552750007249415,
+        "profiled_seconds": 0.014900999842211604,
         "operations": 1000,
         "functions": [
           {
@@ -740,14 +740,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004517852,
-            "cumulative_seconds": 0.015095319000000001
+            "self_seconds": 0.0043200320000000006,
+            "cumulative_seconds": 0.014501887000000001
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_unicode_same": {
-        "profiled_seconds": 0.22072679200209677,
+        "profiled_seconds": 0.21607683412730694,
         "operations": 1000,
         "functions": [
           {
@@ -756,8 +756,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004417816000000001,
-            "cumulative_seconds": 0.220186137
+            "self_seconds": 0.004227496,
+            "cumulative_seconds": 0.21555752
           },
           {
             "file": "_strptime.py",
@@ -765,14 +765,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.031141646000000002,
-            "cumulative_seconds": 0.18297947
+            "self_seconds": 0.030394344,
+            "cumulative_seconds": 0.177600476
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_quoted_same": {
-        "profiled_seconds": 0.21299874992109835,
+        "profiled_seconds": 0.21635262505151331,
         "operations": 1000,
         "functions": [
           {
@@ -781,8 +781,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004107321000000001,
-            "cumulative_seconds": 0.21251015
+            "self_seconds": 0.004134860000000001,
+            "cumulative_seconds": 0.215822392
           },
           {
             "file": "_strptime.py",
@@ -790,8 +790,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.02993219,
-            "cumulative_seconds": 0.177166016
+            "self_seconds": 0.030225977,
+            "cumulative_seconds": 0.17827714700000002
           }
         ],
         "body_deepcopy_calls": []
@@ -799,7 +799,7 @@
     },
     "current": {
       "api_small_inline": {
-        "profiled_seconds": 0.33913666708394885,
+        "profiled_seconds": 0.33874454186297953,
         "operations": 1000,
         "functions": [
           {
@@ -808,8 +808,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 2004,
             "total_calls": 2004,
-            "self_seconds": 0.008573312000000001,
-            "cumulative_seconds": 0.12689385
+            "self_seconds": 0.008702887000000001,
+            "cumulative_seconds": 0.12713174400000002
           },
           {
             "file": "copy.py",
@@ -817,8 +817,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 25000,
-            "self_seconds": 0.022550504000000002,
-            "cumulative_seconds": 0.065204764
+            "self_seconds": 0.022368017,
+            "cumulative_seconds": 0.064797485
           },
           {
             "file": "_local.py",
@@ -826,8 +826,8 @@
             "function": "resolve",
             "primitive_calls": 2006,
             "total_calls": 2006,
-            "self_seconds": 0.001202184,
-            "cumulative_seconds": 0.060081185
+            "self_seconds": 0.001207278,
+            "cumulative_seconds": 0.060542489000000005
           }
         ],
         "body_deepcopy_calls": [
@@ -835,13 +835,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0010050340000000001,
-            "cumulative_seconds": 0.065204764
+            "self_seconds": 0.0009491030000000001,
+            "cumulative_seconds": 0.064797485
           }
         ]
       },
       "api_small_relative": {
-        "profiled_seconds": 0.392979082884267,
+        "profiled_seconds": 0.34754837513901293,
         "operations": 1000,
         "functions": [
           {
@@ -850,17 +850,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 2004,
             "total_calls": 2004,
-            "self_seconds": 0.009542154,
-            "cumulative_seconds": 0.147606009
-          },
-          {
-            "file": "_local.py",
-            "line": 664,
-            "function": "resolve",
-            "primitive_calls": 2007,
-            "total_calls": 2007,
-            "self_seconds": 0.001413984,
-            "cumulative_seconds": 0.073536879
+            "self_seconds": 0.008746142,
+            "cumulative_seconds": 0.131411033
           },
           {
             "file": "copy.py",
@@ -868,8 +859,17 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 25000,
-            "self_seconds": 0.024302,
-            "cumulative_seconds": 0.071718432
+            "self_seconds": 0.022755673,
+            "cumulative_seconds": 0.06571127
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2007,
+            "total_calls": 2007,
+            "self_seconds": 0.0012636020000000002,
+            "cumulative_seconds": 0.063422939
           }
         ],
         "body_deepcopy_calls": [
@@ -877,13 +877,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.00105133,
-            "cumulative_seconds": 0.071718432
+            "self_seconds": 0.000974743,
+            "cumulative_seconds": 0.06571127
           }
         ]
       },
       "api_small_absolute": {
-        "profiled_seconds": 0.36031354195438325,
+        "profiled_seconds": 0.4212713330052793,
         "operations": 1000,
         "functions": [
           {
@@ -892,17 +892,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 2004,
             "total_calls": 2004,
-            "self_seconds": 0.008988766,
-            "cumulative_seconds": 0.138930761
-          },
-          {
-            "file": "_local.py",
-            "line": 664,
-            "function": "resolve",
-            "primitive_calls": 2007,
-            "total_calls": 2007,
-            "self_seconds": 0.001258514,
-            "cumulative_seconds": 0.070199326
+            "self_seconds": 0.009296082,
+            "cumulative_seconds": 0.159350878
           },
           {
             "file": "copy.py",
@@ -910,8 +901,17 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 25000,
-            "self_seconds": 0.023304909000000002,
-            "cumulative_seconds": 0.067551655
+            "self_seconds": 0.028590749000000002,
+            "cumulative_seconds": 0.084400338
+          },
+          {
+            "file": "_local.py",
+            "line": 664,
+            "function": "resolve",
+            "primitive_calls": 2007,
+            "total_calls": 2007,
+            "self_seconds": 0.0033094870000000003,
+            "cumulative_seconds": 0.083429299
           }
         ],
         "body_deepcopy_calls": [
@@ -919,13 +919,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0010141570000000001,
-            "cumulative_seconds": 0.067551655
+            "self_seconds": 0.001031148,
+            "cumulative_seconds": 0.084400338
           }
         ]
       },
       "api_large_relative": {
-        "profiled_seconds": 4.128187583992258,
+        "profiled_seconds": 4.110743417171761,
         "operations": 1000,
         "functions": [
           {
@@ -934,8 +934,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 32004,
             "total_calls": 32004,
-            "self_seconds": 0.132659792,
-            "cumulative_seconds": 2.016500557
+            "self_seconds": 0.13330935800000002,
+            "cumulative_seconds": 1.9999355730000001
           },
           {
             "file": "_local.py",
@@ -943,8 +943,8 @@
             "function": "resolve",
             "primitive_calls": 32007,
             "total_calls": 32007,
-            "self_seconds": 0.019161795000000002,
-            "cumulative_seconds": 0.966561039
+            "self_seconds": 0.018788215,
+            "cumulative_seconds": 0.957814398
           },
           {
             "file": "copy.py",
@@ -952,8 +952,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 385000,
-            "self_seconds": 0.31607360300000004,
-            "cumulative_seconds": 0.916203073
+            "self_seconds": 0.315786349,
+            "cumulative_seconds": 0.91673424
           }
         ],
         "body_deepcopy_calls": [
@@ -961,13 +961,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001147819,
-            "cumulative_seconds": 0.916203073
+            "self_seconds": 0.001177385,
+            "cumulative_seconds": 0.91673424
           }
         ]
       },
       "api_comparison_loop": {
-        "profiled_seconds": 0.8094392090570182,
+        "profiled_seconds": 0.852370707783848,
         "operations": 1000,
         "functions": [
           {
@@ -976,8 +976,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.005650962000000001,
-            "cumulative_seconds": 0.24167052800000002
+            "self_seconds": 0.005877415,
+            "cumulative_seconds": 0.253568257
           },
           {
             "file": "execsql/script/executor.py",
@@ -985,8 +985,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3004,
             "total_calls": 3004,
-            "self_seconds": 0.013834131000000001,
-            "cumulative_seconds": 0.204928677
+            "self_seconds": 0.014236795000000002,
+            "cumulative_seconds": 0.21520593400000002
           },
           {
             "file": "_strptime.py",
@@ -994,8 +994,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.033672745000000004,
-            "cumulative_seconds": 0.19591380300000003
+            "self_seconds": 0.039618163000000005,
+            "cumulative_seconds": 0.20555891
           },
           {
             "file": "copy.py",
@@ -1003,8 +1003,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.051128974,
-            "cumulative_seconds": 0.14220316800000002
+            "self_seconds": 0.053507227000000004,
+            "cumulative_seconds": 0.15523319600000002
           },
           {
             "file": "_local.py",
@@ -1012,8 +1012,8 @@
             "function": "resolve",
             "primitive_calls": 3007,
             "total_calls": 3007,
-            "self_seconds": 0.002022905,
-            "cumulative_seconds": 0.099133781
+            "self_seconds": 0.002116614,
+            "cumulative_seconds": 0.10747303300000001
           }
         ],
         "body_deepcopy_calls": [
@@ -1021,13 +1021,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001002581,
-            "cumulative_seconds": 0.14220316800000002
+            "self_seconds": 0.0010090560000000001,
+            "cumulative_seconds": 0.15523319600000002
           }
         ]
       },
       "api_same_comparison_loop": {
-        "profiled_seconds": 0.9217411251738667,
+        "profiled_seconds": 0.9135829589795321,
         "operations": 1000,
         "functions": [
           {
@@ -1036,8 +1036,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 4004,
             "total_calls": 4004,
-            "self_seconds": 0.018793986000000002,
-            "cumulative_seconds": 0.27208213400000003
+            "self_seconds": 0.018145986000000003,
+            "cumulative_seconds": 0.26850214
           },
           {
             "file": "execsql/metacommands/conditions.py",
@@ -1045,8 +1045,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.005860268,
-            "cumulative_seconds": 0.24320479600000003
+            "self_seconds": 0.005672839000000001,
+            "cumulative_seconds": 0.24176612000000003
           },
           {
             "file": "_strptime.py",
@@ -1054,8 +1054,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.033407854,
-            "cumulative_seconds": 0.19683064
+            "self_seconds": 0.033051669,
+            "cumulative_seconds": 0.195695796
           },
           {
             "file": "copy.py",
@@ -1063,8 +1063,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.051037923000000006,
-            "cumulative_seconds": 0.14318133900000002
+            "self_seconds": 0.050705654,
+            "cumulative_seconds": 0.14242714
           },
           {
             "file": "_local.py",
@@ -1072,8 +1072,8 @@
             "function": "resolve",
             "primitive_calls": 4007,
             "total_calls": 4007,
-            "self_seconds": 0.002652111,
-            "cumulative_seconds": 0.13034958800000002
+            "self_seconds": 0.002664464,
+            "cumulative_seconds": 0.129462565
           }
         ],
         "body_deepcopy_calls": [
@@ -1081,13 +1081,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0010093810000000002,
-            "cumulative_seconds": 0.14318133900000002
+            "self_seconds": 0.0009993180000000001,
+            "cumulative_seconds": 0.14242714
           }
         ]
       },
       "api_changing_comparison_loop": {
-        "profiled_seconds": 0.8369087921455503,
+        "profiled_seconds": 0.8300964999943972,
         "operations": 1000,
         "functions": [
           {
@@ -1096,8 +1096,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.005757728,
-            "cumulative_seconds": 0.24546911300000002
+            "self_seconds": 0.005631858,
+            "cumulative_seconds": 0.246147567
           },
           {
             "file": "execsql/script/executor.py",
@@ -1105,8 +1105,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3004,
             "total_calls": 3004,
-            "self_seconds": 0.014269044000000002,
-            "cumulative_seconds": 0.211469383
+            "self_seconds": 0.013874127000000002,
+            "cumulative_seconds": 0.20669435100000003
           },
           {
             "file": "_strptime.py",
@@ -1114,8 +1114,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.033948516000000005,
-            "cumulative_seconds": 0.19814781
+            "self_seconds": 0.034089752,
+            "cumulative_seconds": 0.19949650600000002
           },
           {
             "file": "copy.py",
@@ -1123,8 +1123,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.051356216,
-            "cumulative_seconds": 0.14428980400000002
+            "self_seconds": 0.051144232000000005,
+            "cumulative_seconds": 0.143644757
           },
           {
             "file": "_local.py",
@@ -1132,8 +1132,8 @@
             "function": "resolve",
             "primitive_calls": 3007,
             "total_calls": 3007,
-            "self_seconds": 0.002123046,
-            "cumulative_seconds": 0.10283122500000001
+            "self_seconds": 0.0020504,
+            "cumulative_seconds": 0.10023214700000001
           }
         ],
         "body_deepcopy_calls": [
@@ -1141,13 +1141,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001063155,
-            "cumulative_seconds": 0.14428980400000002
+            "self_seconds": 0.001008523,
+            "cumulative_seconds": 0.143644757
           }
         ]
       },
       "api_numeric_comparison_loop": {
-        "profiled_seconds": 0.8268157080747187,
+        "profiled_seconds": 0.8592821671627462,
         "operations": 1000,
         "functions": [
           {
@@ -1156,8 +1156,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004926128,
-            "cumulative_seconds": 0.240709272
+            "self_seconds": 0.004909931,
+            "cumulative_seconds": 0.245322493
           },
           {
             "file": "execsql/script/executor.py",
@@ -1165,8 +1165,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3005,
             "total_calls": 3005,
-            "self_seconds": 0.014026842000000001,
-            "cumulative_seconds": 0.208337704
+            "self_seconds": 0.016991868,
+            "cumulative_seconds": 0.223013127
           },
           {
             "file": "_strptime.py",
@@ -1174,8 +1174,8 @@
             "function": "_strptime",
             "primitive_calls": 16983,
             "total_calls": 16983,
-            "self_seconds": 0.033767362,
-            "cumulative_seconds": 0.19718396400000002
+            "self_seconds": 0.033553002000000005,
+            "cumulative_seconds": 0.19937222300000002
           },
           {
             "file": "copy.py",
@@ -1183,8 +1183,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 61000,
-            "self_seconds": 0.051770468,
-            "cumulative_seconds": 0.14489811800000002
+            "self_seconds": 0.057161328000000004,
+            "cumulative_seconds": 0.153038678
           },
           {
             "file": "_local.py",
@@ -1192,8 +1192,8 @@
             "function": "resolve",
             "primitive_calls": 3008,
             "total_calls": 3008,
-            "self_seconds": 0.002076755,
-            "cumulative_seconds": 0.10121634700000001
+            "self_seconds": 0.002100027,
+            "cumulative_seconds": 0.10933391
           }
         ],
         "body_deepcopy_calls": [
@@ -1201,13 +1201,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.001026273,
-            "cumulative_seconds": 0.14489811800000002
+            "self_seconds": 0.0010656490000000001,
+            "cumulative_seconds": 0.153038678
           }
         ]
       },
       "api_sql_loop": {
-        "profiled_seconds": 0.5100562500301749,
+        "profiled_seconds": 0.511453750077635,
         "operations": 1000,
         "functions": [
           {
@@ -1216,8 +1216,8 @@
             "function": "_set_command_vars",
             "primitive_calls": 3006,
             "total_calls": 3006,
-            "self_seconds": 0.013383445,
-            "cumulative_seconds": 0.19783355500000002
+            "self_seconds": 0.013447918000000001,
+            "cumulative_seconds": 0.19675245600000002
           },
           {
             "file": "copy.py",
@@ -1225,8 +1225,8 @@
             "function": "deepcopy",
             "primitive_calls": 1000,
             "total_calls": 37000,
-            "self_seconds": 0.033064225,
-            "cumulative_seconds": 0.095854756
+            "self_seconds": 0.033198579,
+            "cumulative_seconds": 0.09643307200000001
           },
           {
             "file": "_local.py",
@@ -1234,8 +1234,8 @@
             "function": "resolve",
             "primitive_calls": 3009,
             "total_calls": 3009,
-            "self_seconds": 0.0019150220000000002,
-            "cumulative_seconds": 0.09438587000000001
+            "self_seconds": 0.001880088,
+            "cumulative_seconds": 0.09356760400000001
           }
         ],
         "body_deepcopy_calls": [
@@ -1243,13 +1243,13 @@
             "caller": "_run_body",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.00102036,
-            "cumulative_seconds": 0.095854756
+            "self_seconds": 0.001015061,
+            "cumulative_seconds": 0.09643307200000001
           }
         ]
       },
       "equal_text_same": {
-        "profiled_seconds": 0.2147039589472115,
+        "profiled_seconds": 0.22158804186619818,
         "operations": 1000,
         "functions": [
           {
@@ -1258,8 +1258,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004040223,
-            "cumulative_seconds": 0.21420972600000002
+            "self_seconds": 0.004287959,
+            "cumulative_seconds": 0.22101476
           },
           {
             "file": "_strptime.py",
@@ -1267,14 +1267,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030506937,
-            "cumulative_seconds": 0.17889607700000001
+            "self_seconds": 0.030832225,
+            "cumulative_seconds": 0.1822212
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_text_different": {
-        "profiled_seconds": 0.21820450015366077,
+        "profiled_seconds": 0.2179022920317948,
         "operations": 1000,
         "functions": [
           {
@@ -1283,8 +1283,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004218329000000001,
-            "cumulative_seconds": 0.21767281500000002
+            "self_seconds": 0.00414327,
+            "cumulative_seconds": 0.21735241200000002
           },
           {
             "file": "_strptime.py",
@@ -1292,14 +1292,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030802619000000003,
-            "cumulative_seconds": 0.181346166
+            "self_seconds": 0.030193513,
+            "cumulative_seconds": 0.179389857
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_integer_same": {
-        "profiled_seconds": 0.002501250011846423,
+        "profiled_seconds": 0.0024965410120785236,
         "operations": 1000,
         "functions": [
           {
@@ -1308,14 +1308,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0014429030000000002,
-            "cumulative_seconds": 0.002151182
+            "self_seconds": 0.0014187610000000002,
+            "cumulative_seconds": 0.002144126
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_integer_different": {
-        "profiled_seconds": 0.21125245792791247,
+        "profiled_seconds": 0.21841308404691517,
         "operations": 1000,
         "functions": [
           {
@@ -1324,8 +1324,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0034301490000000004,
-            "cumulative_seconds": 0.21075590600000002
+            "self_seconds": 0.0035327040000000002,
+            "cumulative_seconds": 0.217882091
           },
           {
             "file": "_strptime.py",
@@ -1333,14 +1333,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.029939462000000003,
-            "cumulative_seconds": 0.177503028
+            "self_seconds": 0.030152665000000002,
+            "cumulative_seconds": 0.178560605
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_decimal_same": {
-        "profiled_seconds": 0.00308308401145041,
+        "profiled_seconds": 0.003166832961142063,
         "operations": 1000,
         "functions": [
           {
@@ -1349,14 +1349,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.00197575,
-            "cumulative_seconds": 0.0027137050000000003
+            "self_seconds": 0.0020379020000000003,
+            "cumulative_seconds": 0.002782203
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_decimal_different": {
-        "profiled_seconds": 0.24680891586467624,
+        "profiled_seconds": 0.2153913751244545,
         "operations": 1000,
         "functions": [
           {
@@ -1365,8 +1365,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0046713300000000004,
-            "cumulative_seconds": 0.24612889000000002
+            "self_seconds": 0.0037998410000000004,
+            "cumulative_seconds": 0.21488705800000002
           },
           {
             "file": "_strptime.py",
@@ -1374,14 +1374,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.034851352,
-            "cumulative_seconds": 0.206579807
+            "self_seconds": 0.030475907000000003,
+            "cumulative_seconds": 0.17889890500000002
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_boolean_same": {
-        "profiled_seconds": 0.21384966699406505,
+        "profiled_seconds": 0.22185012488625944,
         "operations": 1000,
         "functions": [
           {
@@ -1390,8 +1390,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004048781,
-            "cumulative_seconds": 0.213371786
+            "self_seconds": 0.004174659,
+            "cumulative_seconds": 0.22130491200000002
           },
           {
             "file": "_strptime.py",
@@ -1399,14 +1399,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030078149000000002,
-            "cumulative_seconds": 0.177944816
+            "self_seconds": 0.030482569,
+            "cumulative_seconds": 0.180611227
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_boolean_different": {
-        "profiled_seconds": 0.21474304189905524,
+        "profiled_seconds": 0.22508729086257517,
         "operations": 1000,
         "functions": [
           {
@@ -1415,8 +1415,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004064656,
-            "cumulative_seconds": 0.214248874
+            "self_seconds": 0.004217223,
+            "cumulative_seconds": 0.224539118
           },
           {
             "file": "_strptime.py",
@@ -1424,14 +1424,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030301456,
-            "cumulative_seconds": 0.17867126
+            "self_seconds": 0.030958971000000002,
+            "cumulative_seconds": 0.18304140600000002
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_boolean_numeric": {
-        "profiled_seconds": 0.21573883411474526,
+        "profiled_seconds": 0.22529320791363716,
         "operations": 1000,
         "functions": [
           {
@@ -1440,8 +1440,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0040535400000000004,
-            "cumulative_seconds": 0.215236321
+            "self_seconds": 0.0043454,
+            "cumulative_seconds": 0.22471707100000002
           },
           {
             "file": "_strptime.py",
@@ -1449,14 +1449,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030601237000000003,
-            "cumulative_seconds": 0.179666352
+            "self_seconds": 0.031147641,
+            "cumulative_seconds": 0.183009103
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_date_same": {
-        "profiled_seconds": 0.009536874946206808,
+        "profiled_seconds": 0.009336207993328571,
         "operations": 1000,
         "functions": [
           {
@@ -1465,14 +1465,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0026375490000000003,
-            "cumulative_seconds": 0.009146563
+            "self_seconds": 0.002518382,
+            "cumulative_seconds": 0.008949675
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_date_different": {
-        "profiled_seconds": 0.050259041832759976,
+        "profiled_seconds": 0.05499800015240908,
         "operations": 1000,
         "functions": [
           {
@@ -1481,8 +1481,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.0039015050000000004,
-            "cumulative_seconds": 0.049759229
+            "self_seconds": 0.004120691,
+            "cumulative_seconds": 0.054466281000000005
           },
           {
             "file": "_strptime.py",
@@ -1490,14 +1490,14 @@
             "function": "_strptime",
             "primitive_calls": 5000,
             "total_calls": 5000,
-            "self_seconds": 0.011573104,
-            "cumulative_seconds": 0.023571202000000003
+            "self_seconds": 0.012049016000000001,
+            "cumulative_seconds": 0.02463192
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_timestamp_different": {
-        "profiled_seconds": 0.22168437484651804,
+        "profiled_seconds": 0.2241502918768674,
         "operations": 1000,
         "functions": [
           {
@@ -1506,8 +1506,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004258439,
-            "cumulative_seconds": 0.221136769
+            "self_seconds": 0.004157714,
+            "cumulative_seconds": 0.223632242
           },
           {
             "file": "_strptime.py",
@@ -1515,14 +1515,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.031777414000000004,
-            "cumulative_seconds": 0.182535408
+            "self_seconds": 0.031855452,
+            "cumulative_seconds": 0.18317895
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_offset_same_instant": {
-        "profiled_seconds": 0.015054124873131514,
+        "profiled_seconds": 0.015491792000830173,
         "operations": 1000,
         "functions": [
           {
@@ -1531,14 +1531,14 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004326539,
-            "cumulative_seconds": 0.014665973
+            "self_seconds": 0.004490998,
+            "cumulative_seconds": 0.015068764
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_unicode_same": {
-        "profiled_seconds": 0.2143434160389006,
+        "profiled_seconds": 0.2175942910835147,
         "operations": 1000,
         "functions": [
           {
@@ -1547,8 +1547,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004149794,
-            "cumulative_seconds": 0.21385388400000002
+            "self_seconds": 0.0041831360000000005,
+            "cumulative_seconds": 0.217072553
           },
           {
             "file": "_strptime.py",
@@ -1556,14 +1556,14 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030443069000000003,
-            "cumulative_seconds": 0.178022179
+            "self_seconds": 0.030449916,
+            "cumulative_seconds": 0.179085409
           }
         ],
         "body_deepcopy_calls": []
       },
       "equal_quoted_same": {
-        "profiled_seconds": 0.21584558300673962,
+        "profiled_seconds": 0.21891287504695356,
         "operations": 1000,
         "functions": [
           {
@@ -1572,8 +1572,8 @@
             "function": "xf_equals",
             "primitive_calls": 1000,
             "total_calls": 1000,
-            "self_seconds": 0.004136787,
-            "cumulative_seconds": 0.215359085
+            "self_seconds": 0.004131025,
+            "cumulative_seconds": 0.218363628
           },
           {
             "file": "_strptime.py",
@@ -1581,8 +1581,8 @@
             "function": "_strptime",
             "primitive_calls": 17000,
             "total_calls": 17000,
-            "self_seconds": 0.030484147000000003,
-            "cumulative_seconds": 0.179583382
+            "self_seconds": 0.030463229,
+            "cumulative_seconds": 0.180303751
           }
         ],
         "body_deepcopy_calls": []
