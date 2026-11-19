@@ -158,6 +158,8 @@ class MailSpec:
         content_filename: str | None = None,
         attach_filename: str | None = None,
         repeatable: bool = False,
+        *,
+        by: str = "EMAIL",
     ) -> None:
         self.send_from = send_from
         self.send_to = send_to
@@ -167,6 +169,10 @@ class MailSpec:
         self.attach_filename = attach_filename
         self.repeatable = repeatable
         self.sent = False
+        origin = _state.last_command
+        self.source = getattr(origin, "source", "<unknown>")
+        self.line = getattr(origin, "line_no", None)
+        self.by = by
 
     @staticmethod
     def _expand(text: str | None) -> str | None:
@@ -194,4 +200,10 @@ class MailSpec:
             attach_filename = self._expand(self.attach_filename)
             with Mailer() as m:
                 m.sendmail(send_from, send_to, subject, msg_content, content_filename, attach_filename)
+            from execsql.manifest import current
+
+            if (manifest := current()) is not None:
+                for path in (content_filename, attach_filename):
+                    if path:
+                        manifest.record_read(path, self.source, self.line, self.by)
         return None

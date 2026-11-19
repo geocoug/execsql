@@ -30,7 +30,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
-from execsql.exceptions import ErrInfo
+from execsql.exceptions import ErrInfo, ScriptParseError
 from execsql.utils.errors import write_warning
 from execsql.script.ast import (
     BatchBlock,
@@ -51,6 +51,7 @@ from execsql.script.ast import (
 )
 
 __all__ = [
+    "ScriptParseError",
     "parse_script",
     "parse_string",
 ]
@@ -311,7 +312,9 @@ def _parse_param_defs(
     for token in tokens:
         m = _PARAM_TOKEN_RX.match(token)
         if not m:
-            raise ErrInfo(
+            raise ScriptParseError(
+                source=source,
+                line=lineno,
                 type="cmd",
                 other_msg=(f"Invalid parameter token '{token}' on line {lineno} of {source}."),
             )
@@ -321,7 +324,9 @@ def _parse_param_defs(
             if seen_optional is None:
                 seen_optional = name
         elif seen_optional is not None:
-            raise ErrInfo(
+            raise ScriptParseError(
+                source=source,
+                line=lineno,
                 type="cmd",
                 other_msg=(
                     f"Required parameter '{name}' after optional parameter "
@@ -437,13 +442,35 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
             return block_stack.pop()
         if errors is None:
             msg = _unclosed_block_msg(block_stack[-1]) if block_stack else no_match_msg
-            raise ErrInfo(type="cmd", command_text=line, other_msg=msg)
+            raise ScriptParseError(
+                source=source_name,
+                line=block_stack[-1].start_line if block_stack else line_no,
+                type="cmd",
+                command_text=line,
+                other_msg=msg,
+            )
         if not any(frame.kind == kind for frame in block_stack):
-            errors.append(ErrInfo(type="cmd", command_text=line, other_msg=no_match_msg))
+            errors.append(
+                ScriptParseError(
+                    source=source_name,
+                    line=file_lineno,
+                    type="cmd",
+                    command_text=line,
+                    other_msg=no_match_msg,
+                ),
+            )
             return None
         while block_stack[-1].kind != kind:
             frame = block_stack.pop()
-            errors.append(ErrInfo(type="cmd", command_text=line, other_msg=_unclosed_block_msg(frame)))
+            errors.append(
+                ScriptParseError(
+                    source=source_name,
+                    line=frame.start_line,
+                    type="cmd",
+                    command_text=line,
+                    other_msg=_unclosed_block_msg(frame),
+                ),
+            )
             _close_block(frame, line_no)
         return block_stack.pop()
 
@@ -646,7 +673,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                 in_sql_block = False
                 if not block_stack or block_stack[-1].kind != "sqlblock":
                     _structural_error(
-                        ErrInfo(
+                        ScriptParseError(
+                            source=source_name,
+                            line=file_lineno,
                             type="cmd",
                             command_text=line,
                             other_msg=f"Unmatched END SQL on line {file_lineno} of {source_name}.",
@@ -679,7 +708,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                     wp = _WITH_PARAMS_RX.match(paramexpr)
                     if not wp:
                         _structural_error(
-                            ErrInfo(
+                            ScriptParseError(
+                                source=source_name,
+                                line=file_lineno,
                                 type="cmd",
                                 command_text=line,
                                 other_msg=f"Invalid BEGIN SCRIPT metacommand on line {file_lineno} of file {source_name}.",
@@ -722,7 +753,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                 script_node = cast(ScriptBlock, closed.node)
                 if end_name is not None and end_name != script_node.name:
                     _structural_error(
-                        ErrInfo(
+                        ScriptParseError(
+                            source=source_name,
+                            line=file_lineno,
                             type="cmd",
                             command_text=line,
                             other_msg=f"Mismatched script name in the END SCRIPT metacommand on line {file_lineno} of file {source_name}.",
@@ -730,7 +763,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
                     )
                 if sql_accum:
                     _structural_error(
-                        ErrInfo(
+                        ScriptParseError(
+                            source=source_name,
+                            line=file_lineno,
                             type="cmd",
                             command_text=line,
                             other_msg=(
@@ -770,7 +805,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
                     _structural_error(
-                        ErrInfo(
+                        ScriptParseError(
+                            source=source_name,
+                            line=file_lineno,
                             type="cmd",
                             command_text=line,
                             other_msg=f"ELSEIF on line {file_lineno} of {source_name} has no matching IF.",
@@ -795,7 +832,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
                     _structural_error(
-                        ErrInfo(
+                        ScriptParseError(
+                            source=source_name,
+                            line=file_lineno,
                             type="cmd",
                             command_text=line,
                             other_msg=f"ANDIF on line {file_lineno} of {source_name} has no matching IF.",
@@ -820,7 +859,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
                     _structural_error(
-                        ErrInfo(
+                        ScriptParseError(
+                            source=source_name,
+                            line=file_lineno,
                             type="cmd",
                             command_text=line,
                             other_msg=f"ORIF on line {file_lineno} of {source_name} has no matching IF.",
@@ -845,7 +886,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
             if m:
                 if not block_stack or block_stack[-1].kind != "if":
                     _structural_error(
-                        ErrInfo(
+                        ScriptParseError(
+                            source=source_name,
+                            line=file_lineno,
                             type="cmd",
                             command_text=line,
                             other_msg=f"ELSE on line {file_lineno} of {source_name} has no matching IF.",
@@ -966,7 +1009,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
     # Unclosed blocks, innermost first
     for frame in reversed(block_stack):
         _structural_error(
-            ErrInfo(
+            ScriptParseError(
+                source=source_name,
+                line=frame.start_line,
                 type="error",
                 other_msg=f"Unmatched {frame.kind.upper()} block starting on line {frame.start_line} at end of file {source_name}.",
             ),
@@ -975,7 +1020,9 @@ def _parse_lines(lines: Iterable[str], source_name: str, errors: list[ErrInfo] |
     # Trailing SQL without semicolon
     if sql_accum:
         _structural_error(
-            ErrInfo(
+            ScriptParseError(
+                source=source_name,
+                line=sql_start_line,
                 type="error",
                 other_msg=(
                     f"Incomplete SQL statement starting on line {sql_start_line} at end of file {source_name}."

@@ -150,6 +150,108 @@ def test_finish_writes_once(tmp_path):
     assert (tmp_path / "m.json").read_text() == first
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX signal delivery")
+@pytest.mark.parametrize("name,code", [("INT", 130), ("TERM", 143)])
+def test_manifest_retains_signal_exit_status(work, name, code):
+    result, manifest = _run(
+        work,
+        f"-- !x! SYSTEM_CMD (sh -c 'kill -{name} $PPID; sleep 1')\nselect 1;\n",
+        "--manifest",
+        "runs/m.json",
+    )
+    assert result.returncode == code
+    assert manifest["exit_status"] == code
+    assert manifest["statements"]["metacommands"] == 1
+    log = (work / "execsql.log").read_text().splitlines()
+    summary = next(line.split("\t") for line in log if "Run finished:" in line)
+    assert summary[1] == manifest["run_id"]
+    assert f"exit={code}; attempted=1;" in summary[-1]
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_deferred_write_is_recorded_only_when_run(work, fail):
+    script = '-- !x! ON ERROR_HALT WRITE "failed" TO error.txt\n'
+    script += "select * from missing;\n" if fail else "select 1;\n"
+    result, manifest = _run(work, script, "--manifest", "runs/m.json")
+    assert result.returncode == int(fail)
+    assert (work / "error.txt").exists() is fail
+    assert [entry["path"] for entry in manifest["files_written"]] == (["error.txt"] if fail else [])
+    if fail:
+        assert manifest["files_written"][0]["line"] == 1
+        assert manifest["files_written"][0]["by"] == "ON ERROR_HALT WRITE"
+
+
+def test_failed_export_does_not_claim_an_existing_file_was_written(work):
+    (work / "ghost.csv").write_text("original\n")
+    script = (
+        "-- !x! METACOMMAND_ERROR_HALT OFF\n"
+        "-- !x! EXPORT QUERY <<select * from missing;>> TO ghost.csv AS CSV\nselect 1;\n"
+    )
+    result, manifest = _run(work, script, "--manifest", "runs/m.json")
+    assert result.returncode == 0
+    assert manifest["errors"]
+    assert manifest["files_written"] == []
+    assert (work / "ghost.csv").read_text() == "original\n"
+
+
+def test_failed_queued_write_is_not_a_completed_write(work):
+    (work / "blocked").mkdir()
+    result, manifest = _run(work, '-- !x! WRITE "lost" TO blocked\n', "--manifest", "runs/m.json")
+    assert result.returncode != 0
+    assert manifest["errors"]
+    assert manifest["files_written"] == []
+
+
+def test_cancel_handler_write_records_its_registration_location(work):
+    result, manifest = _run(
+        work,
+        '-- !x! ON CANCEL_HALT WRITE "cancelled" TO cancel.txt\n-- !x! HALT EXIT_STATUS 2\n',
+        "--manifest",
+        "runs/m.json",
+    )
+    assert result.returncode == 2
+    assert (work / "cancel.txt").read_text().strip() == "cancelled"
+    assert manifest["files_written"] == [
+        {"source": "s.sql", "line": 1, "by": "ON CANCEL_HALT WRITE", "path": "cancel.txt"},
+    ]
+
+
+def test_stdout_script_dump_does_not_claim_a_file_write(work):
+    script = "-- !x! BEGIN SCRIPT example\nselect 1;\n-- !x! END SCRIPT\n-- !x! WRITE SCRIPT example TO stdout\n"
+    result, manifest = _run(work, script, "--manifest", "runs/m.json")
+    assert result.returncode == 0, result.stderr
+    assert "select 1" in result.stdout
+    assert manifest["files_written"] == []
+
+
+def test_queued_write_retains_literal_path_whitespace(work):
+    result, manifest = _run(work, '-- !x! WRITE "hello" TO " spaced.txt "\n', "--manifest", "runs/m.json")
+    assert result.returncode == 0, result.stderr
+    assert (work / " spaced.txt ").read_text().strip() == "hello"
+    assert [entry["path"] for entry in manifest["files_written"]] == [" spaced.txt "]
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        "select * from missing;\n",
+        "-- !x! HALT EXIT_STATUS 0\n",
+        "-- !x! IF (EQUAL(a, a))\nselect 1;\n-- !x! ENDIF\n",
+        "-- !x! BEGIN SCRIPT example\nselect 1;\n-- !x! END SCRIPT\n-- !x! EXECUTE SCRIPT example\n",
+        "-- !x! LOOP WHILE (EQUAL(a, a))\n-- !x! BREAK\n-- !x! ENDLOOP\n",
+        "-- !x! BEGIN SQL\nselect 1;\n-- !x! END SQL\n",
+    ],
+)
+def test_counts_align_with_python_and_log_for_control_and_failure_paths(work, script):
+    from execsql import run
+
+    _, manifest = _run(work, script, "--manifest", "runs/m.json")
+    result = run(sql=script, dsn="sqlite:///:memory:")
+    assert sum(manifest["statements"].values()) == result.commands_run
+    summary = next(line for line in (work / "execsql.log").read_text().splitlines() if "Run finished:" in line)
+    assert f"attempted={result.commands_run};" in summary
+
+
 def test_record_metacommand_classifies_with_the_dispatch_table(tmp_path):
     from execsql.metacommands import DISPATCH_TABLE
 

@@ -29,10 +29,13 @@ import json
 import os
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 from execsql import __version__
+from execsql.exceptions import ScriptParseError
 
 __all__ = ["RunManifest", "check_writable", "current", "start"]
 
@@ -107,6 +110,7 @@ class RunManifest:
     def __init__(self, path: str, script: str | None, variables: list[str]) -> None:
         self.path = Path(path)
         self.script = script or "<inline>"
+        self.run_id: str | None = None
         self.variables = variables
         self.started = _now()
         self.config_files: list[str] = []
@@ -119,6 +123,8 @@ class RunManifest:
         self.connections: list[dict[str, Any]] = []
         self.errors: list[dict[str, Any]] = []
         self.written = False
+        self._commands: list[dict[str, Any]] = []
+        self._queued_writes: dict[int, list[Any]] = {}
 
     # -- recording -------------------------------------------------------------
 
@@ -134,20 +140,92 @@ class RunManifest:
     def record_sql(self) -> None:
         self.sql_statements += 1
 
-    def record_metacommand(self, command: str, source: str, line: int, metacommandlist: Any) -> None:
-        """Count a metacommand that ran, and record the files and connections it touched.
+    @contextmanager
+    def command(
+        self,
+        command: str,
+        source: str,
+        line: int,
+        metacommandlist: Any,
+        *,
+        count: bool = True,
+    ) -> Iterator[None]:
+        """Retain provenance for asynchronous writes, optionally counting the command attempt."""
+        hit = metacommandlist.get_match(command)
+        words = command.split(None, 1)
+        by = (hit[0].description if hit else None) or (words[0].upper() if words else "METACOMMAND")
+        if count:
+            self.metacommands += 1
+        self._commands.append({"source": source, "line": line, "by": by, "queued": {}})
+        try:
+            yield
+        finally:
+            self._commands.pop()
 
-        *command* is the text after substitution, so paths are the ones used.
+    def queued_write(self, path: str, text: str) -> str:
+        """Keep a queued write only if the worker confirms it wrote and flushed the original text."""
+        from execsql.utils.fileio import _TrackedWrite
+
+        receipt = _TrackedWrite(text)
+        context = (
+            self._commands[-1] if self._commands else {"source": self.script, "line": None, "by": "WRITE", "queued": {}}
+        )
+        entry = context["queued"].get(path)
+        if entry is None:
+            entry = {key: context[key] for key in ("source", "line", "by")}
+            entry["path"] = path
+            context["queued"][path] = entry
+            self.writes.append(entry)
+            self._queued_writes[id(entry)] = []
+        self._queued_writes[id(entry)].append(receipt.receipt)
+        return receipt
+
+    def record_write(self, path: str, source: str, line: int | None, by: str) -> None:
+        """Record a synchronous write after it has succeeded, including a deferred halt handler."""
+        self.writes.append({"source": source, "line": line, "by": by, "path": path})
+
+    def record_read(self, path: str, source: str, line: int | None, by: str) -> None:
+        self.reads.append({"source": source, "line": line, "by": by, "path": path})
+
+    def record_metacommand(
+        self,
+        command: str,
+        source: str,
+        line: int,
+        metacommandlist: Any,
+        *,
+        count: bool = True,
+    ) -> None:
+        """Record a successful metacommand's file and connection effects.
+
+        *command* is substituted text. *count* is false when the executor has
+        already counted this attempt.
         """
         from execsql.metacommands.effects import effects
 
-        self.metacommands += 1
+        if count:
+            self.metacommands += 1
         hit = metacommandlist.get_match(command)
         if hit is None:
             return
         mc, m = hit
+        if mc.exec_fn.__name__ in (
+            "x_error_halt_write",
+            "x_cancel_halt_write",
+            "x_error_halt_email",
+            "x_cancel_halt_email",
+        ):
+            return  # Deferred specs record file effects only when they actually run.
         by = mc.description or command.split(None, 1)[0].upper()
         for effect in effects(mc.exec_fn.__name__, m.groupdict()):
+            if (
+                effect.role == "write"
+                and effect.target == "stdout"
+                and mc.exec_fn.__name__ in ("x_write_create_table", "x_writescript")
+            ):
+                continue
+            if effect.role == "write" and self._commands and self._commands[-1]["queued"]:
+                continue  # The worker's receipt determines whether this write succeeded.
             entry = {"source": source, "line": line, "by": by}
             if effect.role in ("connect", "use"):
                 self.connections.append(
@@ -171,8 +249,8 @@ class RunManifest:
             {
                 "message": " ".join(str(error).split()),
                 "type": getattr(error, "type", None),
-                "source": getattr(error, "script_file", None),
-                "line": getattr(error, "script_line_no", None),
+                "source": error.source if isinstance(error, ScriptParseError) else getattr(error, "script_file", None),
+                "line": error.line if isinstance(error, ScriptParseError) else getattr(error, "script_line_no", None),
                 "command": getattr(error, "cmd", None) or getattr(error, "command", None),
             },
         )
@@ -186,6 +264,7 @@ class RunManifest:
         finished = _now()
         data = {
             "execsql_version": __version__,
+            "run_id": self.run_id,
             "script": _masked(self.script),
             "started": self.started.isoformat(timespec="seconds"),
             "finished": finished.isoformat(timespec="seconds"),
@@ -196,7 +275,14 @@ class RunManifest:
             "variables": self.variables,
             "statements": {"sql": self.sql_statements, "metacommands": self.metacommands},
             "files_read": _masked(self.reads),
-            "files_written": _masked(self.writes),
+            "files_written": _masked(
+                [
+                    entry
+                    for entry in self.writes
+                    if id(entry) not in self._queued_writes
+                    or any(receipt.written for receipt in self._queued_writes[id(entry)])
+                ],
+            ),
             "files_deleted": _masked(self.deletes),
             "connections": _masked(self.connections),
             "errors": _masked(self.errors),

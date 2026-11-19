@@ -437,6 +437,7 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
     ```json
     {
       "execsql_version": "2.24.0",
+      "run_id": "20260929_1402_11_123",
       "script": "load.sql",
       "started": "2026-09-29T14:02:11+00:00",
       "finished": "2026-09-29T14:02:23+00:00",
@@ -454,7 +455,16 @@ Valid encoding names can be displayed with `execsql list encodings`. See also [C
     }
     ```
 
-    Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. Errors are retained in execution order even when `ERROR_HALT OFF` or
+    `run_id` matches the identifier in `execsql.log`; it is `null` if logging
+    could not be initialized. Statement counts include attempted SQL and metacommand
+    nodes, including one that fails or halts. Executable control nodes such as
+    script declarations, IF and LOOP count as metacommands; comments and commands
+    never reached do not. Their sum matches the log's attempted-command total
+    and Python `commands_run` for the same execution.
+
+    Files and connections are recorded as each metacommand succeeds, after variable substitution, so paths are the ones used (`out/west.csv`, not `out/!!region!!.csv`); `INCLUDE`d scripts count as files read. Registering a halt-write handler does not count as writing its destination: it is recorded only if the handler writes successfully. Queued text output is listed after a write and flush succeed. File lists are not a transactional guarantee: a failed command can leave partial files, and a later failure does not undo earlier confirmed writes. A file's presence before the run is not evidence that the run wrote it.
+
+    When a run fails, `exit_status` is its exit code and `errors` holds the message, its `type`, `source`, `line` and the failing `command`. Ctrl-C and SIGTERM retain their known exit codes (130 and 143 respectively); an unclassified process exit can still have a `null` status. Errors are retained in execution order even when `ERROR_HALT OFF` or
     `METACOMMAND_ERROR_HALT OFF` lets the script continue. A later successful command
     does not erase them, and a later halting error is recorded once. The original
     halting cause precedes any errors from its `ON ERROR_HALT` script, even if

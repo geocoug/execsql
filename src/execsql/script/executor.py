@@ -50,7 +50,7 @@ from pathlib import Path
 from typing import Any, cast
 from collections.abc import Callable
 
-from execsql.exceptions import ErrInfo, ScriptExit
+from execsql.exceptions import ErrInfo, ScriptExit, ScriptParseError
 from execsql.script.ast import (
     BatchBlock,
     Comment,
@@ -457,6 +457,8 @@ def _metacommand_failed(
         exit_now(1, e)
     if ctx.manifest is not None:
         ctx.manifest.add_error(e)
+    if isinstance(e, ScriptParseError):
+        source, line_no = e.source, e.line
     status.error_history.append((source, line_no, cmd, e.errmsg()))
 
 
@@ -469,6 +471,19 @@ class _ScriptExecutionError(BaseException):
 
 
 def _exec_metacommand(
+    ctx: RuntimeContext,
+    cmd: str,
+    source: str,
+    line_no: int,
+) -> Any:
+    manifest = _manifest.current()
+    if manifest is None:
+        return _dispatch_metacommand(ctx, cmd, source, line_no)
+    with manifest.command(cmd, source, line_no, ctx.metacommandlist, count=False):
+        return _dispatch_metacommand(ctx, cmd, source, line_no)
+
+
+def _dispatch_metacommand(
     ctx: RuntimeContext,
     cmd: str,
     source: str,
@@ -498,7 +513,7 @@ def _exec_metacommand(
         applies, result = metacommandlist.eval(cmd)
         if applies:
             if (manifest := _manifest.current()) is not None:
-                manifest.record_metacommand(cmd, source, line_no, metacommandlist)
+                manifest.record_metacommand(cmd, source, line_no, metacommandlist, count=False)
             return result
         # Variable-supplied boundaries without a dispatch entry (END LOOP,
         # SCRIPT and SQL) follow the same error policy as IF and BEGIN BATCH.
@@ -528,8 +543,6 @@ def _exec_metacommand(
         raise
     if e:
         _metacommand_failed(ctx, cmd, e, source, line_no)
-        if (manifest := _manifest.current()) is not None:
-            manifest.record_metacommand(cmd, source, line_no, metacommandlist)
         return None
     # No handler matched — truly unknown metacommand
     status.metacommand_error = True
@@ -569,6 +582,12 @@ def _execute_nodes(
         if profiling:
             t0 = _time.perf_counter()
 
+        ctx.cmds_run += 1
+        if (manifest := _manifest.current()) is not None:
+            if isinstance(node, SqlStatement):
+                manifest.record_sql()
+            else:
+                manifest.metacommands += 1
         _execute_node(ctx, node, localvars, in_loop=in_loop)
 
         if profiling:
@@ -580,8 +599,6 @@ def _execute_nodes(
             profile_data.append(
                 (node.span.file, node.span.start_line, cmd_type, elapsed, cmd_text),
             )
-
-        ctx.cmds_run += 1
 
 
 def _execute_node(
@@ -608,8 +625,6 @@ def _execute_node(
             localvars,
             commit=not ctx.status.batch.in_batch(),
         )
-        if (manifest := _manifest.current()) is not None:
-            manifest.record_sql()
 
     elif isinstance(node, MetaCommandStatement):
         command = node.command
@@ -940,7 +955,13 @@ def _run_directive(
     """
     if (manifest := _manifest.current()) is not None:
         assert ctx.metacommandlist is not None
-        manifest.record_metacommand(node.command, node.span.file, node.span.start_line, ctx.metacommandlist)
+        manifest.record_metacommand(
+            node.command,
+            node.span.file,
+            node.span.start_line,
+            ctx.metacommandlist,
+            count=False,
+        )
 
     if not node.is_execute_script:
         _execute_include_native(ctx, node, localvars)

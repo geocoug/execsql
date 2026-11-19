@@ -198,7 +198,7 @@ def x_cancel_halt_write(**kwargs: Any) -> None:
     tee = kwargs["tee"]
     tee = bool(tee)
     outf = kwargs["filename"]
-    _state.cancel_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee)
+    _state.cancel_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee, by="ON CANCEL_HALT WRITE")
 
 
 def x_cancel_halt_email_clear(**kwargs: Any) -> None:
@@ -212,7 +212,15 @@ def x_cancel_halt_email(**kwargs: Any) -> None:
     msg = kwargs["msg"]
     msg_file = kwargs["msg_file"]
     att_file = kwargs["att_file"]
-    _state.cancel_halt_mailspec = MailSpec(from_addr, to_addr, subject, msg, msg_file, att_file)
+    _state.cancel_halt_mailspec = MailSpec(
+        from_addr,
+        to_addr,
+        subject,
+        msg,
+        msg_file,
+        att_file,
+        by="ON CANCEL_HALT EMAIL",
+    )
 
 
 def x_cancel_halt_exec(**kwargs: Any) -> None:
@@ -232,7 +240,7 @@ def x_error_halt_write(**kwargs: Any) -> None:
     tee = kwargs["tee"]
     tee = bool(tee)
     outf = kwargs["filename"]
-    _state.err_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee)
+    _state.err_halt_writespec = WriteSpec(message=msg, dest=outf, tee=tee, by="ON ERROR_HALT WRITE")
 
 
 def x_error_halt_email_clear(**kwargs: Any) -> None:
@@ -246,7 +254,7 @@ def x_error_halt_email(**kwargs: Any) -> None:
     msg = kwargs["msg"]
     msg_file = kwargs["msg_file"]
     att_file = kwargs["att_file"]
-    _state.err_halt_email = MailSpec(from_addr, to_addr, subject, msg, msg_file, att_file)
+    _state.err_halt_email = MailSpec(from_addr, to_addr, subject, msg, msg_file, att_file, by="ON ERROR_HALT EMAIL")
 
 
 def x_error_halt_exec(**kwargs: Any) -> None:

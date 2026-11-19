@@ -80,10 +80,12 @@ where a concrete bug or caller need warrants it. Preserve existing interfaces,
 secret redaction and execution behavior. Measure the cost of any new
 instrumentation before enabling it.
 
-Investigate how these three outputs describe successful runs, non-halting errors,
-error handlers, startup failures, cancellation and interruptions. Compare outcome,
-error location, command counts, file effects and secret redaction. Bring concrete
-gaps and proposed changes back for approval before changing execution behavior.
+Delivered reporting improvements:
+
+- Preserve known interruption exit codes in manifests ([#220](https://github.com/geocoug/execsql/issues/220)) and report confirmed file effects ([#221](https://github.com/geocoug/execsql/issues/221)).
+- Preserve structured parser locations in Python errors ([#222](https://github.com/geocoug/execsql/issues/222)); an error-free `HALT EXIT_STATUS 0` succeeds.
+- Count attempted executable nodes consistently across Python results, manifests and run logs.
+- Add a final log summary and a shared log/manifest run identifier.
 
 ## Engineering track: performance and execution architecture
 

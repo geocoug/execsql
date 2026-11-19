@@ -120,7 +120,15 @@ class WriteSpec:
     def __repr__(self) -> str:
         return f"WriteSpec({self.msg}, {self.outfile}, {self.tee})"
 
-    def __init__(self, message: str, dest: str | None = None, tee: Any = None, repeatable: bool = False) -> None:
+    def __init__(
+        self,
+        message: str,
+        dest: str | None = None,
+        tee: Any = None,
+        repeatable: bool = False,
+        *,
+        by: str = "WRITE",
+    ) -> None:
         # Inputs
         # message: Text to write.  May contain substitution variable references.
         # dest: The to which the text should be written.  If omitted, the message
@@ -135,6 +143,10 @@ class WriteSpec:
         self.tee = bool(tee)
         self.repeatable = bool(repeatable)
         self.written = False
+        origin = _state.last_command
+        self.source = getattr(origin, "source", "<unknown>")
+        self.line = getattr(origin, "line_no", None)
+        self.by = by
 
     def write(self) -> None:
         """Execute the deferred write, expanding substitution variables first."""
@@ -160,6 +172,10 @@ class WriteSpec:
                     fh.write(msg)
                 finally:
                     fh.close()
+                from execsql.manifest import current
+
+                if (manifest := current()) is not None:
+                    manifest.record_write(self.outfile, self.source, self.line, self.by)
             if (not self.outfile) or self.tee:
                 try:
                     _state.output.write(msg)

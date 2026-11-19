@@ -11,6 +11,22 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Finish `execsql.log` runs with a summary of outcome, exit code, attempted commands, errors, warnings and duration.
+- Include the log's `run_id` in `--manifest` output to link both records of a run.
+
+### Changed
+
+- Count attempted executable nodes, including failing and halting nodes, consistently in Python results, manifests and run logs.
+- Return Python `success=True` for `HALT EXIT_STATUS 0` when no earlier errors occurred.
+
+### Fixed
+
+- Preserve known interruption exit codes in `--manifest` output.
+- Exclude unused halt-write handlers and failed metacommand effects from manifest file lists; confirm queued writes after flushing.
+- Preserve known parser source lines in Python `ScriptError` results.
+
 ______________________________________________________________________
 
 ## [2.41.0] - 2026-11-19
