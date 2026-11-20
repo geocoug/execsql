@@ -33,6 +33,7 @@ import time
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -168,10 +169,21 @@ _EXISTING = (
 _READ_AS = {("sqlserver", "datetimeoffset"): "convert(nvarchar(40), v, 121)"}
 
 
-def _plain(value: Any) -> Any:
+def _plain(value: Any, dbms: str) -> str:
     """A fetched value as a stable, JSON-friendly string (``repr`` of a memoryview holds an address)."""
     if isinstance(value, (memoryview, bytearray)):
         value = bytes(value)
+    if (
+        dbms == "duckdb"
+        and isinstance(value, datetime.datetime)
+        and isinstance(value.tzinfo, ZoneInfo)
+        and value.tzinfo.key == "UTC"
+    ):
+        # DuckDB 2.0.1 uses zoneinfo where the historical record used pytz.
+        # Keep the recorded UTC representation without changing the value.
+        import pytz
+
+        value = value.replace(tzinfo=pytz.UTC)
     return repr(value)
 
 
@@ -199,7 +211,7 @@ def _load(db: Any, dbms: str, column_type: str, values: list[Any], infer_strings
         return "ERROR"
     with db._cursor() as curs:
         curs.execute(f"select {_READ_AS.get((dbms, column_type), 'v')} from {tname} order by i")
-        stored = [_plain(r[0]) for r in curs.fetchall()]
+        stored = [_plain(r[0], dbms) for r in curs.fetchall()]
         curs.execute(f"drop table {tname}")
     db.commit()
     return stored
@@ -229,7 +241,7 @@ def _import_file(db: Any, dbms: str, column_type: str, values: list[Any], path: 
         return "ERROR"
     with db._cursor() as curs:
         curs.execute(f"select {_READ_AS.get((dbms, column_type), 'v')} from {tname} order by i")
-        stored = [_plain(r[0]) for r in curs.fetchall()]
+        stored = [_plain(r[0], dbms) for r in curs.fetchall()]
         curs.execute(f"drop table {tname}")
     db.commit()
     return stored
