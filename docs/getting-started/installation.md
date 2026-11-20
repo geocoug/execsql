@@ -72,7 +72,7 @@ Combine as many as you need in one install: `"execsql2[postgres,duckdb,formats]"
 | `auth`           | OS keyring integration (desktop/native)                                      |
 | `auth-plaintext` | Headless keyring (plaintext file backend)                                    |
 | `auth-encrypted` | Headless keyring (encrypted file backend)                                    |
-| `upsert`         | `PG_UPSERT` metacommand (pg-upsert)                                          |
+| `upsert`         | `PG_UPSERT` metacommand (pg-upsert 1.27.1 or later)                          |
 | `map`            | `PROMPT MAP` widget (tkintermapview)                                         |
 | `all-db`         | All database drivers                                                         |
 | `all`            | Everything (all-db + formats + formatter + auth + upsert + map + lsp)        |

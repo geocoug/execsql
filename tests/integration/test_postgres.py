@@ -633,6 +633,33 @@ class TestPgUpsert:
         )
         assert outcomes == {"upsert": "FALSE", "update": "TRUE"}
 
+    @pytest.mark.parametrize(("mode", "options", "status"), [("", "COMMIT", "qa_failed"), (" QA", "", "")])
+    def test_unexplained_skipped_check_fails_qa(self, tmp_path, upsert_schemas, mode, options, status):
+        _exec_pg("ALTER TABLE ups_base.books ADD COLUMN optional_label TEXT UNIQUE")
+        _exec_pg("ALTER TABLE ups_base.books ADD COLUMN divisor INTEGER DEFAULT 1 CHECK (10 / divisor > 0)")
+        _exec_pg("ALTER TABLE ups_stg.books ADD COLUMN divisor INTEGER DEFAULT 0")
+        _exec_pg("INSERT INTO ups_stg.books (id, title) VALUES (2, 'two')")
+
+        outcomes = _upsert_outcomes(
+            tmp_path,
+            f"""\
+            -- !x! PG_UPSERT{mode} FROM ups_stg TO ups_base TABLES books {options}
+            -- !x! WRITE "status=!!$PG_UPSERT_STATUS!!" TO OUT
+            -- !x! WRITE "passed=!!$PG_UPSERT_QA_PASSED!!" TO OUT
+            -- !x! WRITE "committed=!!$PG_UPSERT_COMMITTED!!" TO OUT
+            -- !x! WRITE ~result=!!$PG_UPSERT_RESULT_JSON!!~ TO OUT
+            """,
+        )
+
+        (table,) = json.loads(outcomes.pop("result"))["tables"]
+        assert outcomes == {"status": status, "passed": "FALSE", "committed": "FALSE"}
+        assert [error["details"] for error in table["qa_errors"]] == ["check skipped: division by zero"]
+        assert any(
+            warning["details"].startswith("check skipped:") and "optional_label" in warning["details"]
+            for warning in table["qa_warnings"]
+        )
+        assert _query_pg("SELECT id FROM ups_base.books ORDER BY id") == [(1,)]
+
     def test_update_loads_only_existing_rows(self, tmp_path, upsert_schemas):
         _exec_pg("INSERT INTO ups_stg.books VALUES (1, 'new'), (2, NULL)")
         outcomes = _upsert_outcomes(

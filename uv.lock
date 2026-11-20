@@ -1083,7 +1083,7 @@ requires-dist = [
     { name = "openpyxl", marker = "extra == 'formats'", specifier = ">=3.1" },
     { name = "oracledb", marker = "extra == 'all-db'", specifier = ">=3.0" },
     { name = "oracledb", marker = "extra == 'oracle'", specifier = ">=3.0" },
-    { name = "pg-upsert", marker = "extra == 'upsert'", specifier = ">=1.26.0" },
+    { name = "pg-upsert", marker = "extra == 'upsert'", specifier = ">=1.27.1" },
     { name = "polars", marker = "extra == 'formats'", specifier = ">=1.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'all-db'", specifier = ">=3.1,<4" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.1,<4" },
@@ -2819,7 +2819,7 @@ wheels = [
 
 [[package]]
 name = "pg-upsert"
-version = "1.26.0"
+version = "1.27.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "psycopg", extra = ["binary"] },
@@ -2827,9 +2827,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/e2/583bec944591b3850f5ec949731e6a479120b4fabfa9ffa79b81d15a7078/pg_upsert-1.26.0.tar.gz", hash = "sha256:eee78705f61df80a1db1bf5ea58fa978d3df087ff9d7093d03993698a3273dc5", size = 1593824, upload-time = "2026-10-15T19:17:13.92Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/00/f561321913ef4f044204176c8576102abbe5ffb9292fad7b127c34d87c7c/pg_upsert-1.27.1.tar.gz", hash = "sha256:2f7b3021cae954e386aef4542dd430223cafdf36cb40646c5070af8e1bac0ecd", size = 1600169, upload-time = "2026-11-20T00:12:08.905Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/cb/c01679207b1a405da2efd26529be0e603ece29ba276ce3fbe0a21f77d372/pg_upsert-1.26.0-py3-none-any.whl", hash = "sha256:c3b1c3d701a001d6011fcfe5b4a6457105856e61692f564e48cc35c39097b30a", size = 110894, upload-time = "2026-10-15T19:17:12.262Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/41/c2313a3b342672996acc304acb87876c19e05b8d1219d378ec2a56af31b5/pg_upsert-1.27.1-py3-none-any.whl", hash = "sha256:a48a7bec149514b334712f0d8feb1be6fb9086ccc25bc85c5e4bc4f2a6580dcc", size = 113111, upload-time = "2026-11-20T00:12:07.622Z" },
 ]
 
 [[package]]
