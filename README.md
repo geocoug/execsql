@@ -105,7 +105,7 @@ uv tool install "execsql2[all]"           # everything: all drivers plus all fea
 add it to that project instead: `uv add "execsql2[postgres]"` or
 `pip install "execsql2[postgres]"` in its virtual environment.
 
-Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert (`upsert`, with pg-upsert 1.27.0 or later), and more. See the [installation guide](https://execsql2.readthedocs.io/en/stable/getting-started/installation/) for the full list.
+Feature extras cover spreadsheet and Parquet/Feather formats, keyring authentication, PostgreSQL upsert (`upsert`, with pg-upsert 1.27.1 or later), and more. See the [installation guide](https://execsql2.readthedocs.io/en/stable/getting-started/installation/) for the full list.
 
 ## Usage
 

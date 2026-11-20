@@ -59,7 +59,7 @@ ______________________________________________________________________
 | `IMPORT … FROM JSON`    | Import a JSON file (array of objects or [JSON Lines](https://jsonlines.org/)) into a database table. Nested objects are flattened with dot-separated column names; arrays are stored as JSON strings.                                                                                                                                                                                                                                                                                                      |
 | `SHOW SCRIPTS [<name>]` | Without a name, lists all registered SCRIPT definitions with parameter signatures and source locations. With a name, shows detail including parameters (with defaults), source file/line range, and docstring.                                                                                                                                                                                                                                                                                             |
 
-Starting with pg-upsert 1.27.0, `PG_UPSERT` fails QA if an unexplained PostgreSQL error prevents a check from running. See [QA failure behavior](../reference/metacommands.md#qa-failure-behavior).
+`PG_UPSERT` uses pg-upsert 1.27.1 or later and fails QA if an unexplained PostgreSQL error prevents a check from running. See [QA failure behavior](../reference/metacommands.md#qa-failure-behavior).
 
 ### SCRIPT Enhancements
 

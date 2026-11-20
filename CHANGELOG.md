@@ -13,7 +13,7 @@ ______________________________________________________________________
 
 ### Changed
 
-- `PG_UPSERT` requires pg-upsert 1.27.0 or later. QA fails when a PostgreSQL error prevents a check from running without a known schema issue to explain it. Inspect `$PG_UPSERT_RESULT_JSON` for the failing check.
+- `PG_UPSERT` requires pg-upsert 1.27.1 or later. QA fails when a PostgreSQL error prevents a check from running without a known schema issue to explain it. Inspect `$PG_UPSERT_RESULT_JSON` for the failing check.
 
 ### Fixed
 
