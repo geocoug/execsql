@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.43.0] - 2026-11-20
+
 ### Changed
 
 - `PG_UPSERT` requires pg-upsert 1.27.1 or later. QA fails when a PostgreSQL error prevents a check from running without a known schema issue to explain it. Inspect `$PG_UPSERT_RESULT_JSON` for the failing check.
