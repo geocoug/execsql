@@ -21,8 +21,6 @@ There is no default encoding for a DSN connection because the actual data source
 
 Use `execsql list encodings` to see the standard-library text codecs and aliases available in the installed Python. Add `--output-format json` for a JSON array. Invalid script, import and output codec names in command-line options or configuration files stop the run before any script statements execute. Database encoding names depend on the backend. For example, MySQL and MariaDB accept `utf8mb4` as a connection charset.
 
-For Excel to recognize UTF-8 when it opens an exported CSV directly, use `--output-encoding utf-8-sig` or set `output = utf-8-sig` under `[encoding]` in `execsql.conf`. A new CSV starts with a UTF-8 BOM. When replacing or appending to an
-existing file that already has a BOM, execsql uses the encoding indicated by
-that BOM. Export to a new filename to change the encoding.
+For Excel to recognize UTF-8 when it opens an exported CSV directly, use `--output-encoding utf-8-sig` or set `output = utf-8-sig` under `[encoding]` in `execsql.conf`. Use a fresh output path to ensure the CSV starts with a UTF-8 BOM. An existing file can affect the output encoding.
 
 The log file is always written in UTF-8.

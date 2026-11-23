@@ -93,20 +93,26 @@ def _line_numbers(text: str) -> tuple[dict[str, int], dict[tuple[str, str], int]
     sections: dict[str, int] = {}
     keys: dict[tuple[str, str], int] = {}
     current: str | None = None
+    option_indent: int | None = None
     for number, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
         if not line or line[0] in "#;":
             continue
-        header = re.fullmatch(r"\[(.+)\]", line)
+        indent = len(raw) - len(raw.lstrip())
+        if option_indent is not None and indent > option_indent:
+            continue  # ConfigParser treats this line as a continuation.
+        header = configparser.ConfigParser.SECTCRE.match(line)
         if header:
-            current = header.group(1)
+            current = header.group("header")
             sections.setdefault(current, number)
+            option_indent = None
             continue
-        if raw[0].isspace() or current is None:
+        if current is None:
             continue
         option = re.match(r"([^=:]+?)\s*[=:]", line)
         if option:
             keys[(current, option.group(1).strip().lower())] = number
+            option_indent = indent
     return sections, keys
 
 
@@ -199,6 +205,7 @@ def _check_file(
         *((ConfigData._ENCODING_SECTION, key) for key in ConfigData._FILE_ENCODING_KEYS),
         _DATABASE_TYPE,
         _DATABASE_ENCODING,
+        *((ConfigData._CONFIG_SECTION, key) for key in _CHAIN_KEYS),
     )
     for section, key in inherited_options:
         default_line = key_lines.get((configparser.DEFAULTSECT, key))
@@ -214,7 +221,7 @@ def _check_file(
                 f"unknown section [{section}]" + (f"; did you mean [{hint}]?" if hint else "; a run ignores it"),
             )
 
-    chained: list[str] = []
+    chained: dict[str, str] = {}
     for (section, key), line in key_lines.items():
         if section not in known and section != configparser.DEFAULTSECT:
             continue  # reported once, as an unknown section
@@ -236,14 +243,14 @@ def _check_file(
         except configparser.Error as exc:
             problem(line, "error", describe_parse_error(exc)[1])
             continue
-        if key in _CHAIN_KEYS:
+        if section == ConfigData._CONFIG_SECTION and key in _CHAIN_KEYS:
             platform = _CHAIN_KEYS[key]
             if platform and not sys.platform.startswith(platform):
                 continue  # another platform's file; a run here never reads it
             expand_home = os.name == "posix" if key == "config_file" else True
             target = ConfigData._chain_target(value, variable_pool, expand_home=expand_home)
             if Path(target).is_file():
-                chained.append(target)
+                chained[key] = target
             else:
                 problem(line, "warning", f"{key} = {value}: no such file; a run skips it")
             continue
@@ -259,7 +266,9 @@ def _check_file(
         elif (section, key) in (_DATABASE_TYPE, _DATABASE_ENCODING):
             database_settings[section, key] = path, line, value
 
-    return problems, chained
+    # A run queues the general file first, then the OS-specific file,
+    # regardless of where the keys occur in the source.
+    return problems, [chained[key] for key in _CHAIN_KEYS if key in chained]
 
 
 def validate_config(

@@ -21,6 +21,7 @@ identifiers:
   equivalent.
 """
 
+import codecs
 import io
 import re
 
@@ -126,6 +127,10 @@ def unquoted2(phrase: str) -> str:
 def is_text_encoding(name: str) -> bool:
     """Whether Python accepts *name* for text I/O on this interpreter."""
     try:
+        # Escape codecs serialize Python literals. They can interpret a
+        # backslash sequence as data or emit an escape in place of a newline.
+        if codecs.lookup(name).name in ("unicode-escape", "raw-unicode-escape"):
+            return False
         with io.TextIOWrapper(io.BytesIO(), encoding=name) as stream:
             # A codec must preserve multiple writes. Name lookup and opening a
             # stream also accept codecs meant for one domain label or string.

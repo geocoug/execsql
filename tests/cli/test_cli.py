@@ -657,7 +657,10 @@ class TestEndToEndExecution:
         ("option", "diagnostic"),
         [("-f", "--script-encoding"), ("-g", "--output-encoding"), ("-i", "--import-encoding")],
     )
-    @pytest.mark.parametrize("encoding", ["utf-8-bogus", "undefined", "idna", "punycode"])
+    @pytest.mark.parametrize(
+        "encoding",
+        ["utf-8-bogus", "undefined", "idna", "punycode", "raw-unicode-escape", "unicode-escape"],
+    )
     def test_invalid_file_encoding_fails_before_sql(self, tmp_path, option, diagnostic, encoding):
         _write_conf(tmp_path)
         result = _run_cli(tmp_path, ["run", option, encoding, "-c", "CREATE TABLE writes (id INTEGER);"])
@@ -666,6 +669,20 @@ class TestEndToEndExecution:
         assert diagnostic in result.stderr
         assert encoding in result.stderr
         assert not (tmp_path / "test.db").exists()
+
+    @pytest.mark.parametrize("encoding", ["raw-unicode-escape", "unicode-escape"])
+    def test_csv_rejects_escape_codecs_before_creating_output(self, tmp_path, encoding):
+        _write_conf(tmp_path)
+        script = (
+            "CREATE TABLE sample (value TEXT);\n"
+            "INSERT INTO sample VALUES ('abc\\u0041'), ('second');\n"
+            "-- !x! EXPORT sample TO sample.csv AS CSV\n"
+        )
+        result = _run_cli(tmp_path, ["run", "--output-encoding", encoding, "-c", script])
+
+        assert result.returncode == 1
+        assert encoding in result.stderr
+        assert not (tmp_path / "sample.csv").exists()
 
     def test_utf8_sig_export_writes_a_single_bom_even_when_appending(self, tmp_path):
         _write_conf(tmp_path)

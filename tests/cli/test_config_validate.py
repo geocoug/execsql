@@ -173,7 +173,7 @@ class TestValues:
         ]
 
     def test_invalid_inherited_file_encoding_names_the_default_line(self, work):
-        problems = _problems(work, "[DEFAULT]\noutput = utf-8-bogus\n[encoding]\n")
+        problems = _problems(work, "[DEFAULT]\n  output = utf-8-bogus\n[encoding]\n")
         assert len(problems) == 1
         line, severity, message = problems[0]
         assert (line, severity) == (2, "error")
@@ -184,9 +184,9 @@ class TestValues:
 
     @pytest.mark.parametrize(("db_type", "fails"), [("D", True), ("m", False)])
     def test_database_encoding_uses_the_effective_backend(self, work, db_type, fails):
-        (work / "execsql.conf").write_text("[encoding]\ndatabase = utf8mb4\n")
+        (work / "execsql.conf").write_text("[encoding]\n  database = utf8mb4\n")
         override = work / "override.conf"
-        override.write_text(f"[connect]\ndb_type = {db_type}\n")
+        override.write_text(f"[connect]\n  db_type = {db_type}\n")
 
         result, data = _validate("--config", str(override))
 
@@ -199,6 +199,25 @@ class TestValues:
         else:
             assert result == 0
             assert data["problems"] == []
+
+    @pytest.mark.skipif(sys.platform not in ("linux", "darwin", "win32"), reason="No platform-specific config key")
+    @pytest.mark.parametrize("inherit_general_file", [False, True])
+    def test_database_encoding_follows_config_chain_precedence(self, work, inherit_general_file):
+        platform_key = {"linux": "linux", "darwin": "macos", "win32": "win"}[sys.platform]
+        general_link = "config_file = general.conf\n"
+        platform_link = f"[config]\n{platform_key}_config_file = platform.conf\n"
+        links = "[DEFAULT]\n" + general_link + platform_link if inherit_general_file else platform_link + general_link
+        (work / "execsql.conf").write_text(links + "[encoding]\ndatabase = utf8mb4\n")
+        (work / "general.conf").write_text("[connect]\ndb_type = m\n")
+        (work / "platform.conf").write_text("[connect]\ndb_type = d\n")
+
+        conf = ConfigData(str(work), SubVarSet())
+        result, data = _validate()
+
+        assert conf.db_type == "m"
+        assert result == 0
+        assert data["files_checked"] == conf.files_read
+        assert data["problems"] == []
 
     def test_bare_percent(self, work):
         assert _problems(work, "[connect]\nserver = 50%\n") == [(2, "error", "server: a literal % must be written %%")]
