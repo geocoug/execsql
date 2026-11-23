@@ -17,7 +17,7 @@ ______________________________________________________________________
 
 ### Fixed
 
-- `execsql list keywords` includes `END LOOP`, `PARQUET`, and all `SERVE` and `EXPORT_METADATA` formats, and lists `IS_FALSE` once.
+- `execsql list keywords` includes `END LOOP`, `PARQUET`, `ODS` for table exports, and all `SERVE` and `EXPORT_METADATA` formats, and lists `IS_FALSE` once.
 
 ______________________________________________________________________
 
