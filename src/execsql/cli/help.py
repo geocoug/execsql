@@ -152,7 +152,7 @@ def _keywords_data() -> dict[str, Any]:
 
     data = {
         "metacommands": {
-            "control": sorted(mc_kw.get("control", [])),
+            "control": sorted(mc_kw.get("control", []) + ["END LOOP"]),
             "block": sorted(
                 mc_kw.get("block", []) + ["BEGIN SCRIPT", "END SCRIPT", "BEGIN SQL", "END SQL"],
             ),
@@ -160,7 +160,7 @@ def _keywords_data() -> dict[str, Any]:
             "config": sorted(mc_kw.get("config", [])),
             "prompt": sorted(mc_kw.get("prompt", [])),
         },
-        "conditions": sorted(cond_kw.get("condition", []) + ["IS_FALSE", "NOT", "OR"]),
+        "conditions": sorted(cond_kw.get("condition", []) + ["NOT", "OR"]),
         "config_options": sorted(mc_kw.get("config_option", [])),
         "export_formats": {
             "query": sorted(QUERY_EXPORT_FORMATS),
@@ -168,7 +168,7 @@ def _keywords_data() -> dict[str, Any]:
             "serve": sorted(SERVE_FORMATS),
             "metadata": sorted(METADATA_FORMATS),
             "json_variants": sorted(JSON_VARIANT_FORMATS),
-            "all": sorted(ALL_EXPORT_FORMATS),
+            "all": sorted(set(ALL_EXPORT_FORMATS).union(SERVE_FORMATS, METADATA_FORMATS)),
         },
         "database_types": sorted(DATABASE_TYPES),
         "variable_patterns": {

@@ -170,7 +170,7 @@ execsql run script.sql                          # read connection from config fi
 | `--debug`                                         | Start in step-through debug mode (REPL pauses before each stmt)           |
 | `--no-system-cmd` / `--no-rm-file` / `--no-serve` | Disable the `SYSTEM_CMD` / `RM_FILE` / `SERVE` metacommands               |
 
-See the [full options reference](https://execsql2.readthedocs.io/en/stable/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql run --ping` to test a connection, `execsql config` to see which config files set what, and `execsql list metacommands` for all metacommands.
+See the [full options reference](https://execsql2.readthedocs.io/en/stable/getting-started/syntax/#options) or run `execsql run --help` for the complete list, `execsql run --ping` to test a connection, `execsql config` to see which config files set what, and `execsql list metacommands` for all metacommands. Use `execsql list keywords --categories` to discover keyword categories and `execsql list keywords --category control` to browse one.
 
 ## Features
 

@@ -11,6 +11,14 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+### Added
+
+- Filter `execsql list keywords` with `--categories` or `--category NAME`.
+
+### Fixed
+
+- `execsql list keywords` includes `END LOOP`, `PARQUET`, and all `SERVE` and `EXPORT_METADATA` formats, and lists `IS_FALSE` once.
+
 ______________________________________________________________________
 
 ## [2.43.0] - 2026-11-20

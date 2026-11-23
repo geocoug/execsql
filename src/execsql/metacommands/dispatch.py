@@ -319,7 +319,7 @@ def build_dispatch_table() -> MetaCommandList:
             r"^\s*EXPORT\s+QUERY\s+<<\s*(?P<query>.*;)\s*>>\s+(?P<tee>TEE\s+)?(?P<append>APPEND\s+)?TO\s+",
             ins_fn_rxs(
                 r"(?:\s+IN\s+ZIPFILE\s+",
-                rf")?\s+AS\s*(?P<format>{'|'.join(QUERY_EXPORT_FORMATS)}|PARQUET|TXT-AND)"
+                rf")?\s+AS\s*(?P<format>{'|'.join(QUERY_EXPORT_FORMATS)}|TXT-AND)"
                 r'(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
                 symbolicname="zipfilename",
             ),
@@ -375,7 +375,7 @@ def build_dispatch_table() -> MetaCommandList:
                     r"\s+(?P<tee>TEE\s+)?(?P<append>APPEND\s+)?TO\s+",
                     r"(?:\s+IN\s+ZIPFILE\s+",
                 ),
-                rf")?\s+AS\s+(?P<format>{'|'.join(TABLE_EXPORT_FORMATS)}|PARQUET|TXT-AND)"
+                rf")?\s+AS\s+(?P<format>{'|'.join(TABLE_EXPORT_FORMATS)}|TXT-AND)"
                 r'(?:\s+DESCRIP(?:TION)?\s+"(?P<description>[^"]*)")?\s*$',
                 symbolicname="zipfilename",
             ),

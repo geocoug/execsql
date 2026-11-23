@@ -128,8 +128,8 @@ def test_export_format_constants():
     assert len(QUERY_EXPORT_FORMATS) >= 15
     assert len(TABLE_EXPORT_FORMATS) >= 15
     assert len(SERVE_FORMATS) >= 5
-    assert set(QUERY_EXPORT_FORMATS).issubset(set(ALL_EXPORT_FORMATS) | {"PARQUET"})
-    assert set(TABLE_EXPORT_FORMATS).issubset(set(ALL_EXPORT_FORMATS) | {"PARQUET"})
+    assert set(QUERY_EXPORT_FORMATS).issubset(ALL_EXPORT_FORMATS)
+    assert set(TABLE_EXPORT_FORMATS).issubset(ALL_EXPORT_FORMATS)
 
 
 # ---------------------------------------------------------------------------

@@ -156,7 +156,7 @@ def _build_grammar(data: dict) -> dict:
             },
             "control-keywords": {
                 "comment": "if/else/loop/halt etc.",
-                "match": _build_pattern(mc["control"] + ["END LOOP", "ENDLOOP"]),
+                "match": _build_pattern(mc["control"] + ["ENDLOOP"]),
                 "name": "keyword.control.execsql",
             },
             "block-keywords": {
