@@ -172,6 +172,34 @@ class TestValues:
             (2, "error", "indent = two: Invalid argument for indent."),
         ]
 
+    def test_invalid_inherited_file_encoding_names_the_default_line(self, work):
+        problems = _problems(work, "[DEFAULT]\noutput = utf-8-bogus\n[encoding]\n")
+        assert len(problems) == 1
+        line, severity, message = problems[0]
+        assert (line, severity) == (2, "error")
+        assert "[encoding] output has an unsupported text encoding" in message
+
+    def test_file_encoding_overrides_invalid_default(self, work):
+        assert _problems(work, "[DEFAULT]\noutput = utf-8-bogus\n[encoding]\noutput = utf-8\n") == []
+
+    @pytest.mark.parametrize(("db_type", "fails"), [("D", True), ("m", False)])
+    def test_database_encoding_uses_the_effective_backend(self, work, db_type, fails):
+        (work / "execsql.conf").write_text("[encoding]\ndatabase = utf8mb4\n")
+        override = work / "override.conf"
+        override.write_text(f"[connect]\ndb_type = {db_type}\n")
+
+        result, data = _validate("--config", str(override))
+
+        if fails:
+            assert result == 1
+            (problem,) = data["problems"]
+            assert problem["file"] == str(work / "execsql.conf")
+            assert problem["line"] == 2
+            assert "unsupported text encoding 'utf8mb4'" in problem["message"]
+        else:
+            assert result == 0
+            assert data["problems"] == []
+
     def test_bare_percent(self, work):
         assert _problems(work, "[connect]\nserver = 50%\n") == [(2, "error", "server: a literal % must be written %%")]
 

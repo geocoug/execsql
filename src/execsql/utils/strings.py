@@ -126,10 +126,15 @@ def unquoted2(phrase: str) -> str:
 def is_text_encoding(name: str) -> bool:
     """Whether Python accepts *name* for text I/O on this interpreter."""
     try:
-        io.TextIOWrapper(io.BytesIO(), encoding=name).close()
+        with io.TextIOWrapper(io.BytesIO(), encoding=name) as stream:
+            # A codec must preserve multiple writes. Name lookup and opening a
+            # stream also accept codecs meant for one domain label or string.
+            stream.write("first\n")
+            stream.write("second\n")
+            stream.seek(0)
+            return stream.read() == "first\nsecond\n"
     except (LookupError, ValueError):
         return False
-    return True
 
 
 def encodings_match(enc1: str, enc2: str) -> bool:

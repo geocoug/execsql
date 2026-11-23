@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from execsql import __version__
 from execsql.cli.dsn import _parse_connection_string
 from execsql.cli.help import _console, _err_console
-from execsql.config import ConfigData, StatObj, validate_text_encoding
+from execsql.config import ConfigData, StatObj, validate_database_encoding, validate_text_encoding
 from execsql.exceptions import ConfigError, ErrInfo
 from execsql.script import SubVarSet, current_script_line, substitute_vars
 from execsql.script.preparation import prepare_script
@@ -1151,11 +1151,7 @@ def _connect_initial_db(conf: ConfigData):
         db_SqlServer,
     )
 
-    # These adapters use an explicit encoding only for Python text conversion.
-    # MySQL/Firebird and PostgreSQL database creation use DBMS charset names.
-    if conf.db_type in ("a", "d", "o", "s"):
-        setting = "[encoding] database / --database-encoding"
-        validate_text_encoding(conf.db_encoding, setting)
+    validate_database_encoding(conf.db_type, conf.db_encoding)
 
     if conf.db_type == "a":
         if conf.db_file is None:

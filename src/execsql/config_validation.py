@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from execsql.config import ConfigData, describe_parse_error
+from execsql.config import ConfigData, describe_parse_error, validate_database_encoding
 from execsql.exceptions import ConfigError
 
 if TYPE_CHECKING:
@@ -35,6 +35,9 @@ __all__ = ["ConfigProblem", "known_options", "validate_config"]
 
 #: Sections whose keys are free-form: variable names, and numbered include files.
 _FREE_SECTIONS = frozenset({"variables", "include_required", "include_optional", configparser.DEFAULTSECT})
+
+_DATABASE_TYPE = (ConfigData._CONNECT_SECTION, "db_type")
+_DATABASE_ENCODING = (ConfigData._ENCODING_SECTION, "database")
 
 #: Keys that chain to another config file, and the platform each applies on.
 _CHAIN_KEYS = {
@@ -160,6 +163,7 @@ def _check_file(
     known: dict[str, set[str]],
     variable_pool: _VariablePool,
     current_script: str,
+    database_settings: dict[tuple[str, str], tuple[str, int, str]],
 ) -> tuple[list[ConfigProblem], list[str]]:
     """Every problem in one file, and the config files it chains to (in queue order)."""
     problems: list[ConfigProblem] = []
@@ -191,6 +195,15 @@ def _check_file(
         return problems, []
 
     section_lines, key_lines = _line_numbers(text)
+    inherited_options = (
+        *((ConfigData._ENCODING_SECTION, key) for key in ConfigData._FILE_ENCODING_KEYS),
+        _DATABASE_TYPE,
+        _DATABASE_ENCODING,
+    )
+    for section, key in inherited_options:
+        default_line = key_lines.get((configparser.DEFAULTSECT, key))
+        if default_line is not None and cp.has_section(section):
+            key_lines.setdefault((section, key), default_line)
 
     for section in cp.sections():
         if section not in known:
@@ -243,6 +256,8 @@ def _check_file(
                 failure = failure.replace(value, "***") if value else failure
                 value = "***"
             problem(line, "error", f"{key} = {value}: {failure}")
+        elif (section, key) in (_DATABASE_TYPE, _DATABASE_ENCODING):
+            database_settings[section, key] = path, line, value
 
     return problems, chained
 
@@ -270,13 +285,24 @@ def validate_config(
     queue: deque[str] = deque(ConfigData._search_paths(script_path, config_file))
     checked: list[str] = []
     problems: list[ConfigProblem] = []
+    database_settings: dict[tuple[str, str], tuple[str, int, str]] = {}
     while queue and len(checked) < ConfigData._MAX_CONFIG_CHAIN:
         path = queue.popleft()
         if path in checked or not Path(path).is_file():
             continue
         checked.append(path)
-        found, chained = _check_file(path, known, variable_pool, current_script)
-        problems.extend(sorted(found, key=lambda p: p.line))
+        found, chained = _check_file(path, known, variable_pool, current_script, database_settings)
+        problems.extend(found)
         for target in chained:
             queue.appendleft(target)
+
+    if _DATABASE_TYPE in database_settings and _DATABASE_ENCODING in database_settings:
+        _, _, db_type = database_settings[_DATABASE_TYPE]
+        path, line, encoding = database_settings[_DATABASE_ENCODING]
+        try:
+            validate_database_encoding(db_type, encoding)
+        except ConfigError as exc:
+            problems.append(ConfigProblem(path, line, "error", str(exc)))
+
+    problems.sort(key=lambda p: (checked.index(p.file), p.line))
     return checked, problems

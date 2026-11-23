@@ -657,13 +657,14 @@ class TestEndToEndExecution:
         ("option", "diagnostic"),
         [("-f", "--script-encoding"), ("-g", "--output-encoding"), ("-i", "--import-encoding")],
     )
-    def test_invalid_file_encoding_fails_before_sql(self, tmp_path, option, diagnostic):
+    @pytest.mark.parametrize("encoding", ["utf-8-bogus", "undefined", "idna", "punycode"])
+    def test_invalid_file_encoding_fails_before_sql(self, tmp_path, option, diagnostic, encoding):
         _write_conf(tmp_path)
-        result = _run_cli(tmp_path, ["run", option, "utf-8-bogus", "-c", "CREATE TABLE writes (id INTEGER);"])
+        result = _run_cli(tmp_path, ["run", option, encoding, "-c", "CREATE TABLE writes (id INTEGER);"])
 
         assert result.returncode == 1
         assert diagnostic in result.stderr
-        assert "utf-8-bogus" in result.stderr
+        assert encoding in result.stderr
         assert not (tmp_path / "test.db").exists()
 
     def test_utf8_sig_export_writes_a_single_bom_even_when_appending(self, tmp_path):

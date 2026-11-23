@@ -42,6 +42,12 @@ def validate_text_encoding(encoding: str | None, option: str) -> None:
         raise ConfigError(f"{option} has an unsupported text encoding {encoding!r}. See execsql list encodings.")
 
 
+def validate_database_encoding(db_type: str | None, encoding: str | None) -> None:
+    """Check codecs used for Python text conversion by the selected adapter."""
+    if db_type and db_type.lower() in ("a", "d", "o", "s"):
+        validate_text_encoding(encoding, "[encoding] database / --database-encoding")
+
+
 def check_explicit_config_file(config_file: str | Path | None) -> None:
     """Refuse an explicitly requested inspection config that cannot be read."""
     if config_file is None:
@@ -120,6 +126,7 @@ class ConfigData:
     config_file_name = "execsql.conf"
     _CONNECT_SECTION = "connect"
     _ENCODING_SECTION = "encoding"
+    _FILE_ENCODING_KEYS = ("script", "import", "output")
     _INPUT_SECTION = "input"
     _OUTPUT_SECTION = "output"
     _INTERFACE_SECTION = "interface"
@@ -306,7 +313,7 @@ class ConfigData:
         self._get_bool(cp, self._CONNECT_SECTION, "trust_server_certificate", "trust_server_certificate")
         # --- [encoding] ---
         self._get_str(cp, self._ENCODING_SECTION, "database", "db_encoding")
-        for key in ("script", "import", "output"):
+        for key in self._FILE_ENCODING_KEYS:
             attr = f"{key}_encoding"
             self._get_str(cp, self._ENCODING_SECTION, key, attr, required=True)
             if cp.has_option(self._ENCODING_SECTION, key):
