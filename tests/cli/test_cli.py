@@ -811,6 +811,9 @@ class TestListKeywords:
         assert "PARQUET" in ef["query"]
         assert "PARQUET" in ef["table"]
 
+    def test_export_formats_include_ods_for_table_exports(self):
+        assert "ODS" in self._data()["export_formats"]["table"]
+
     def test_export_formats_all_includes_every_group(self):
         ef = self._data()["export_formats"]
         assert set(ef["all"]) == set().union(*(values for key, values in ef.items() if key != "all"))

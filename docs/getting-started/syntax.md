@@ -208,6 +208,10 @@ When `-t` is not specified, the default is SQLite (`l`).
 
 ## Options Reference { #options }
 
+For `execsql list keywords`, use `--categories` to list metacommand category
+names or `--category NAME` to list keywords in one category. See the
+[list command reference](../reference/cli/list.md) for output formats and examples.
+
 `execsql inspect database`, `inspect schema NAME` and `inspect table NAME` have
 their own options: optional `--dsn URL` (alias `--connection-string URL`), and
 `--output-format text|json` (text by default); `table` also accepts `sql`. `database` shows database

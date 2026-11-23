@@ -164,7 +164,7 @@ def _keywords_data() -> dict[str, Any]:
         "config_options": sorted(mc_kw.get("config_option", [])),
         "export_formats": {
             "query": sorted(QUERY_EXPORT_FORMATS),
-            "table": sorted(TABLE_EXPORT_FORMATS),
+            "table": sorted(TABLE_EXPORT_FORMATS + ["ODS"]),  # ODS uses a separate dispatch rule,
             "serve": sorted(SERVE_FORMATS),
             "metadata": sorted(METADATA_FORMATS),
             "json_variants": sorted(JSON_VARIANT_FORMATS),
