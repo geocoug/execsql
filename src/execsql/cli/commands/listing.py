@@ -17,6 +17,7 @@ from execsql.cli.application import ExecsqlCommand, ExecsqlSubGroup, app
 from execsql.cli.help import (
     _err_console,
     _encoding_names,
+    _keywords_data,
     _metacommand_entries,
     _metacommand_json,
     _plugins_data,
@@ -97,12 +98,39 @@ def plugins_cmd(output_format: OutputFormatOpt = OutputFormat.text) -> None:
 
 
 @list_app.command(cls=ExecsqlCommand, name="keywords")
-def keywords_cmd(output_format: OutputFormatOpt = OutputFormat.text) -> None:
+def keywords_cmd(
+    output_format: OutputFormatOpt = OutputFormat.text,
+    categories: Annotated[bool, typer.Option("--categories", help="List metacommand category names.")] = False,
+    category: Annotated[
+        str | None,
+        typer.Option("--category", help="List keywords in one metacommand category."),
+    ] = None,
+) -> None:
     """The full vocabulary: metacommands by category, conditions, CONFIG options,
     export formats, database types, variable patterns. Its JSON is what editor
     tooling reads.
     """
-    if output_format is OutputFormat.json:
-        _print_keywords_json()
+    if not categories and category is None:
+        if output_format is OutputFormat.json:
+            _print_keywords_json()
+        else:
+            _print_keywords_text()
+        return
+
+    if categories and category is not None:
+        raise typer.BadParameter("Use either --categories or --category.", param_hint="--categories")
+
+    groups = _keywords_data()["metacommands"]
+    if category is None:
+        items = sorted(groups)
     else:
-        _print_keywords_text()
+        matching_items = groups.get(category.lower())
+        if matching_items is None:
+            choices = ", ".join(sorted(groups))
+            raise typer.BadParameter(f"Unknown category {category!r}. Choose from {choices}.", param_hint="--category")
+        items = matching_items
+
+    if output_format is OutputFormat.json:
+        _json(items)
+    else:
+        sys.stdout.write("".join(f"{item}\n" for item in items))

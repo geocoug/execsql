@@ -489,6 +489,7 @@ QUERY_EXPORT_FORMATS = (
         "YAML",
         "MARKDOWN",
         "MD",
+        "PARQUET",
     ]
 )
 TABLE_EXPORT_FORMATS = (
@@ -512,6 +513,7 @@ TABLE_EXPORT_FORMATS = (
         "YAML",
         "MARKDOWN",
         "MD",
+        "PARQUET",
     ]
 )
 SERVE_FORMATS = ["BINARY", "CSV", "TXT", "TEXT", "ODS", "JSON", "HTML", "PDF", "ZIP"]

@@ -415,6 +415,11 @@ file effects; queued output is confirmed only after a successful write and flush
 | Structured keyword registry  | `execsql list keywords --output-format json` (formerly `--dump-keywords`) introspects the dispatch table and outputs JSON used by the grammar generator and test suite.                                                                                                                          |
 | `python-dateutil` dependency | Date/time parsing delegates to `dateutil.parser.parse()` instead of 231 hardcoded `strptime` format strings. Handles ISO 8601 `T` separators, microseconds, `Z` suffix, and named timezones. Type inference still requires a full date with the year written out, as upstream's format list did. |
 
+The keyword registry supports `--categories` and `--category NAME` to list
+metacommand categories or the keywords in one category. The full listing
+includes parser-only `END LOOP` and the formats for `EXPORT`, `EXPORT QUERY`,
+`SERVE`, and `EXPORT_METADATA`.
+
 ### Debugging { #debugging }
 
 execsql2 adds an interactive debug REPL (no upstream equivalent), triggered either by the `BREAKPOINT` metacommand or the `--debug` CLI flag (step-through mode). The REPL prompts with `execsql debug>`, and input runs as if it were the next lines of the script where it paused, so SQL (ending with `;`, results shown as tables), metacommands and blocks all work, in the paused script's variable scope and transaction. A `SUB` typed there is still set when the script resumes, a `BREAK` leaves the `LOOP`, `SCRIPT` or included file the script paused in, and `HALT` ends the run. An error ends only the input that caused it, without running `ON ERROR_HALT` actions. Input starting with `.` is a REPL command (`.continue`, `.quit`, `.next`, `.vars`, `.vars VAR`, `.where`, `.stack`, `.set`, `.scripts`, `.cancel`, `.help`). `BREAKPOINT` is silently skipped when stdin is not a TTY so it does not hang CI. Full command list and behavior: [Debugging guide](../guides/debugging.md).

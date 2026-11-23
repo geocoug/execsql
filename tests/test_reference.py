@@ -166,7 +166,7 @@ def _handlers_for(keyword: str) -> set:
 
 
 # Keywords the script parser handles itself; they never reach the dispatch table.
-_PARSER_KEYWORDS = {"BEGIN SCRIPT", "END SCRIPT", "BEGIN SQL", "END SQL"}
+_PARSER_KEYWORDS = {"BEGIN SCRIPT", "END SCRIPT", "BEGIN SQL", "END SQL", "END LOOP"}
 
 # Documented forms the dispatch table does not accept, with the reason.  Each
 # one is a real gap between the docs and execsql, to be fixed in one or the other.
