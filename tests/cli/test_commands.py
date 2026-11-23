@@ -96,6 +96,28 @@ class TestList:
         assert "Conditions" in out
         assert not out.lstrip().startswith("{")
 
+    @pytest.mark.parametrize("output_format", ["text", "json"])
+    @pytest.mark.parametrize("selection", [("--categories",), ("--category", "CONTROL")])
+    def test_keywords_filters(self, output_format, selection):
+        data = json.loads(_invoke("list", "keywords", "--output-format", "json").output)
+        expected = sorted(data["metacommands"]) if selection == ("--categories",) else data["metacommands"]["control"]
+        result = _invoke("list", "keywords", *selection, "--output-format", output_format)
+        assert result.exit_code == 0, result.output
+        actual = json.loads(result.output) if output_format == "json" else result.output.splitlines()
+        assert actual == expected
+
+    @pytest.mark.parametrize(
+        ("selection", "message"),
+        [
+            (("--category", "unknown"), "Choose from action, block, config, control, prompt."),
+            (("--categories", "--category", "control"), "Use either --categories or --category."),
+        ],
+    )
+    def test_keywords_rejects_invalid_selection(self, selection, message):
+        result = _invoke("list", "keywords", *selection)
+        assert result.exit_code == 2
+        assert message in result.output
+
     def test_metacommands_json(self):
         rows = json.loads(_invoke("list", "metacommands", "--output-format", "json").output)
         export = next(r for r in rows if r["name"] == "EXPORT")

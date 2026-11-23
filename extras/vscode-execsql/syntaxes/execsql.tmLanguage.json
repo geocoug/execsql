@@ -108,7 +108,7 @@
     },
     "builtin-functions": {
       "comment": "Conditional test functions used in if/elseif",
-      "match": "(?i)\\b(metacommand_error|directory_exists|dialog_canceled|alias_defined|column_exists|database_name|row_count_gte|schema_exists|script_exists|row_count_eq|row_count_gt|row_count_lt|table_exists|file_exists|role_exists|starts_with|sub_defined|view_exists|console_on|newer_date|newer_file|ends_with|identical|sql_error|sub_empty|contains|is_false|is_false|hasrows|is_null|is_true|is_zero|is_gte|equal|is_gt|dbms|not|or)\\b",
+      "match": "(?i)\\b(metacommand_error|directory_exists|dialog_canceled|alias_defined|column_exists|database_name|row_count_gte|schema_exists|script_exists|row_count_eq|row_count_gt|row_count_lt|table_exists|file_exists|role_exists|starts_with|sub_defined|view_exists|console_on|newer_date|newer_file|ends_with|identical|sql_error|sub_empty|contains|is_false|hasrows|is_null|is_true|is_zero|is_gte|equal|is_gt|dbms|not|or)\\b",
       "name": "support.function.execsql"
     },
     "config-option-names": {
@@ -118,7 +118,7 @@
     },
     "export-formats": {
       "comment": "Export/import format names",
-      "match": "(?i)\\b(json_tableschema|cgi-html|markdown|feather|json_ts|txt-and|unitsep|duckdb|sqlite|values|jsonl|latex|plain|hdf5|html|json|tabq|tsvq|xlsx|yaml|b64|csv|ods|raw|tab|tsv|txt|xml|md|us)\\b",
+      "match": "(?i)\\b(json_tableschema|cgi-html|markdown|feather|json_ts|parquet|txt-and|unitsep|binary|duckdb|sqlite|values|jsonl|latex|plain|hdf5|html|json|tabq|text|tsvq|xlsx|yaml|b64|csv|ods|pdf|raw|tab|tsv|txt|xml|zip|md|us)\\b",
       "name": "support.constant.execsql"
     },
     "secondary-operators": {

@@ -390,6 +390,7 @@ _METACOMMANDS: tuple[Metacommand, ...] = (
         "email",
     ),
     Metacommand("END BATCH", "block", ("END BATCH",), "Ends a batch and commits its statements.", "batch"),
+    Metacommand("END LOOP", "control", ("END LOOP",), "Ends a LOOP block.", "loop"),
     Metacommand("END SCRIPT", "block", ("END SCRIPT [script_name]",), "Ends a named SCRIPT block.", "beginscript"),
     Metacommand("END SQL", "block", ("END SQL",), "Ends a BEGIN SQL block.", "beginsql"),
     Metacommand("ENDIF", "control", ("ENDIF",), "Ends an IF block.", "if_cmd"),

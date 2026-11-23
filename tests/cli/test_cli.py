@@ -767,22 +767,23 @@ class TestListKeywords:
         assert "END SCRIPT" in block
         assert "BEGIN SQL" in block
         assert "END SQL" in block
+        assert "END LOOP" in data["metacommands"]["control"]
 
     def test_metacommands_categories_are_sorted_lists(self):
         data = self._data()
         for category, items in data["metacommands"].items():
             assert isinstance(items, list), f"Category {category!r} is not a list"
-            assert items == sorted(items), f"Category {category!r} is not sorted"
+            assert items == sorted(set(items)), f"Category {category!r} has duplicates or is not sorted"
 
     def test_conditions_is_sorted_list(self):
         data = self._data()
         conds = data["conditions"]
         assert isinstance(conds, list)
         assert len(conds) > 0
-        assert conds == sorted(conds)
+        assert conds == sorted(set(conds))
 
     def test_conditions_contains_injected_keywords(self):
-        """IS_FALSE, NOT, and OR are injected into the conditions list."""
+        """The condition registry and its boolean operators are represented."""
         data = self._data()
         for kw in ("IS_FALSE", "NOT", "OR"):
             assert kw in data["conditions"], f"{kw!r} missing from conditions"
@@ -805,15 +806,17 @@ class TestListKeywords:
         assert len(all_fmts) > 0
         assert all_fmts == sorted(all_fmts)
 
-    def test_export_formats_query_is_subset_of_all(self):
-        data = self._data()
-        ef = data["export_formats"]
-        assert set(ef["query"]).issubset(set(ef["all"]))
+    def test_export_formats_include_parquet(self):
+        ef = self._data()["export_formats"]
+        assert "PARQUET" in ef["query"]
+        assert "PARQUET" in ef["table"]
 
-    def test_export_formats_table_is_subset_of_all(self):
-        data = self._data()
-        ef = data["export_formats"]
-        assert set(ef["table"]).issubset(set(ef["all"]))
+    def test_export_formats_include_ods_for_table_exports(self):
+        assert "ODS" in self._data()["export_formats"]["table"]
+
+    def test_export_formats_all_includes_every_group(self):
+        ef = self._data()["export_formats"]
+        assert set(ef["all"]) == set().union(*(values for key, values in ef.items() if key != "all"))
 
     def test_database_types_is_sorted_list(self):
         data = self._data()
