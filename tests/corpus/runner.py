@@ -118,7 +118,7 @@ def run_case(case: str, command: list[str], workdir: Path, *, timeout: int = DEF
 
     def clean(text: str) -> str:
         for name in sorted(set(names), key=len, reverse=True):
-            text = text.replace(name, "<DIR>")
+            text = text.replace(name + os.sep, "<DIR>/").replace(name, "<DIR>")
         text = text.replace("\r\n", "\n")
         return _UPSTREAM_SOURCE.sub("", _ERROR_TIME.sub("Error occurred at <TIME>.", text))
 

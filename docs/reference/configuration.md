@@ -76,6 +76,8 @@ The section and property names that may be used in a configuration file are list
 
 ## Section `encoding`
 
+Use `execsql list encodings` for the Python text codecs available for `script`, `import` and `output`. An invalid name in any of those three settings is a configuration error.
+
 `database`
 
 :   The database encoding to use. This is equivalent to the `-e` command-line option.

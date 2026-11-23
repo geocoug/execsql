@@ -64,6 +64,9 @@
 
 [encoding]
 # Character encoding for text input and output.
+# Run execsql list encodings for script, import and output codec names.
+# Use utf-8-sig for output that needs a UTF-8 BOM, such as CSV opened in Excel.
+# The database encoding depends on the backend.
 
 #database=
 #script=utf8

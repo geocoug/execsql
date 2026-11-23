@@ -26,6 +26,7 @@ from execsql.cli.options import (
     UserOpt,
 )
 from execsql.cli.run import _run
+from execsql.config import validate_text_encoding
 from execsql.exceptions import ErrInfo
 
 __all__ = ["main"]
@@ -384,6 +385,7 @@ def main(
             if command is not None:
                 tree = parse_string(command.replace("\\n", "\n").replace("\\t", "\t"), "<inline>")
             elif script_name is not None:
+                validate_text_encoding(script_encoding, "--script-encoding")
                 encoding = script_encoding or "utf-8"
                 tree = parse_script(script_name, encoding=encoding)
             else:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import codecs
 import json
 import sqlite3
 import subprocess
@@ -651,6 +652,41 @@ class TestEndToEndExecution:
         rows = conn.execute("SELECT val FROM e2e").fetchall()
         conn.close()
         assert rows == [("works",)]
+
+    @pytest.mark.parametrize(
+        ("option", "diagnostic"),
+        [("-f", "--script-encoding"), ("-g", "--output-encoding"), ("-i", "--import-encoding")],
+    )
+    def test_invalid_file_encoding_fails_before_sql(self, tmp_path, option, diagnostic):
+        _write_conf(tmp_path)
+        result = _run_cli(tmp_path, ["run", option, "utf-8-bogus", "-c", "CREATE TABLE writes (id INTEGER);"])
+
+        assert result.returncode == 1
+        assert diagnostic in result.stderr
+        assert "utf-8-bogus" in result.stderr
+        assert not (tmp_path / "test.db").exists()
+
+    def test_utf8_sig_export_writes_a_single_bom_even_when_appending(self, tmp_path):
+        _write_conf(tmp_path)
+        result = _run_cli(
+            tmp_path,
+            [
+                "run",
+                "-g",
+                "utf-8-sig",
+                "-c",
+                "CREATE TABLE data (name TEXT);\n"
+                "INSERT INTO data VALUES ('café');\n"
+                "-- !x! EXPORT data TO data.csv AS CSV\n"
+                "-- !x! EXPORT data APPEND TO data.csv AS CSV\n",
+            ],
+        )
+
+        assert result.returncode == 0, result.stderr
+        payload = (tmp_path / "data.csv").read_bytes()
+        assert payload.startswith(codecs.BOM_UTF8)
+        assert payload.count(codecs.BOM_UTF8) == 1
+        assert payload.decode("utf-8-sig").splitlines() == ["name", "café", "café"]
 
     def test_dsn_flag_with_sqlite(self, tmp_path):
         """The --dsn flag with a sqlite:// URL connects and executes."""

@@ -27,12 +27,19 @@ from execsql.utils.spreadsheet import INPUT_LIMIT_DEFAULTS
 from execsql.utils.paths import is_network_path
 from execsql.exceptions import ConfigError, ConfigFileError
 from execsql.utils.crypto import Encrypt
+from execsql.utils.strings import is_text_encoding
 
 __all__ = [
     "StatObj",
     "ConfigData",
     "WriteHooks",
 ]
+
+
+def validate_text_encoding(encoding: str | None, option: str) -> None:
+    """Raise a configuration error for a nonempty, unsupported text encoding."""
+    if encoding and not is_text_encoding(encoding):
+        raise ConfigError(f"{option} has an unsupported text encoding {encoding!r}. See execsql list encodings.")
 
 
 def check_explicit_config_file(config_file: str | Path | None) -> None:
@@ -299,9 +306,11 @@ class ConfigData:
         self._get_bool(cp, self._CONNECT_SECTION, "trust_server_certificate", "trust_server_certificate")
         # --- [encoding] ---
         self._get_str(cp, self._ENCODING_SECTION, "database", "db_encoding")
-        self._get_str(cp, self._ENCODING_SECTION, "script", "script_encoding", required=True)
-        self._get_str(cp, self._ENCODING_SECTION, "import", "import_encoding", required=True)
-        self._get_str(cp, self._ENCODING_SECTION, "output", "output_encoding", required=True)
+        for key in ("script", "import", "output"):
+            attr = f"{key}_encoding"
+            self._get_str(cp, self._ENCODING_SECTION, key, attr, required=True)
+            if cp.has_option(self._ENCODING_SECTION, key):
+                validate_text_encoding(getattr(self, attr), f"[encoding] {key}")
         self._get_enum(
             cp,
             self._ENCODING_SECTION,

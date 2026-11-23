@@ -210,6 +210,22 @@ class TestConnectInitialDb:
         mock_dsn.assert_called_once()
         assert result is mock_db
 
+    @pytest.mark.parametrize("db_type", ["a", "d", "o", "s"])
+    def test_python_database_encoding_is_validated_before_connecting(self, db_type):
+        conf = self._conf(db_type=db_type, db_encoding="utf-8-bogus")
+        with pytest.raises(ConfigError, match=r"--database-encoding.*utf-8-bogus"):
+            _connect_initial_db(conf)
+
+    @pytest.mark.parametrize(
+        ("db_type", "factory", "charset"),
+        [("m", "db_MySQL", "utf8mb4"), ("f", "db_Firebird", "WIN1252"), ("p", "db_Postgres", "SQL_ASCII")],
+    )
+    def test_database_charset_is_forwarded_to_the_driver(self, db_type, factory, charset):
+        conf = self._conf(db_type=db_type, server="localhost", db="mydb", db_encoding=charset)
+        with patch(f"execsql.db.factory.{factory}") as connect:
+            _connect_initial_db(conf)
+        assert connect.call_args.kwargs["encoding"] == charset
+
     def test_unknown_db_type_calls_fatal_error(self):
         conf = self._conf(db_type="z")
         with patch("execsql.utils.errors.fatal_error") as mock_fatal:

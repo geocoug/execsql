@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from execsql import __version__
 from execsql.cli.dsn import _parse_connection_string
 from execsql.cli.help import _console, _err_console
-from execsql.config import ConfigData, StatObj
+from execsql.config import ConfigData, StatObj, validate_text_encoding
 from execsql.exceptions import ConfigError, ErrInfo
 from execsql.script import SubVarSet, current_script_line, substitute_vars
 from execsql.script.preparation import prepare_script
@@ -419,14 +419,17 @@ def _apply_cli_options(
         conf.passwd_prompt = False
     if database_encoding:
         conf.db_encoding = database_encoding
+    validate_text_encoding(script_encoding, "--script-encoding")
     if script_encoding:
         conf.script_encoding = script_encoding
     if not conf.script_encoding:
         conf.script_encoding = "utf8"
+    validate_text_encoding(output_encoding, "--output-encoding")
     if output_encoding:
         conf.output_encoding = output_encoding
     if not conf.output_encoding:
         conf.output_encoding = "utf8"
+    validate_text_encoding(import_encoding, "--import-encoding")
     if import_encoding:
         conf.import_encoding = import_encoding
     if not conf.import_encoding:
@@ -1147,6 +1150,12 @@ def _connect_initial_db(conf: ConfigData):
         db_SQLite,
         db_SqlServer,
     )
+
+    # These adapters use an explicit encoding only for Python text conversion.
+    # MySQL/Firebird and PostgreSQL database creation use DBMS charset names.
+    if conf.db_type in ("a", "d", "o", "s"):
+        setting = "[encoding] database / --database-encoding"
+        validate_text_encoding(conf.db_encoding, setting)
 
     if conf.db_type == "a":
         if conf.db_file is None:
