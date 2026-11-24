@@ -465,6 +465,8 @@ A command name — `run`, `format`, `lint`, `config`, `list`, `init`, `lsp`, `in
 
 Seven upstream long-form flags were renamed underscore → hyphen and the underscore forms are **not** accepted: `--database-encoding`, `--script-encoding`, `--output-encoding`, `--import-encoding`, `--import-buffer`, `--user-logfile`, `--visible-prompts` (upstream wrote these with underscores). Scripts and CI pipelines that invoke the long-form flags must update the spelling; the short letters (`-e`, `-f`, `-g`, `-i`, `-l`, `-v`, `-z`) are unchanged.
 
+`execsql list encodings` includes the standard-library Python text codec modules and their aliases. Upstream `-y` only listed alias keys and missed codecs such as `utf_8_sig`. Invalid script, import and output codec names now fail at startup rather than at the first use. For Access, SQL Server, Oracle and ODBC DSNs, the initial connection also checks an explicit database encoding used for Python text decoding. Server charset names still apply to MySQL, Firebird and PostgreSQL database creation.
+
 ### MySQL Connection Encoding
 
 Upstream opened MySQL and MariaDB connections as `latin1`, and execsql2 did the same until this was measured against a live server. A latin1 connection cannot carry CJK, emoji, Greek, or Cyrillic — pymysql raises `UnicodeEncodeError` before the server is reached — so any script moving text outside Latin-1 had to pass `-e utf8mb4` explicitly or fail.

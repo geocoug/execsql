@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from execsql.cli import app
 from execsql.config import ConfigData
-from execsql.config_validation import known_options, validate_config
+from execsql.config_validation import _line_numbers, known_options, validate_config
 from execsql.exceptions import ConfigError
 from execsql.script.variables import SubVarSet
 
@@ -86,6 +86,78 @@ class TestFiles:
     @pytest.mark.skipif(sys.platform == "win32", reason="checks a non-Windows host")
     def test_another_platforms_chain_key_is_not_checked(self, work):
         assert _problems(work, "[config]\nwin_config_file = C:\\nowhere\\execsql.conf\n") == []
+
+    def test_unset_interpolation_in_an_inactive_inherited_link_is_ignored(self, work):
+        inactive_key = "macos_config_file" if sys.platform == "win32" else "win_config_file"
+        config = work / "execsql.conf"
+        config.write_text(f"[DEFAULT]\n{inactive_key} = %(missing)s\n[config]\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+
+        assert code == 0
+        assert data["files_checked"] == conf.files_read == [str(config)]
+        assert data["problems"] == []
+
+    def test_chain_does_not_see_its_own_file_variables(self, work):
+        config = work / "execsql.conf"
+        config.write_text(
+            "[DEFAULT]\nconfig_file = !!target!!\n[config]\n"
+            "[connect]\ndb_type = d\ndb = example\n"
+            "[encoding]\ndatabase = invalid-codec\n"
+            "[variables]\ntarget = alternate.conf\n",
+        )
+        (work / "alternate.conf").write_text("[connect]\ndb_type = l\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+        result = runner.invoke(app, ["run", "-c", "select 1;"])
+
+        assert code == result.exit_code == 1
+        assert data["files_checked"] == conf.files_read == [str(config)]
+        assert [p["line"] for p in data["problems"]] == [2, 8]
+        assert "unsupported text encoding 'invalid-codec'" in data["problems"][1]["message"]
+        assert isinstance(result.exception, ConfigError)
+        assert "unsupported text encoding 'invalid-codec'" in str(result.exception)
+
+    def test_chain_can_use_an_inherited_variable_from_an_earlier_file(self, work):
+        config = work / "execsql.conf"
+        config.write_text("[DEFAULT]\ntarget = selected.conf\n[variables]\n[config]\nconfig_file = bridge.conf\n")
+        bridge = work / "bridge.conf"
+        bridge.write_text("[config]\nconfig_file = !!target!!\n[variables]\ntarget = other.conf\n")
+        (work / "selected.conf").write_text("[connect]\ndb_type = d\n[encoding]\ndatabase = invalid-codec\n")
+        (work / "other.conf").write_text("[connect]\ndb_type = l\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+
+        assert code == 1
+        assert data["files_checked"] == conf.files_read == [str(config), "bridge.conf", "selected.conf"]
+        (problem,) = data["problems"]
+        assert problem["file"] == "selected.conf"
+        assert problem["line"] == 4
+
+    def test_chain_preserves_inherited_variable_definition_order(self, work):
+        config = work / "execsql.conf"
+        config.write_text("[DEFAULT]\nfirst = alpha\n[variables]\nsecond = beta\n[config]\nconfig_file = bridge.conf\n")
+        bridge = work / "bridge.conf"
+        bridge.write_text("[config]\nconfig_file = !!x_!!first!!_y!!-!!z_!!second!!_q!!.conf\n")
+        selected = work / "!!x_alpha_y!!-!!z_!!second!!_q!!.conf"
+        selected.write_text("[connect]\ndb_type = l\n")
+        alternate = work / "!!x_!!first!!_y!!-!!z_beta_q!!.conf"
+        alternate.write_text("[connect]\ndb_type = d\n[encoding]\ndatabase = utf8mb4\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+
+        assert code == 0
+        assert data["files_checked"] == conf.files_read == [str(config), bridge.name, selected.name]
+        assert data["problems"] == []
+
+    def test_line_numbers_ignore_unicode_separator_inside_a_value(self):
+        text = "[variables]\n  message = first\u2028  output = second\n  other = value\n"
+
+        assert _line_numbers(text) == ({"variables": 1}, {("variables", "message"): 2, ("variables", "other"): 3})
 
 
 class TestUnknownNames:
@@ -171,6 +243,53 @@ class TestValues:
         assert _problems(work, "[format]\nindent = two\n") == [
             (2, "error", "indent = two: Invalid argument for indent."),
         ]
+
+    def test_invalid_inherited_file_encoding_names_the_default_line(self, work):
+        problems = _problems(work, "[DEFAULT]\n  output = utf-8-bogus\n[encoding]\n")
+        assert len(problems) == 1
+        line, severity, message = problems[0]
+        assert (line, severity) == (2, "error")
+        assert "[encoding] output has an unsupported text encoding" in message
+
+    def test_file_encoding_overrides_invalid_default(self, work):
+        assert _problems(work, "[DEFAULT]\noutput = utf-8-bogus\n[encoding]\noutput = utf-8\n") == []
+
+    @pytest.mark.parametrize(("db_type", "fails"), [("D", True), ("m", False)])
+    def test_database_encoding_uses_the_effective_backend(self, work, db_type, fails):
+        (work / "execsql.conf").write_text("[encoding]\n  database = utf8mb4\n")
+        override = work / "override.conf"
+        override.write_text(f"[connect]\n  db_type = {db_type}\n")
+
+        result, data = _validate("--config", str(override))
+
+        if fails:
+            assert result == 1
+            (problem,) = data["problems"]
+            assert problem["file"] == str(work / "execsql.conf")
+            assert problem["line"] == 2
+            assert "unsupported text encoding 'utf8mb4'" in problem["message"]
+        else:
+            assert result == 0
+            assert data["problems"] == []
+
+    @pytest.mark.skipif(sys.platform not in ("linux", "darwin", "win32"), reason="No platform-specific config key")
+    @pytest.mark.parametrize("inherit_general_file", [False, True])
+    def test_database_encoding_follows_config_chain_precedence(self, work, inherit_general_file):
+        platform_key = {"linux": "linux", "darwin": "macos", "win32": "win"}[sys.platform]
+        general_link = "config_file = general.conf\n"
+        platform_link = f"[config]\n{platform_key}_config_file = platform.conf\n"
+        links = "[DEFAULT]\n" + general_link + platform_link if inherit_general_file else platform_link + general_link
+        (work / "execsql.conf").write_text(links + "[encoding]\ndatabase = utf8mb4\n")
+        (work / "general.conf").write_text("[connect]\ndb_type = m\n")
+        (work / "platform.conf").write_text("[connect]\ndb_type = d\n")
+
+        conf = ConfigData(str(work), SubVarSet())
+        result, data = _validate()
+
+        assert conf.db_type == "m"
+        assert result == 0
+        assert data["files_checked"] == conf.files_read
+        assert data["problems"] == []
 
     def test_bare_percent(self, work):
         assert _problems(work, "[connect]\nserver = 50%\n") == [(2, "error", "server: a literal % must be written %%")]

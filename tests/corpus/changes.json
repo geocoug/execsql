@@ -2179,5 +2179,33 @@
    "execsql2": "",
    "why": "Variable-supplied block boundaries are metacommand errors following METACOMMAND_ERROR_HALT; upstream attempted to run the boundary. Write the complete block directly in the script (#119; divergence: Control flow from a substitution variable)."
   }
+ },
+ "invalid_output_encoding": {
+  "exit": {
+   "status": "accepted",
+   "upstream": 0,
+   "execsql2": 1,
+   "why": "Invalid file encoding names fail before the script runs, preventing committed changes before the first use of the encoding (#229)."
+  },
+  "stderr": {
+   "status": "accepted",
+   "upstream": "",
+   "execsql2": "Configuration error: <DIR>/execsql.conf: [encoding] output has an unsupported text encoding 'utf-8-bogus'. See execsql list encodings.\nRun `execsql config --validate` to list every problem in the config files.\n",
+   "why": "Invalid file encoding names fail before the script runs, preventing committed changes before the first use of the encoding (#229)."
+  },
+  "tables/side_effect": {
+   "status": "accepted",
+   "upstream": {
+    "columns": [
+     [
+      "id",
+      "INTEGER"
+     ]
+    ],
+    "rows": []
+   },
+   "execsql2": null,
+   "why": "Invalid file encoding names fail before the script runs, preventing committed changes before the first use of the encoding (#229)."
+  }
  }
 }

@@ -150,8 +150,11 @@ class TestList:
 
     def test_encodings_json(self):
         names = json.loads(_invoke("list", "encodings", "--output-format", "json").output)
-        assert "latin1" in names
-        assert names == sorted(names)
+        assert {"latin1", "utf_8_sig"} <= set(names)
+        assert {"base64_codec", "undefined", "idna", "punycode", "raw_unicode_escape", "unicode_escape"}.isdisjoint(
+            names,
+        )
+        assert names == sorted(set(names))
 
     def test_plugins_json(self):
         data = json.loads(_invoke("list", "plugins", "--output-format", "json").output)

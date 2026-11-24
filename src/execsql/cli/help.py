@@ -6,11 +6,15 @@ Contains the metacommand reference table, encoding list, and the shared
 
 from __future__ import annotations
 
+import encodings
+import pkgutil
 from encodings.aliases import aliases as codec_dict
 from typing import Any
 
 from rich.console import Console
 from rich.table import Table
+
+from execsql.utils.strings import is_text_encoding
 
 __all__ = [
     "_console",
@@ -105,8 +109,10 @@ def _print_metacommand(entry: Any) -> None:
 
 
 def _encoding_names() -> list[str]:
-    """Every encoding name Python accepts, sorted."""
-    return sorted(codec_dict.keys())
+    """List standard-library text codecs and aliases supported on this interpreter."""
+    names = set(codec_dict) | set(codec_dict.values())
+    names.update(module.name for module in pkgutil.iter_modules(encodings.__path__))
+    return sorted(name for name in names if is_text_encoding(name))
 
 
 def _print_encodings() -> None:

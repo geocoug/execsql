@@ -81,7 +81,7 @@ def metacommands_cmd(
 
 @list_app.command(cls=ExecsqlCommand, name="encodings")
 def encodings_cmd(output_format: OutputFormatOpt = OutputFormat.text) -> None:
-    """Every character encoding name -e, -f, -g and -i accept."""
+    """List Python text encoding names for -f, -g and -i."""
     if output_format is OutputFormat.json:
         _json(_encoding_names())
     else:

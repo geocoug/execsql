@@ -21,6 +21,8 @@ identifiers:
   equivalent.
 """
 
+import codecs
+import io
 import re
 
 __all__ = [
@@ -37,6 +39,7 @@ __all__ = [
     "encodings_match",
     "wo_quotes",
     "get_subvarset",
+    "is_text_encoding",
 ]
 
 
@@ -119,6 +122,24 @@ def unquoted(phrase: str, quotechars: str = '"') -> str:
 
 def unquoted2(phrase: str) -> str:
     return unquoted(phrase, "'\"")
+
+
+def is_text_encoding(name: str) -> bool:
+    """Whether Python accepts *name* for text I/O on this interpreter."""
+    try:
+        # Escape codecs serialize Python literals. They can interpret a
+        # backslash sequence as data or emit an escape in place of a newline.
+        if codecs.lookup(name).name in ("unicode-escape", "raw-unicode-escape"):
+            return False
+        with io.TextIOWrapper(io.BytesIO(), encoding=name) as stream:
+            # A codec must preserve multiple writes. Name lookup and opening a
+            # stream also accept codecs meant for one domain label or string.
+            stream.write("first\n")
+            stream.write("second\n")
+            stream.seek(0)
+            return stream.read() == "first\nsecond\n"
+    except (LookupError, ValueError):
+        return False
 
 
 def encodings_match(enc1: str, enc2: str) -> bool:

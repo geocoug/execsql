@@ -351,7 +351,7 @@ See the individual references for [config](../reference/cli/config.md), [list](.
 `-i`, `--import-encoding` *ENCODING*
 :   Character encoding for data files used with IMPORT.
 
-Valid encoding names can be displayed with `execsql list encodings`. See also [Character Encoding](../guides/encoding.md#encoding).
+Use `execsql list encodings` to find Python text codec names for `-f`, `-g` and `-i`. An invalid file encoding stops the run before the script executes. For `-e`, use an encoding recognized by the selected backend. See [Character Encoding](../guides/encoding.md#encoding).
 
 ### Output options
 

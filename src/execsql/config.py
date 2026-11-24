@@ -27,12 +27,25 @@ from execsql.utils.spreadsheet import INPUT_LIMIT_DEFAULTS
 from execsql.utils.paths import is_network_path
 from execsql.exceptions import ConfigError, ConfigFileError
 from execsql.utils.crypto import Encrypt
+from execsql.utils.strings import is_text_encoding
 
 __all__ = [
     "StatObj",
     "ConfigData",
     "WriteHooks",
 ]
+
+
+def validate_text_encoding(encoding: str | None, option: str) -> None:
+    """Raise a configuration error for a nonempty, unsupported text encoding."""
+    if encoding and not is_text_encoding(encoding):
+        raise ConfigError(f"{option} has an unsupported text encoding {encoding!r}. See execsql list encodings.")
+
+
+def validate_database_encoding(db_type: str | None, encoding: str | None) -> None:
+    """Check codecs used for Python text conversion by the selected adapter."""
+    if db_type and db_type.lower() in ("a", "d", "o", "s"):
+        validate_text_encoding(encoding, "[encoding] database / --database-encoding")
 
 
 def check_explicit_config_file(config_file: str | Path | None) -> None:
@@ -113,10 +126,14 @@ class ConfigData:
     config_file_name = "execsql.conf"
     _CONNECT_SECTION = "connect"
     _ENCODING_SECTION = "encoding"
+    _FILE_ENCODING_KEYS = ("script", "import", "output")
     _INPUT_SECTION = "input"
     _OUTPUT_SECTION = "output"
     _INTERFACE_SECTION = "interface"
     _CONFIG_SECTION = "config"
+    _CONFIG_FILE_KEY = "config_file"
+    _PLATFORM_CONFIG_KEYS = {"linux": "linux_config_file", "darwin": "macos_config_file", "nt": "win_config_file"}
+    _CHAIN_KEYS = (_CONFIG_FILE_KEY, *_PLATFORM_CONFIG_KEYS.values())
     _EMAIL_SECTION = "email"
     _VARIABLES_SECTION = "variables"
     _INCLUDE_REQ_SECTION = "include_required"
@@ -299,9 +316,11 @@ class ConfigData:
         self._get_bool(cp, self._CONNECT_SECTION, "trust_server_certificate", "trust_server_certificate")
         # --- [encoding] ---
         self._get_str(cp, self._ENCODING_SECTION, "database", "db_encoding")
-        self._get_str(cp, self._ENCODING_SECTION, "script", "script_encoding", required=True)
-        self._get_str(cp, self._ENCODING_SECTION, "import", "import_encoding", required=True)
-        self._get_str(cp, self._ENCODING_SECTION, "output", "output_encoding", required=True)
+        for key in self._FILE_ENCODING_KEYS:
+            attr = f"{key}_encoding"
+            self._get_str(cp, self._ENCODING_SECTION, key, attr, required=True)
+            if cp.has_option(self._ENCODING_SECTION, key):
+                validate_text_encoding(getattr(self, attr), f"[encoding] {key}")
         self._get_enum(
             cp,
             self._ENCODING_SECTION,
@@ -628,6 +647,34 @@ class ConfigData:
         return config_files
 
     @classmethod
+    def _active_chain_keys(cls, cp: ConfigParser) -> list[str]:
+        """Configured links in queue insertion order, before reading their values."""
+        platform = sys.platform if sys.platform in ("linux", "darwin") else os.name
+        platform_key = cls._PLATFORM_CONFIG_KEYS.get(platform)
+        return [key for key in (cls._CONFIG_FILE_KEY, platform_key) if key and cp.has_option(cls._CONFIG_SECTION, key)]
+
+    @classmethod
+    def _read_chain_option(
+        cls,
+        cp: ConfigParser,
+        key: str,
+        variable_pool: _VariablePool,
+        *,
+        start_dir: str | None = None,
+        local_only: bool = False,
+    ) -> tuple[str, str]:
+        """Return the configured link value and its resolved target."""
+        value = cp.get(cls._CONFIG_SECTION, key)
+        target = cls._chain_target(
+            value,
+            variable_pool,
+            expand_home=key != cls._CONFIG_FILE_KEY or os.name == "posix",
+            start_dir=start_dir,
+            local_only=local_only,
+        )
+        return value, target
+
+    @classmethod
     def _chain_target(
         cls,
         value: str,
@@ -707,36 +754,16 @@ class ConfigData:
                 raise ConfigError("gui_framework must be 'tkinter' or 'textual'.")
             self.gui_framework = fw
         # --- [config] ---
-        # config_file / OS-specific config files retain special chaining logic
-        if cp.has_option(self._CONFIG_SECTION, "config_file"):
-            conffile = self._chain_target(
-                cp.get(self._CONFIG_SECTION, "config_file"),
+        for key in self._active_chain_keys(cp):
+            _, target = self._read_chain_option(
+                cp,
+                key,
                 variable_pool,
-                expand_home=os.name == "posix",
                 start_dir=self._start_dir,
                 local_only=self._local_only,
             )
-            if conffile and Path(conffile).is_file():
-                # Silently ignore a non-existent file, for cross-OS compatibility.
-                chained.append(conffile)
-        # OS-specific additional config files.
-        _os_config_key: str | None = None
-        if sys.platform == "linux" and cp.has_option(self._CONFIG_SECTION, "linux_config_file"):
-            _os_config_key = "linux_config_file"
-        elif sys.platform == "darwin" and cp.has_option(self._CONFIG_SECTION, "macos_config_file"):
-            _os_config_key = "macos_config_file"
-        elif os.name == "nt" and cp.has_option(self._CONFIG_SECTION, "win_config_file"):
-            _os_config_key = "win_config_file"
-        if _os_config_key:
-            conffile = self._chain_target(
-                cp.get(self._CONFIG_SECTION, _os_config_key),
-                variable_pool,
-                expand_home=True,
-                start_dir=self._start_dir,
-                local_only=self._local_only,
-            )
-            if conffile and Path(conffile).is_file():
-                chained.append(conffile)
+            if target and Path(target).is_file():
+                chained.append(target)
         # dao_flush_delay_secs has a specific error message — keep inline
         if cp.has_option(self._CONFIG_SECTION, "dao_flush_delay_secs"):
             self.dao_flush_delay_secs = cp.getfloat(self._CONFIG_SECTION, "dao_flush_delay_secs")

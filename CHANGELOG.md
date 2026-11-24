@@ -18,6 +18,10 @@ ______________________________________________________________________
 ### Fixed
 
 - `execsql list keywords` includes `END LOOP`, `PARQUET`, `ODS` for table exports, and all `SERVE` and `EXPORT_METADATA` formats, and lists `IS_FALSE` once.
+- `execsql list encodings` includes Python text codecs without aliases, including `utf_8_sig`.
+- Reject invalid file encoding names before running a script. Use `execsql list encodings` to find a supported name.
+- Reject invalid Python database codecs before connecting to Access, SQL Server, Oracle or an ODBC DSN.
+- `execsql config --validate` checks encoding settings using the same config links and precedence as a run.
 
 ______________________________________________________________________
 
