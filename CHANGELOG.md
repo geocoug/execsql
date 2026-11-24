@@ -11,16 +11,24 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.44.0] - 2026-11-24
+
 ### Added
 
-- Filter `execsql list keywords` with `--categories` or `--category NAME`.
+- List metacommand categories with `execsql list keywords --categories` or browse one with `--category NAME`.
+
+### Changed
+
+- `execsql run` rejects unsupported script, import and output encodings before executing SQL. Use `execsql list encodings` to find a supported file codec.
+- `execsql run` rejects invalid Python database codecs before connecting to Access, SQL Server, Oracle or an ODBC DSN.
 
 ### Fixed
 
-- `execsql list keywords` includes `END LOOP`, `PARQUET`, `ODS` for table exports, and all `SERVE` and `EXPORT_METADATA` formats, and lists `IS_FALSE` once.
-- `execsql list encodings` includes Python text codecs without aliases, including `utf_8_sig`.
-- Reject invalid file encoding names before running a script. Use `execsql list encodings` to find a supported name.
-- Reject invalid Python database codecs before connecting to Access, SQL Server, Oracle or an ODBC DSN.
+- `execsql list keywords` includes `END LOOP` and lists `IS_FALSE` once.
+- `execsql list keywords` includes `PARQUET` for table and query exports, `ODS` for table exports, and all `SERVE` and `EXPORT_METADATA` formats.
+- `execsql list encodings` includes Python text codecs without aliases, including `utf_8_sig` for UTF-8 with a BOM.
 - `execsql config --validate` checks encoding settings using the same config links and precedence as a run.
 
 ______________________________________________________________________
