@@ -137,6 +137,23 @@ class TestFiles:
         assert problem["file"] == "selected.conf"
         assert problem["line"] == 4
 
+    def test_chain_preserves_inherited_variable_definition_order(self, work):
+        config = work / "execsql.conf"
+        config.write_text("[DEFAULT]\nfirst = alpha\n[variables]\nsecond = beta\n[config]\nconfig_file = bridge.conf\n")
+        bridge = work / "bridge.conf"
+        bridge.write_text("[config]\nconfig_file = !!x_!!first!!_y!!-!!z_!!second!!_q!!.conf\n")
+        selected = work / "!!x_alpha_y!!-!!z_!!second!!_q!!.conf"
+        selected.write_text("[connect]\ndb_type = l\n")
+        alternate = work / "!!x_!!first!!_y!!-!!z_beta_q!!.conf"
+        alternate.write_text("[connect]\ndb_type = d\n[encoding]\ndatabase = utf8mb4\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+
+        assert code == 0
+        assert data["files_checked"] == conf.files_read == [str(config), bridge.name, selected.name]
+        assert data["problems"] == []
+
     def test_line_numbers_ignore_unicode_separator_inside_a_value(self):
         text = "[variables]\n  message = first\u2028  output = second\n  other = value\n"
 

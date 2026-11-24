@@ -196,7 +196,6 @@ def _check_file(
         *((ConfigData._ENCODING_SECTION, key) for key in ConfigData._FILE_ENCODING_KEYS),
         _DATABASE_TYPE,
         _DATABASE_ENCODING,
-        *((ConfigData._VARIABLES_SECTION, key) for key in cp.defaults()),
     )
     for section, key in inherited_options:
         default_line = key_lines.get((configparser.DEFAULTSECT, key))
@@ -228,7 +227,16 @@ def _check_file(
         else:
             problem(line, "warning", f"{key} = {value}: no such file; a run skips it")
 
-    for (section, key), line in key_lines.items():
+    # ConfigParser yields inherited variables before local variables.
+    # Nested substitutions in subsequent links depend on that order.
+    variable_section = ConfigData._VARIABLES_SECTION
+    option_lines = {option: line for option, line in key_lines.items() if option[0] != variable_section}
+    if cp.has_section(variable_section):
+        for key, _ in cp.items(variable_section, raw=True):
+            option = (variable_section, key)
+            option_lines[option] = key_lines.get(option, key_lines.get((configparser.DEFAULTSECT, key), 0))
+
+    for (section, key), line in option_lines.items():
         if section not in known and section != configparser.DEFAULTSECT:
             continue  # reported once, as an unknown section
         if section not in _FREE_SECTIONS and key not in known[section]:
