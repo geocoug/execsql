@@ -131,6 +131,9 @@ class ConfigData:
     _OUTPUT_SECTION = "output"
     _INTERFACE_SECTION = "interface"
     _CONFIG_SECTION = "config"
+    _CONFIG_FILE_KEY = "config_file"
+    _PLATFORM_CONFIG_KEYS = {"linux": "linux_config_file", "darwin": "macos_config_file", "nt": "win_config_file"}
+    _CHAIN_KEYS = (_CONFIG_FILE_KEY, *_PLATFORM_CONFIG_KEYS.values())
     _EMAIL_SECTION = "email"
     _VARIABLES_SECTION = "variables"
     _INCLUDE_REQ_SECTION = "include_required"
@@ -644,6 +647,34 @@ class ConfigData:
         return config_files
 
     @classmethod
+    def _active_chain_keys(cls, cp: ConfigParser) -> list[str]:
+        """Configured links in queue insertion order, before reading their values."""
+        platform = sys.platform if sys.platform in ("linux", "darwin") else os.name
+        platform_key = cls._PLATFORM_CONFIG_KEYS.get(platform)
+        return [key for key in (cls._CONFIG_FILE_KEY, platform_key) if key and cp.has_option(cls._CONFIG_SECTION, key)]
+
+    @classmethod
+    def _read_chain_option(
+        cls,
+        cp: ConfigParser,
+        key: str,
+        variable_pool: _VariablePool,
+        *,
+        start_dir: str | None = None,
+        local_only: bool = False,
+    ) -> tuple[str, str]:
+        """Return the configured link value and its resolved target."""
+        value = cp.get(cls._CONFIG_SECTION, key)
+        target = cls._chain_target(
+            value,
+            variable_pool,
+            expand_home=key != cls._CONFIG_FILE_KEY or os.name == "posix",
+            start_dir=start_dir,
+            local_only=local_only,
+        )
+        return value, target
+
+    @classmethod
     def _chain_target(
         cls,
         value: str,
@@ -723,36 +754,16 @@ class ConfigData:
                 raise ConfigError("gui_framework must be 'tkinter' or 'textual'.")
             self.gui_framework = fw
         # --- [config] ---
-        # config_file / OS-specific config files retain special chaining logic
-        if cp.has_option(self._CONFIG_SECTION, "config_file"):
-            conffile = self._chain_target(
-                cp.get(self._CONFIG_SECTION, "config_file"),
+        for key in self._active_chain_keys(cp):
+            _, target = self._read_chain_option(
+                cp,
+                key,
                 variable_pool,
-                expand_home=os.name == "posix",
                 start_dir=self._start_dir,
                 local_only=self._local_only,
             )
-            if conffile and Path(conffile).is_file():
-                # Silently ignore a non-existent file, for cross-OS compatibility.
-                chained.append(conffile)
-        # OS-specific additional config files.
-        _os_config_key: str | None = None
-        if sys.platform == "linux" and cp.has_option(self._CONFIG_SECTION, "linux_config_file"):
-            _os_config_key = "linux_config_file"
-        elif sys.platform == "darwin" and cp.has_option(self._CONFIG_SECTION, "macos_config_file"):
-            _os_config_key = "macos_config_file"
-        elif os.name == "nt" and cp.has_option(self._CONFIG_SECTION, "win_config_file"):
-            _os_config_key = "win_config_file"
-        if _os_config_key:
-            conffile = self._chain_target(
-                cp.get(self._CONFIG_SECTION, _os_config_key),
-                variable_pool,
-                expand_home=True,
-                start_dir=self._start_dir,
-                local_only=self._local_only,
-            )
-            if conffile and Path(conffile).is_file():
-                chained.append(conffile)
+            if target and Path(target).is_file():
+                chained.append(target)
         # dao_flush_delay_secs has a specific error message — keep inline
         if cp.has_option(self._CONFIG_SECTION, "dao_flush_delay_secs"):
             self.dao_flush_delay_secs = cp.getfloat(self._CONFIG_SECTION, "dao_flush_delay_secs")

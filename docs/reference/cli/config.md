@@ -59,8 +59,9 @@ Found 4 problems in 1 file: 1 error, 3 warnings (2 config files checked)
 | `error`   | An invalid value; a missing `[include_required]` file; a file that cannot be parsed (no section header, a key set twice, a bare `%`). A run fails on these.    |
 | `warning` | An unknown section or key, with the likely intended name; a key in the wrong section; a `config_file` that names a missing file. A run ignores these silently. |
 
-Values are checked by the same code a run uses, so `--validate` and a run
-never disagree about a value. It exits `1` when any error is found; warnings
-alone exit `0`. With `--output-format json` it prints
+Validation resolves [config links](../configuration.md#config_config) with
+the same platform and variable rules as a run. It checks Python database
+codecs against the backend selected by the merged config files.
+It exits `1` on errors and `0` on warnings alone. With `--output-format json` it prints
 `{"files_checked": [...], "problems": [...]}`, each problem with `file`,
 `line`, `severity` and `message`.

@@ -401,7 +401,7 @@ There is no forced-exit deadline: a blocked database/driver call must return bef
 ## Section `config` { #config_config }
 
 `config_file`
-:   The full name or path to an additional configuration file to be read. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. This setting may include [substitution variables](substitution_vars.md#substitution_vars); at the time that configuration files are read, however, only environment variables and system variables related to the script name and path are defined.
+:   The full name or path to an additional configuration file to be read. If only a path is specified, the name of the configuration file should be `execsql.conf`. The configuration file specified will be read immediately following the configuration file in which it is named. No configuration file will be read more than once. If the name or path are invalid, this setting will be silently ignored. Paths can use [substitution variables](substitution_vars.md#substitution_vars) available at startup or defined by earlier config files. execsql resolves all links in a file before applying that file's `[variables]` section.
 
 `dao_flush_delay_secs` { #dao_delay }
 :   The number of seconds that *execsql* should wait between the time that a query is created in Access (which uses DAO) and the time that the next statement is executed using ODBC. This value must be greater than or equal to 5.0. The default is `5.0`.

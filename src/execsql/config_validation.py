@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import configparser
 import difflib
-import os
 import re
 import sys
 import warnings
@@ -38,14 +37,6 @@ _FREE_SECTIONS = frozenset({"variables", "include_required", "include_optional",
 
 _DATABASE_TYPE = (ConfigData._CONNECT_SECTION, "db_type")
 _DATABASE_ENCODING = (ConfigData._ENCODING_SECTION, "database")
-
-#: Keys that chain to another config file, and the platform each applies on.
-_CHAIN_KEYS = {
-    "config_file": None,
-    "linux_config_file": "linux",
-    "macos_config_file": "darwin",
-    "win_config_file": "win32",
-}
 
 
 @dataclass(frozen=True)
@@ -78,7 +69,7 @@ def known_options() -> dict[str, set[str]]:
     known: dict[str, set[str]] = {}
     for section, key, _attr in ConfigData._option_keys:
         known.setdefault(section, set()).add(key)
-    known.setdefault(ConfigData._CONFIG_SECTION, set()).update(_CHAIN_KEYS)
+    known.setdefault(ConfigData._CONFIG_SECTION, set()).update(ConfigData._CHAIN_KEYS)
     for section in _FREE_SECTIONS - {configparser.DEFAULTSECT}:
         known[section] = set()
     return known
@@ -94,7 +85,7 @@ def _line_numbers(text: str) -> tuple[dict[str, int], dict[tuple[str, str], int]
     keys: dict[tuple[str, str], int] = {}
     current: str | None = None
     option_indent: int | None = None
-    for number, raw in enumerate(text.splitlines(), 1):
+    for number, raw in enumerate(text.split("\n"), 1):
         line = raw.strip()
         if not line or line[0] in "#;":
             continue
@@ -205,7 +196,7 @@ def _check_file(
         *((ConfigData._ENCODING_SECTION, key) for key in ConfigData._FILE_ENCODING_KEYS),
         _DATABASE_TYPE,
         _DATABASE_ENCODING,
-        *((ConfigData._CONFIG_SECTION, key) for key in _CHAIN_KEYS),
+        *((ConfigData._VARIABLES_SECTION, key) for key in cp.defaults()),
     )
     for section, key in inherited_options:
         default_line = key_lines.get((configparser.DEFAULTSECT, key))
@@ -221,7 +212,22 @@ def _check_file(
                 f"unknown section [{section}]" + (f"; did you mean [{hint}]?" if hint else "; a run ignores it"),
             )
 
-    chained: dict[str, str] = {}
+    # Resolve links with the variables from preceding files. The runtime
+    # installs this file's [variables] only after resolving its links.
+    chain_section = ConfigData._CONFIG_SECTION
+    chained: list[str] = []
+    for key in ConfigData._active_chain_keys(cp):
+        line = key_lines.get((chain_section, key), key_lines.get((configparser.DEFAULTSECT, key), 0))
+        try:
+            value, target = ConfigData._read_chain_option(cp, key, variable_pool)
+        except configparser.Error as exc:
+            problem(line, "error", describe_parse_error(exc)[1])
+            continue
+        if Path(target).is_file():
+            chained.append(target)
+        else:
+            problem(line, "warning", f"{key} = {value}: no such file; a run skips it")
+
     for (section, key), line in key_lines.items():
         if section not in known and section != configparser.DEFAULTSECT:
             continue  # reported once, as an unknown section
@@ -236,23 +242,12 @@ def _check_file(
                 )
             problem(line, "warning", message)
             continue
-        if section == configparser.DEFAULTSECT:
+        if section == configparser.DEFAULTSECT or (section == chain_section and key in ConfigData._CHAIN_KEYS):
             continue
         try:
             value = cp.get(section, key)
         except configparser.Error as exc:
             problem(line, "error", describe_parse_error(exc)[1])
-            continue
-        if section == ConfigData._CONFIG_SECTION and key in _CHAIN_KEYS:
-            platform = _CHAIN_KEYS[key]
-            if platform and not sys.platform.startswith(platform):
-                continue  # another platform's file; a run here never reads it
-            expand_home = os.name == "posix" if key == "config_file" else True
-            target = ConfigData._chain_target(value, variable_pool, expand_home=expand_home)
-            if Path(target).is_file():
-                chained[key] = target
-            else:
-                problem(line, "warning", f"{key} = {value}: no such file; a run skips it")
             continue
         failure = _check_value(section, key, value, variable_pool, current_script)
         if failure is None and section == ConfigData._LINT_SECTION:
@@ -266,9 +261,7 @@ def _check_file(
         elif (section, key) in (_DATABASE_TYPE, _DATABASE_ENCODING):
             database_settings[section, key] = path, line, value
 
-    # A run queues the general file first, then the OS-specific file,
-    # regardless of where the keys occur in the source.
-    return problems, [chained[key] for key in _CHAIN_KEYS if key in chained]
+    return problems, chained
 
 
 def validate_config(

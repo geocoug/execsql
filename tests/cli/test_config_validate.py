@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from execsql.cli import app
 from execsql.config import ConfigData
-from execsql.config_validation import known_options, validate_config
+from execsql.config_validation import _line_numbers, known_options, validate_config
 from execsql.exceptions import ConfigError
 from execsql.script.variables import SubVarSet
 
@@ -86,6 +86,61 @@ class TestFiles:
     @pytest.mark.skipif(sys.platform == "win32", reason="checks a non-Windows host")
     def test_another_platforms_chain_key_is_not_checked(self, work):
         assert _problems(work, "[config]\nwin_config_file = C:\\nowhere\\execsql.conf\n") == []
+
+    def test_unset_interpolation_in_an_inactive_inherited_link_is_ignored(self, work):
+        inactive_key = "macos_config_file" if sys.platform == "win32" else "win_config_file"
+        config = work / "execsql.conf"
+        config.write_text(f"[DEFAULT]\n{inactive_key} = %(missing)s\n[config]\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+
+        assert code == 0
+        assert data["files_checked"] == conf.files_read == [str(config)]
+        assert data["problems"] == []
+
+    def test_chain_does_not_see_its_own_file_variables(self, work):
+        config = work / "execsql.conf"
+        config.write_text(
+            "[DEFAULT]\nconfig_file = !!target!!\n[config]\n"
+            "[connect]\ndb_type = d\ndb = example\n"
+            "[encoding]\ndatabase = invalid-codec\n"
+            "[variables]\ntarget = alternate.conf\n",
+        )
+        (work / "alternate.conf").write_text("[connect]\ndb_type = l\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+        result = runner.invoke(app, ["run", "-c", "select 1;"])
+
+        assert code == result.exit_code == 1
+        assert data["files_checked"] == conf.files_read == [str(config)]
+        assert [p["line"] for p in data["problems"]] == [2, 8]
+        assert "unsupported text encoding 'invalid-codec'" in data["problems"][1]["message"]
+        assert isinstance(result.exception, ConfigError)
+        assert "unsupported text encoding 'invalid-codec'" in str(result.exception)
+
+    def test_chain_can_use_an_inherited_variable_from_an_earlier_file(self, work):
+        config = work / "execsql.conf"
+        config.write_text("[DEFAULT]\ntarget = selected.conf\n[variables]\n[config]\nconfig_file = bridge.conf\n")
+        bridge = work / "bridge.conf"
+        bridge.write_text("[config]\nconfig_file = !!target!!\n[variables]\ntarget = other.conf\n")
+        (work / "selected.conf").write_text("[connect]\ndb_type = d\n[encoding]\ndatabase = invalid-codec\n")
+        (work / "other.conf").write_text("[connect]\ndb_type = l\n")
+        conf = ConfigData(str(work), SubVarSet())
+
+        code, data = _validate()
+
+        assert code == 1
+        assert data["files_checked"] == conf.files_read == [str(config), "bridge.conf", "selected.conf"]
+        (problem,) = data["problems"]
+        assert problem["file"] == "selected.conf"
+        assert problem["line"] == 4
+
+    def test_line_numbers_ignore_unicode_separator_inside_a_value(self):
+        text = "[variables]\n  message = first\u2028  output = second\n  other = value\n"
+
+        assert _line_numbers(text) == ({"variables": 1}, {("variables", "message"): 2, ("variables", "other"): 3})
 
 
 class TestUnknownNames:
