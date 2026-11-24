@@ -19,7 +19,15 @@ If a UTF byte order mark (BOM) is found at the start of the script file or at th
 
 There is no default encoding for a DSN connection because the actual data source used is unknown, and because some ODBC drivers may return results in Unicode. If no encoding is specified, the ODBC driver must return result in Unicode or some compatible format (e.g., ASCII).
 
-Use `execsql list encodings` to see the standard-library text codecs and aliases available in the installed Python. Add `--output-format json` for a JSON array. Invalid script, import and output codec names in command-line options or configuration files stop the run before any script statements execute. Database encoding names depend on the backend. For example, MySQL and MariaDB accept `utf8mb4` as a connection charset.
+Use `execsql list encodings` to see the standard-library codecs and aliases
+available for text files in the installed Python. Add `--output-format json`
+for a JSON array. Invalid script, import and output codec names stop the run
+before it executes SQL. To check the settings inherited by a script from
+config files, run `execsql config --validate load.sql` with the script's path.
+
+For Access, SQL Server, Oracle and ODBC DSNs, an explicitly set database
+encoding must be a valid Python codec. MySQL and MariaDB use connection
+charsets such as `utf8mb4`. PostgreSQL and Firebird use backend encoding names.
 
 For Excel to recognize UTF-8 when it opens an exported CSV directly, use `--output-encoding utf-8-sig` or set `output = utf-8-sig` under `[encoding]` in `execsql.conf`. Use a fresh output path to ensure the CSV starts with a UTF-8 BOM. An existing file can affect the output encoding.
 
