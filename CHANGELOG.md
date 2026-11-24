@@ -11,6 +11,10 @@ ______________________________________________________________________
 
 ## [Unreleased]
 
+______________________________________________________________________
+
+## [2.44.0] - 2026-11-24
+
 ### Added
 
 - List metacommand categories with `execsql list keywords --categories` or browse one with `--category NAME`.
